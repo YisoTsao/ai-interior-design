@@ -2,7 +2,7 @@
 import Konva from 'konva';
 import { Application, Container, Graphics, Text } from 'pixi.js';
 
-const N = 500;
+const N = Number(new URLSearchParams(location.search).get('n') ?? 500);
 const W = 1280;
 const H = 800;
 type Item = { x: number; y: number; w: number; h: number; kind: 'wall' | 'obj' | 'label' };

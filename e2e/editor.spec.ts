@@ -66,7 +66,7 @@ test('建牆→放門→放家具→Undo/Redo→存檔→重載一致', async ({
   expect((await level(page)).scene).toEqual(before);
 });
 
-test('拖曳牆角連動相鄰牆；標註雙擊輸入長度', async ({ page }) => {
+test('拖曳牆角連動相鄰牆；屬性面板改牆長並保持相鄰牆角度', async ({ page }) => {
   await newBlankProject(page);
   await page.getByTestId('tool-rect').click();
   const [x0, y0] = await worldToClient(page, [0, 0]);
@@ -104,7 +104,7 @@ test('拖曳牆角連動相鄰牆；標註雙擊輸入長度', async ({ page }) 
     .toBe(true);
 });
 
-test('3D 檢視可載入並與 2D 選取同步；切換專案後資源釋放', async ({ page }) => {
+test('3D 檢視可載入並與 2D 選取同步；回到 2D 後 viewer 卸載', async ({ page }) => {
   await newBlankProject(page);
   await page.getByTestId('tool-rect').click();
   const [x0, y0] = await worldToClient(page, [0, 0]);

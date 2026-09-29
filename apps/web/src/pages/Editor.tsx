@@ -220,11 +220,9 @@ function TopBar({
   const { lengthUnit, areaUnit, setLength, setArea } = usePrefs();
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2">
-      <IconButton label={t('top.back')}>
-        <Link to="/" aria-label={t('top.back')}>
-          <ArrowLeft size={18} aria-hidden />
-        </Link>
-      </IconButton>
+      <Link to="/" className="icon-btn" aria-label={t('top.back')} title={t('top.back')}>
+        <ArrowLeft size={18} aria-hidden />
+      </Link>
       <input
         className="field w-56 font-sans"
         aria-label={t('top.name')}
