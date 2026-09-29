@@ -1,0 +1,28 @@
+{
+  "name": "@interiorai/catalog-tools",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "interiorai-catalog": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "catalog": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@interiorai/catalog": "workspace:^",
+    "gltf-validator": "2.0.0-dev.3.10"
+  }
+}

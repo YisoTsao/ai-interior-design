@@ -1,0 +1,246 @@
+import * as THREE from 'three';
+import { detectRooms, wallLength, wallQuad, type Vec2 } from '@interiorai/core-geometry';
+import type { Level, Wall } from '@interiorai/scene-schema';
+
+/** 牆面群組：A＝沿 a→b 方向的左側面、B＝右側面、CAP＝頂面（剖面色）。開口側邊(reveal)與端面歸 A。 */
+export const GROUP_A = 0;
+export const GROUP_B = 1;
+export const GROUP_CAP = 2;
+
+type V3 = [number, number, number];
+
+/** 以三角形累積幾何並依群組輸出 */
+class Builder {
+  private pos: number[][] = [[], [], []];
+  private nor: number[][] = [[], [], []];
+  private uv: number[][] = [[], [], []];
+
+  /** 平面四邊形；自動調整繞序使其法線朝 normal */
+  quad(p: [V3, V3, V3, V3], normal: V3, uvs: [number, number][], group: number) {
+    const e1 = sub3(p[1], p[0]);
+    const e2 = sub3(p[2], p[0]);
+    const c = cross3(e1, e2);
+    const flip = c[0] * normal[0] + c[1] * normal[1] + c[2] * normal[2] < 0;
+    const order = flip ? [0, 3, 2, 1] : [0, 1, 2, 3];
+    const tri = [order[0]!, order[1]!, order[2]!, order[0]!, order[2]!, order[3]!];
+    for (const i of tri) {
+      this.pos[group]!.push(...p[i]!);
+      this.nor[group]!.push(...normal);
+      this.uv[group]!.push(...uvs[i]!);
+    }
+  }
+  polygon(pts: V3[], normal: V3, uvs: [number, number][], group: number) {
+    // 凸多邊形扇形三角化（牆頂為凸四邊形）
+    for (let i = 1; i + 1 < pts.length; i++) {
+      const tri: [V3, V3, V3] = [pts[0]!, pts[i]!, pts[i + 1]!];
+      const c = cross3(sub3(tri[1], tri[0]), sub3(tri[2], tri[0]));
+      const flip = c[0] * normal[0] + c[1] * normal[1] + c[2] * normal[2] < 0;
+      const idx = flip ? [0, i + 1, i] : [0, i, i + 1];
+      for (const k of idx) {
+        this.pos[group]!.push(...pts[k]!);
+        this.nor[group]!.push(...normal);
+        this.uv[group]!.push(...uvs[k]!);
+      }
+    }
+  }
+  build(): THREE.BufferGeometry {
+    const g = new THREE.BufferGeometry();
+    const all = (arr: number[][]) => new Float32Array(arr.flat());
+    g.setAttribute('position', new THREE.BufferAttribute(all(this.pos), 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(all(this.nor), 3));
+    g.setAttribute('uv', new THREE.BufferAttribute(all(this.uv), 2));
+    let start = 0;
+    this.pos.forEach((p, gi) => {
+      const n = p.length / 3;
+      g.addGroup(start, n, gi);
+      start += n;
+    });
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+    return g;
+  }
+}
+const sub3 = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross3 = (a: V3, b: V3): V3 => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];
+
+/**
+ * 單面牆的 3D 幾何（ADR-016）：平面輪廓由 core-geometry 的 wallQuad 提供（B3.1：viewer 不自行拼牆），
+ * 矩形開口以解析方式切成四邊形（側面分帶＋開口內側面），不使用 CSG，時間 O(開口數)。
+ */
+export function buildWallGeometry(level: Level, w: Wall): THREE.BufferGeometry {
+  const H = level.height;
+  const L = wallLength(w) || 1;
+  const a = w.a as Vec2;
+  const d: Vec2 = [(w.b[0] - a[0]) / L, (w.b[1] - a[1]) / L];
+  const n: Vec2 = [-d[1], d[0]];
+  const h = w.thickness / 2;
+  const world = (u: number, v: number, y: number): V3 => [
+    a[0] + d[0] * u + n[0] * v,
+    y,
+    a[1] + d[1] * u + n[1] * v,
+  ];
+  const local = (p: Vec2) => (p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1];
+  const [aMinus, bMinus, bPlus, aPlus] = wallQuad(level.walls, w);
+  const uAm = local(aMinus!);
+  const uBm = local(bMinus!);
+  const uBp = local(bPlus!);
+  const uAp = local(aPlus!);
+
+  const ops = level.openings
+    .filter((o) => o.wallId === w.id)
+    .map((o) => ({
+      u0: o.offset,
+      u1: o.offset + o.width,
+      y0: o.sill ?? 0,
+      y1: Math.min(H, (o.sill ?? 0) + o.height),
+    }))
+    .sort((x, y) => x.u0 - y.u0);
+
+  const b = new Builder();
+  const nA: V3 = [n[0], 0, n[1]];
+  const nB: V3 = [-n[0], 0, -n[1]];
+
+  // 側面：依開口邊界分帶
+  const side = (v: number, uStart: number, uEnd: number, normal: V3, group: number) => {
+    const cuts = new Set<number>([uStart, uEnd]);
+    for (const o of ops) {
+      if (o.u0 > uStart && o.u0 < uEnd) cuts.add(o.u0);
+      if (o.u1 > uStart && o.u1 < uEnd) cuts.add(o.u1);
+    }
+    const xs = [...cuts].sort((x, y) => x - y);
+    for (let i = 1; i < xs.length; i++) {
+      const u0 = xs[i - 1]!;
+      const u1 = xs[i]!;
+      if (u1 - u0 < 1e-6) continue;
+      const mid = (u0 + u1) / 2;
+      const o = ops.find((x) => mid > x.u0 && mid < x.u1);
+      const spans: [number, number][] = o
+        ? [
+            [0, o.y0],
+            [o.y1, H],
+          ]
+        : [[0, H]];
+      for (const [y0, y1] of spans) {
+        if (y1 - y0 < 1e-6) continue;
+        b.quad(
+          [world(u0, v, y0), world(u1, v, y0), world(u1, v, y1), world(u0, v, y1)],
+          normal,
+          [
+            [u0, y0],
+            [u1, y0],
+            [u1, y1],
+            [u0, y1],
+          ],
+          group,
+        );
+      }
+    }
+  };
+  side(h, uAp, uBp, nA, GROUP_A);
+  side(-h, uAm, uBm, nB, GROUP_B);
+
+  // 頂面（剖面）
+  const top: V3[] = [aMinus!, bMinus!, bPlus!, aPlus!].map((p) => [p[0], H, p[1]]);
+  b.polygon(
+    top,
+    [0, 1, 0],
+    top.map((p) => [p[0], p[2]]),
+    GROUP_CAP,
+  );
+
+  // 端面（自由端可見；接合端被相鄰牆遮住）
+  const endFace = (p0: Vec2, p1: Vec2, outward: Vec2) => {
+    const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+    if (len < 1e-6) return;
+    let nx = -(p1[1] - p0[1]) / len;
+    let nz = (p1[0] - p0[0]) / len;
+    if (nx * outward[0] + nz * outward[1] < 0) {
+      nx = -nx;
+      nz = -nz;
+    }
+    b.quad(
+      [
+        [p0[0], 0, p0[1]],
+        [p1[0], 0, p1[1]],
+        [p1[0], H, p1[1]],
+        [p0[0], H, p0[1]],
+      ],
+      [nx, 0, nz],
+      [
+        [0, 0],
+        [len, 0],
+        [len, H],
+        [0, H],
+      ],
+      GROUP_A,
+    );
+  };
+  endFace(aMinus!, aPlus!, [-d[0], -d[1]]);
+  endFace(bMinus!, bPlus!, d);
+
+  // 開口內側面（門窗框洞）
+  for (const o of ops) {
+    const jamb = (u: number, dir: 1 | -1) =>
+      b.quad(
+        [world(u, -h, o.y0), world(u, h, o.y0), world(u, h, o.y1), world(u, -h, o.y1)],
+        [d[0] * dir, 0, d[1] * dir],
+        [
+          [0, o.y0],
+          [w.thickness, o.y0],
+          [w.thickness, o.y1],
+          [0, o.y1],
+        ],
+        GROUP_A,
+      );
+    jamb(o.u0, 1);
+    jamb(o.u1, -1);
+    if (o.y1 < H)
+      b.quad(
+        [world(o.u0, -h, o.y1), world(o.u1, -h, o.y1), world(o.u1, h, o.y1), world(o.u0, h, o.y1)],
+        [0, -1, 0],
+        [
+          [o.u0, 0],
+          [o.u1, 0],
+          [o.u1, w.thickness],
+          [o.u0, w.thickness],
+        ],
+        GROUP_A,
+      );
+    if (o.y0 > 0)
+      b.quad(
+        [world(o.u0, -h, o.y0), world(o.u1, -h, o.y0), world(o.u1, h, o.y0), world(o.u0, h, o.y0)],
+        [0, 1, 0],
+        [
+          [o.u0, 0],
+          [o.u1, 0],
+          [o.u1, w.thickness],
+          [o.u0, w.thickness],
+        ],
+        GROUP_A,
+      );
+  }
+  return b.build();
+}
+
+/** 地板/天花：房間淨地板多邊形；UV＝平面 mm 座標（貼圖 repeat 依真實尺寸） */
+export function buildRoomSurfaces(
+  level: Level,
+): { key: string; roomId?: string; floor: THREE.BufferGeometry; ceiling: THREE.BufferGeometry }[] {
+  const byKey = new Map(level.rooms.map((r) => [[...r.wallIds].sort().join('|'), r]));
+  return detectRooms(level)
+    .rooms.filter((d) => d.floor.length >= 3)
+    .map((d) => {
+      const floorShape = new THREE.Shape(d.floor.map(([x, z]) => new THREE.Vector2(x, -z)));
+      const floor = new THREE.ShapeGeometry(floorShape);
+      floor.rotateX(-Math.PI / 2); // (x, −z) → (x, 0, z)，法線朝上
+      const ceilShape = new THREE.Shape(d.floor.map(([x, z]) => new THREE.Vector2(x, z)));
+      const ceiling = new THREE.ShapeGeometry(ceilShape);
+      ceiling.rotateX(Math.PI / 2); // 法線朝下
+      ceiling.translate(0, level.height, 0);
+      return { key: d.key, roomId: byKey.get(d.key)?.id, floor, ceiling };
+    });
+}

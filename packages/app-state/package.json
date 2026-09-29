@@ -1,0 +1,36 @@
+{
+  "name": "@interiorai/app-state",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./scene.schema.json": "./scene.schema.json"
+  },
+  "files": [
+    "dist",
+    "scene.schema.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@interiorai/catalog": "workspace:^",
+    "@interiorai/core-geometry": "workspace:^",
+    "@interiorai/scene-schema": "workspace:^",
+    "idb-keyval": "^6.3.0",
+    "immer": "^11.1.18",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5"
+  }
+}

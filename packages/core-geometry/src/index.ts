@@ -5,3 +5,4 @@ export * from './rooms.js';
 export * from './snap.js';
 export * from './edit.js';
 export * from './bom.js';
+export * from './collision.js';

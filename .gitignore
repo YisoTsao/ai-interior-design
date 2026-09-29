@@ -11,3 +11,6 @@ coverage
 test-results
 playwright-report
 coverage
+e2e/results
+tools/bench-2d/results.json
+catalog/ingested
