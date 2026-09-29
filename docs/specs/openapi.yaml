@@ -1,0 +1,105 @@
+openapi: 3.1.0
+info: { title: InteriorAI API, version: 1.0.0, description: '權威契約檔（ADR-015）；同鍵不同內容的 Idempotency-Key 回 422 IDEMPOTENCY_KEY_REUSED（ADR-014）。' }
+servers: [{ url: /v1 }]
+security: [{ bearerAuth: [] }]
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 128 } }
+    Cursor: { name: cursor, in: query, schema: { type: string } }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+  schemas:
+    ErrorCode:
+      type: string
+      enum: [AUTH_REQUIRED, FORBIDDEN, NOT_FOUND, VALIDATION_FAILED, VERSION_CONFLICT, INSUFFICIENT_CREDITS,
+             RATE_LIMITED, UPLOAD_REJECTED, MODERATION_BLOCKED, JOB_FAILED, PROVIDER_UNAVAILABLE,
+             SCHEMA_UNSUPPORTED, SCENE_LIMIT_EXCEEDED, IDEMPOTENCY_KEY_REUSED, SCALE_UNKNOWN]
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties: { code: { $ref: '#/components/schemas/ErrorCode' }, message: { type: string }, details: {}, requestId: { type: string } }
+    JobState: { type: string, enum: [queued, running, validating, succeeded, failed, canceled] }
+    Job:
+      type: object
+      required: [id, type, state, progress]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, enum: [render, inpaint, plan_import, export, thumbnail, moderation] }
+        state: { $ref: '#/components/schemas/JobState' }
+        progress: { type: integer, minimum: 0, maximum: 100 }
+        costEstimateCredits: { type: integer }
+        costActualCredits: { type: integer, nullable: true }
+        errorCode: { type: string, nullable: true }
+        output: { type: object, nullable: true }
+    Project:
+      type: object
+      required: [id, name, updatedAt]
+      properties: { id: { type: string, format: uuid }, name: { type: string }, thumbnailUrl: { type: string, nullable: true }, currentVersionId: { type: string, format: uuid, nullable: true }, updatedAt: { type: string, format: date-time } }
+    Scene: { $ref: 'scene.schema.json' }
+    RenderRequest:
+      type: object
+      required: [projectId, versionId, camera, gbufferUploadIds, settings]
+      properties:
+        projectId: { type: string, format: uuid }
+        versionId: { type: string, format: uuid }
+        camera: { type: object }
+        gbufferUploadIds: { type: object, required: [color, depth, edge, objectId], properties: { color: { type: string }, depth: { type: string }, edge: { type: string }, objectId: { type: string }, normal: { type: string } } }
+        settings:
+          type: object
+          required: [styleTemplateId, strictness, resolution]
+          properties:
+            styleTemplateId: { type: string }
+            extra: { type: string, maxLength: 300 }
+            strictness: { type: string, enum: [free, balanced, strict] }
+            resolution: { type: string, enum: ['1k', '2k', '4k'] }
+            referenceUploadIds: { type: array, items: { type: string } }
+  responses:
+    Err: { description: Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+paths:
+  /auth/login: { post: { security: [], summary: 登入, responses: { '200': { description: ok } } } }
+  /auth/refresh: { post: { security: [], summary: 換發 token, responses: { '200': { description: ok } } } }
+  /me: { get: { summary: 目前使用者, responses: { '200': { description: ok } } }, delete: { summary: 刪除帳號與衍生資料, responses: { '202': { description: accepted } } } }
+  /projects:
+    get: { summary: 專案列表, parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }], responses: { '200': { description: ok } } }
+    post: { summary: 建立專案, responses: { '201': { description: created } } }
+  /projects/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get: { summary: 取得專案, responses: { '200': { description: ok } } }
+    patch: { summary: 更新專案中繼資料, responses: { '200': { description: ok } } }
+    delete: { summary: 刪除專案, responses: { '204': { description: deleted } } }
+  /projects/{id}/versions:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get: { summary: 版本列表, responses: { '200': { description: ok } } }
+    post:
+      summary: 儲存新版本（樂觀鎖）
+      requestBody: { content: { application/json: { schema: { type: object, required: [baseVersionId, scene], properties: { baseVersionId: { type: string, format: uuid, nullable: true }, scene: { $ref: '#/components/schemas/Scene' }, note: { type: string } } } } } }
+      responses: { '201': { description: created }, '409': { $ref: '#/components/responses/Err' } }
+  /projects/{id}/restore/{versionId}: { post: { summary: 還原版本, responses: { '200': { description: ok } } } }
+  /uploads: { post: { summary: 建立上傳（回預簽名 URL；型別/大小不符回 422 UPLOAD_REJECTED，DWG 預設拒絕）, responses: { '201': { description: created }, '422': { $ref: '#/components/responses/Err' } } } }
+  /uploads/{id}/complete: { post: { summary: 完成上傳並檢查, responses: { '200': { description: ok } } } }
+  /plan-imports:
+    post: { summary: 建立平面圖辨識任務, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } }
+  /plan-imports/{id}: { get: { summary: 取得辨識結果（Scene 草稿+信心度）, responses: { '200': { description: ok } } } }
+  /assets: { get: { summary: 資產搜尋, responses: { '200': { description: ok } } }, post: { summary: 使用者上傳資產（進審核）, responses: { '202': { description: accepted } } } }
+  /assets/{id}: { get: { summary: 資產詳情, responses: { '200': { description: ok } } } }
+  /renders:
+    post:
+      summary: 建立渲染任務（預扣點數）
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RenderRequest' } } } }
+      responses: { '202': { description: accepted, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }, '402': { $ref: '#/components/responses/Err' }, '422': { $ref: '#/components/responses/Err' }, '429': { $ref: '#/components/responses/Err' } }
+  /renders/{id}: { get: { summary: 取得渲染結果, responses: { '200': { description: ok } } } }
+  /renders/{id}/cancel: { post: { summary: 取消, responses: { '200': { description: ok } } } }
+  /renders/{id}/inpaint: { post: { summary: 局部重繪, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } } }
+  /jobs/{id}: { get: { summary: 任務狀態, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } } } } }
+  /jobs/{id}/events: { get: { summary: SSE 進度串流, responses: { '200': { description: text/event-stream } } } }
+  /assistant/chat: { post: { summary: 助理（只回結構化提案，不改資料）, responses: { '200': { description: ok } } } }
+  /credits: { get: { summary: 餘額, responses: { '200': { description: ok } } } }
+  /credits/ledger: { get: { summary: 帳本, responses: { '200': { description: ok } } } }
+  /credits/checkout: { post: { summary: 建立結帳, responses: { '200': { description: ok } } } }
+  /webhooks/payments: { post: { security: [], summary: 金流 webhook（驗簽）, responses: { '200': { description: ok } } } }
+  /projects/{id}/shares: { post: { summary: 建立分享連結, responses: { '201': { description: created } } } }
+  /shares/{id}: { delete: { summary: 撤銷, responses: { '204': { description: revoked } } } }
+  /projects/{id}/exports: { post: { summary: 匯出（png/jpg/pdf/dxf/glb/csv）, responses: { '202': { description: accepted } } } }
+  /me/export: { post: { summary: 匯出個人資料, responses: { '202': { description: accepted } } } }

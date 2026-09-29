@@ -1,0 +1,16 @@
+{
+  "name": "interiorai",
+  "private": true,
+  "packageManager": "pnpm@9",
+  "scripts": {
+    "lint": "echo 'TODO(P1): eslint' && exit 1",
+    "typecheck": "echo 'TODO(P1): tsc -b' && exit 1",
+    "test": "echo 'TODO(P1): vitest' && exit 1",
+    "build": "echo 'TODO(P1): turbo build' && exit 1",
+    "test:e2e": "echo 'TODO(P2): playwright (e2e/)' && exit 1",
+    "test:integration": "echo 'TODO(P3): testcontainers' && exit 1",
+    "test:contract": "echo 'TODO(P3): openapi contract' && exit 1",
+    "size": "echo 'TODO(P7): bundle size budget' && exit 1",
+    "licenses:check": "echo 'TODO(P2): license scan' && exit 1"
+  }
+}

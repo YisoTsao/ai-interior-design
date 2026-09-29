@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://interiorai.local/schemas/scene-1.0.0.json",
+  "title": "Scene Graph v1.0.0",
+  "description": "唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "units",
+    "levels"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.\\d+\\.\\d+$"
+    },
+    "units": {
+      "const": "mm"
+    },
+    "levels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/level"
+      }
+    },
+    "cameras": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/camera"
+      },
+      "description": "命名視角書籤；視埠相機為 UI 暫態，不入 Scene（ADR-001）",
+      "maxItems": 100
+    },
+    "meta": {
+      "$ref": "#/$defs/meta"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_\\-]+$",
+      "description": "程式產生用『前綴_ULID』；可讀 ID（如 w_01）僅限 fixtures（ADR-013）"
+    },
+    "mm": {
+      "type": "integer",
+      "minimum": -1000000,
+      "maximum": 1000000
+    },
+    "vec2": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": -1000000,
+        "maximum": 1000000
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": -1000000,
+        "maximum": 1000000
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "level": {
+      "type": "object",
+      "required": [
+        "id",
+        "elevation",
+        "height",
+        "walls",
+        "openings",
+        "rooms",
+        "objects"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "elevation": {
+          "$ref": "#/$defs/mm"
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1800,
+          "maximum": 6000
+        },
+        "walls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wall"
+          },
+          "maxItems": 5000
+        },
+        "openings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/opening"
+          },
+          "maxItems": 10000
+        },
+        "rooms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/room"
+          },
+          "maxItems": 1000
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/object"
+          },
+          "maxItems": 5000
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/annotation"
+          }
+        }
+      }
+    },
+    "wall": {
+      "type": "object",
+      "required": [
+        "id",
+        "a",
+        "b",
+        "thickness"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "a": {
+          "$ref": "#/$defs/vec2"
+        },
+        "b": {
+          "$ref": "#/$defs/vec2"
+        },
+        "thickness": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 600
+        },
+        "type": {
+          "enum": [
+            "structural",
+            "exterior",
+            "partition",
+            "curtain"
+          ]
+        },
+        "materialId": {
+          "$ref": "#/$defs/id"
+        },
+        "materialIdB": {
+          "$ref": "#/$defs/id"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "opening": {
+      "type": "object",
+      "required": [
+        "id",
+        "wallId",
+        "type",
+        "offset",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "wallId": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "door",
+            "window",
+            "passage"
+          ]
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "從牆 a 端沿牆到開口起點的距離"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 200
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 200
+        },
+        "sill": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "swing": {
+          "enum": [
+            "left",
+            "right",
+            "double",
+            "sliding",
+            "none"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "room": {
+      "type": "object",
+      "required": [
+        "id",
+        "wallIds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "label": {
+          "type": "string"
+        },
+        "wallIds": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "floorMaterialId": {
+          "$ref": "#/$defs/id"
+        },
+        "ceilingMaterialId": {
+          "$ref": "#/$defs/id"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "object": {
+      "type": "object",
+      "required": [
+        "id",
+        "catalogId",
+        "position",
+        "rotationY"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "catalogId": {
+          "$ref": "#/$defs/id"
+        },
+        "position": {
+          "$ref": "#/$defs/vec3",
+          "description": "[x, y, z] mm；y 為離地高度"
+        },
+        "rotationY": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "params": {
+          "type": "object",
+          "description": "參數化模組的參數"
+        },
+        "materialOverrides": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "locked": {
+          "type": "boolean"
+        },
+        "roomId": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "enum": [
+            "dimension",
+            "text",
+            "note"
+          ]
+        },
+        "data": {
+          "type": "object"
+        }
+      }
+    },
+    "camera": {
+      "type": "object",
+      "required": [
+        "id",
+        "position",
+        "target",
+        "fovDeg"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/vec3"
+        },
+        "target": {
+          "$ref": "#/$defs/vec3"
+        },
+        "fovDeg": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 120
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "createdBy": {
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "manual",
+            "import-vector",
+            "import-raster",
+            "template"
+          ]
+        },
+        "scale": {
+          "type": "object",
+          "properties": {
+            "method": {
+              "enum": [
+                "dimension_ocr",
+                "user",
+                "dxf_units",
+                "unknown"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

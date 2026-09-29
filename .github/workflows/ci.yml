@@ -1,0 +1,64 @@
+# 複製到 .github/workflows/ci.yml（bootstrap 會自動複製）
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: interiorai
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgres://app:app@localhost:5432/interiorai
+      REDIS_URL: redis://localhost:6379
+      AI_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test            # 單元（含 core-geometry property tests）
+      - run: pnpm build
+      - run: pnpm test:integration
+      - run: pnpm test:contract   # OpenAPI 與實作一致
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e        # 使用 mock AI
+      - run: pnpm size            # bundle 大小預算
+      - run: pnpm licenses:check  # 依賴與資產授權掃描
+      - run: pnpm audit --prod
+      - run: python3 tools/check_models.py services/api/models.yaml   # 未驗證只提示；超過 30 天未核對會失敗
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/cv-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest -q

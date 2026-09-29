@@ -1,0 +1,30 @@
+# AI 模型註冊表（專案內位置：services/api/models.yaml；部署可用環境變數 MODELS_CONFIG 覆寫）。名稱與價格會變動：實作/部署前 MUST 以各供應商官方文件核對，勿信此檔的預設值。
+# verified_at 留空代表尚未核對；`python tools/check_models.py services/api/models.yaml` 對超過 30 天者警告（--strict 時失敗）。
+providers:
+  openai:
+    image:
+      render_edit: { model: "gpt-image-2", endpoint: "/v1/images/edits", max_refs: 16, mask: true, verified_at: null, note: "遮罩需 PNG<4MB 且同尺寸，僅作用於第一張；以官方模型頁核對最新變體" }
+    chat: { model: "TODO-verify", verified_at: null }
+    vision: { model: "TODO-verify", verified_at: null }
+  flux:
+    depth_control: { model: "flux-depth (BFL/Replicate/fal)", verified_at: null }
+    canny_control: { model: "flux-canny", verified_at: null }
+    fill: { model: "flux-fill", verified_at: null }
+    edit: { model: "flux-kontext / flux-2 edit", verified_at: null }
+  mock:
+    image: { model: "mock-deterministic", modes: ["ok", "break_structure", "slow", "fail"] }
+routing:
+  balanced: { primary: "openai.image.render_edit", fallback: ["flux.depth_control"] }
+  strict:   { primary: "flux.depth_control", fallback: [] }
+  free:     { primary: "openai.image.render_edit", fallback: ["flux.depth_control"] }
+  inpaint:  { primary: "openai.image.render_edit", fallback: ["flux.fill"] }
+budgets: { max_usd_per_job: 1.00, max_usd_per_org_per_day: 50 }
+# 結構驗證（ADR-012）。門檻以「使用者選擇的嚴格度」為準，整個 Job 固定；降級只換路線不換門檻。
+# calibrated=false：尚未用真實供應商與評測集校準；mock 通過不代表門檻有效。
+structure_validation:
+  recall_threshold: { free: 0.65, balanced: 0.80, strict: 0.90 }
+  tolerance_ratio_of_short_side: 0.012
+  calibrated: false
+retries: { provider_call_max: 2, validation_max: 2 }
+# 點數價目：無定價資料前只放佔位，標〔假設〕；成本目標 ≤ 40% 售價。
+pricing_credits: { note: "〔假設〕待商業定價", draft_1k: 1, final_2k: 3, final_4k: 8, inpaint: 1 }
