@@ -370,7 +370,9 @@ LLM **不直接改場景**，只輸出**結構化指令**，由前端驗證後�
 | 內部單位 | **公釐（mm）整數**存放長度；面積用 mm²，UI 顯示可轉換為 m²/坪（1 坪 ≈ 3.3058 m²） |
 | 座標系 | Three.js 右手系、**Y 軸向上**；2D 平面圖使用 (x, z) 平面，原點為專案原點 |
 | 角度 | 內部使用弧度；UI 顯示度數 |
-| ID | 所有實體使用 ULID/UUID；MUST NOT 使用陣列索引當 ID |
+| ID | 程式產生的 ID 用「前綴_ULID」（或 UUID）；schema 只驗證格式 `^[A-Za-z0-9_-]{3,64}$`；可讀 ID（如 `w_01`）僅限 fixtures；MUST NOT 使用陣列索引當 ID（ADR-013） |
+| 整數與捨入 | 位置/長度整數 mm，座標範圍 ±1,000,000；`rotationY`、`scale` 為浮點；Clipper2 內部 ×1000 運算，輸出以 Math.round（0.5 往 +∞，平移不變）回 mm（ADR-013） |
+| 相機 | 視埠相機為 UI 暫態；Scene 內 `cameras[]` 只是命名視角書籤（ADR-001） |
 | Schema 版本 | `scene.json` 必含 `schemaVersion`；變更必須附 migration 並有測試 |
 | 驗證 | 讀入與寫出都必須通過 Zod/JSON Schema 驗證 |
 | 時間 | 一律 UTC ISO-8601 |
@@ -402,6 +404,7 @@ LLM **不直接改場景**，只輸出**結構化指令**，由前端驗證後�
 7. 家具放置：預設貼地（y=0 或指定高度）；穿牆/重疊時顯示警示（不強制阻止，除非設定為嚴格模式）。
 8. 預設參數（可由使用者/地區設定覆寫，〔假設〕需與設計師確認）：天花高 2800 mm；隔間牆厚 100 mm；外牆/結構牆厚 200 mm；門寬 900 mm、高 2100 mm。
 9. 所有幾何函式 MUST 為純函式並有單元測試；含邊界案例（極短牆、共線、近乎平行、自交）。
+10. 邊界（ADR-013）：牆長 <100 mm 無效；牆厚 ≥ 牆長拒絕；開口不得跨牆角或重疊；`detectRooms` 對未封閉牆圖回空集合並附 `unclosedWallIds`；含洞房間 v1 不支援並警告；超過每層上限回 `SCENE_LIMIT_EXCEEDED`。
 
 ## B4. 2D 編輯器規則
 
@@ -444,7 +447,7 @@ LLM **不直接改場景**，只輸出**結構化指令**，由前端驗證後�
 1. 送出前必須產生 G-buffer（color/depth/edge/objectId），並存檔以便重現。
 2. 遮罩 MUST 由 objectId 自動產生，可略微擴張（預設 2～4 px）；GPT Image 遮罩需為 PNG、與原圖同尺寸、檔案 < 4MB，且**遮罩只作用於第一張輸入圖**（依官方文件）。
 3. 局部重繪完成後，MUST 執行「遮罩外像素還原」合成，避免遮罩外被改動。
-4. 結構驗證 MUST 在交付前執行；失敗自動重試（提高嚴格度），仍失敗則降級到嚴格路線並標註。
+4. 結構驗證 MUST 在交付前執行；失敗自動重試（提高嚴格度），仍失敗則降級到嚴格**路線**並標註；門檻以使用者選擇的嚴格度為準且不因降級提高；重試分兩層、成本有硬上限（ADR-012）。
 5. 預設先產生 1K 草圖；4K 需使用者確認。
 6. 輸出圖 SHOULD 附 AI 生成標示（中繼資料與可見浮水印依方案而定）。
 
@@ -487,6 +490,8 @@ LLM **不直接改場景**，只輸出**結構化指令**，由前端驗證後�
 
 ## B8. 效能預算（〔假設〕，以中階筆電/Chrome 為準，首版定案後以實測調整）
 
+> 量測前 MUST 在 PROGRESS 填入硬體基準（CPU/GPU/RAM/Chrome 版本）。未達標＝軟性指標：記錄並列入「未達標清單」，P8 逐項處理（ADR-011）。
+
 | 指標 | 預算 |
 |---|---|
 | 編輯 FPS | ≥ 50（200 家具、5 房間場景） |
@@ -512,15 +517,18 @@ LLM **不直接改場景**，只輸出**結構化指令**，由前端驗證後�
 
 **Monorepo 結構**
 ```
-/apps      web, desktop, admin
+/apps      web, desktop        # admin 為 v1 非目標（ADR-015）
 /packages  scene-schema, core-geometry, editor-2d, viewer-3d, ai-client, ui, catalog-tools
 /services  api (TS), cv-service (Python), worker
 /prompts   *.md（版本化）
+/e2e       Playwright
+/ai-eval    評測 harness
+/fixtures   scenes / plans / gbuffers
 /docs      architecture, licenses.md, adr/, rules.md
 ```
 - TypeScript `strict: true`；禁止 `any`（需註解例外）。
 - 套件邊界：`core-geometry` 與 `scene-schema` MUST NOT 依賴 React/Three.js/DOM。
-- 測試：core-geometry 100% 分支覆蓋為目標；Scene 讀寫/migration 有 Golden File 測試；AI 管線使用固定測試集 + 快照比對；E2E（Playwright）涵蓋「匯入→編輯→渲染→匯出」主流程。
+- 測試：core-geometry 分支覆蓋 ≥90% 為 Gate、100% 為目標（記錄實測值）；Scene 讀寫/migration 有 Golden File 測試；AI 管線使用固定測試集 + 快照比對；E2E（Playwright）涵蓋「匯入→編輯→渲染→匯出」主流程。
 - Git：Trunk-based + 短分支；Conventional Commits；PR 至少 1 人審查；重大決策寫 ADR。
 - CI 閘門：Lint、Type-check、單元/整合測試、Bundle 大小預算、效能煙霧測試、授權掃描（依賴與資產）。
 - 可觀測性：前端錯誤（Sentry 類）、後端追蹤（OpenTelemetry）、AI 任務成本與成功率儀表板。

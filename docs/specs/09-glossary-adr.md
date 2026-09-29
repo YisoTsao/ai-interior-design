@@ -37,3 +37,10 @@
 - **ADR-008 資料庫 PostgreSQL + Drizzle（SQL-first）**。
 - **ADR-009 點數帳本 append-only 與預扣結算**。
 - **ADR-010 2D 引擎選型（Konva vs Pixi）**：Phase 2 以原型比較後決定並記錄。
+- **ADR-011 Gate 判定與受阻處理**：硬性 Gate vs 軟性指標；⚠ 受阻規則。
+- **ADR-012 結構驗證門檻、重試與失敗處理**：門檻固定、兩層重試、成本上限、失敗後付費。
+- **ADR-013 Scene ID、單位、confidence 與上限**：ULID 前綴、Clipper2 縮放與捨入、cameras 書籤、幾何邊界。
+- **ADR-014 點數帳本與冪等邊界**：預扣上限、鍵語意、僵屍預扣、對帳。
+- **ADR-015 範圍與 Phase 對照**：OIDC、資產件數、多樓層、admin、檔名與路徑。
+
+以上 ADR-001~015 的內文已放在 `assets/adr/`，bootstrap 會複製到 `docs/adr/`。

@@ -41,24 +41,33 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test            # 單元（含 core-geometry property tests）
       - run: pnpm build
-      - run: pnpm test:integration
-      - run: pnpm test:contract   # OpenAPI 與實作一致
+      - run: pnpm coverage        # core-geometry 分支覆蓋 ≥90%（P1 Gate）
+      - run: pip install jsonschema && python3 tools/validate_scene.py fixtures/scenes/sample-scene.json
+      # P2 起：
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e        # 使用 mock AI
-      - run: pnpm size            # bundle 大小預算
       - run: pnpm licenses:check  # 依賴與資產授權掃描
+      # P3 起（實作後取消註解）：
+      # - run: pnpm test:integration
+      # - run: pnpm test:contract   # OpenAPI 與實作一致
+      # P7 起：
+      # - run: pnpm size            # bundle 大小預算
       - run: pnpm audit --prod
       - run: python3 tools/check_models.py services/api/models.yaml   # 未驗證只提示；超過 30 天未核對會失敗
   python:
+    # P5 建立 services/cv-service 後才會實際執行（hashFiles 只能用在 step 層級）
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: services/cv-service
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - id: has
+        run: echo "cv=$([ -f services/cv-service/requirements.txt ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+      - if: steps.has.outputs.cv == '1'
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt -r requirements-dev.txt
-      - run: ruff check .
-      - run: pytest -q
+          python-version: '3.11'
+      - if: steps.has.outputs.cv == '1'
+        working-directory: services/cv-service
+        run: |
+          pip install -r requirements.txt -r requirements-dev.txt
+          ruff check .
+          pytest -q

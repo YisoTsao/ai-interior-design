@@ -8,3 +8,6 @@ __pycache__
 .venv
 coverage
 *.bak
+test-results
+playwright-report
+coverage

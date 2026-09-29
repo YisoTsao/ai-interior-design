@@ -39,7 +39,8 @@ GET  /healthz
 
 ## 6. 部署
 - 容器化；CPU 版可服務向量與輕量點陣；GPU 版（可選）；ONNX Runtime；冷啟動時預載模型。
-- 併發：Worker 端以佇列限流；單請求逾時 60s；影像大小上限（如 25MB、長邊 8000px）；PDF 頁數上限。
+- 併發：Worker 端以佇列限流；單請求逾時 60s；影像大小上限 25MB、長邊 8000px；PDF ≤ 20 頁；DXF ≤ 50MB 且實體數 ≤ 500k（皆〔假設〕）；超限回 `UPLOAD_REJECTED`。影像先去除 EXIF（含 GPS）再存放。壓縮炸彈以解壓後大小/像素上限防護。
+- DXF `$INSUNITS` 缺失或為 0（unitless）：視為 `scale.method='unknown'`，走校正流程，不得猜測。
 - 安全：檔案在沙箱/低權限容器解析；禁止解析中觸發外部網路；DWG/PDF 解析器有資源限制（記憶體/時間）。
 
 ## 7. 校正 UI 對接

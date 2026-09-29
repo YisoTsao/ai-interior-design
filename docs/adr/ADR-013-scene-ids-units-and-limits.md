@@ -5,7 +5,7 @@
 決策：
 1. **ID**：程式產生的 ID 用「前綴_ULID」（如 `w_01J...`）；schema 只驗證格式；`w_01` 這類可讀 ID 僅限 fixtures 與測試。禁止用陣列索引。
 2. **長度與位置**：`a/b/position` 為整數 mm，座標範圍 ±1,000,000（1 km）；`position[1]` 為離地高度。`rotationY`、`scale` 為浮點。
-3. **Clipper2**：內部以 ×1000（μm）整數運算，輸出時以「四捨五入、0.5 遠離零」回 mm；輪廓頂點去重後再輸出。面積以 mm² 計算（1e6 座標上限下不超過 2^53）。
+3. **Clipper2**：內部以 ×1000（μm）整數運算，輸出時以 `Math.round`（0.5 往 +∞）回 mm；（修訂：原訂「0.5 遠離零」對整數平移不具不變性，P1 property test 發現平移後面積改變，故改）輪廓頂點去重後再輸出。面積以 mm² 計算（1e6 座標上限下不超過 2^53）。
 4. **confidence**：可存在於 Scene 元素（匯入來源）；使用者校正確認後，該元素的 `confidence` 設為 1 並將 `meta.source` 保持原值。完整的 `PlanResult`（含 scale.method、warnings）不進 Scene，只存於 `plan_imports`。
 5. **cameras[]**：命名視角書籤；視埠相機為 UI 暫態（見 ADR-001）。
 6. **上限（〔假設〕）**：每樓層 walls ≤ 5000、openings ≤ 10000、objects ≤ 5000；超過時 `validateScene` 回錯誤碼 `SCENE_LIMIT_EXCEEDED`。

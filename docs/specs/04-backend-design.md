@@ -13,21 +13,21 @@ services/api/src/
 services/worker/     # BullMQ workers：render, plan-import, moderation, thumbnails, export
 services/cv-service/ # Python FastAPI（見 06）
 ```
-契約優先：`assets/openapi.skeleton.yaml` 為權威；由它產生前端 `ai-client` 型別與後端 DTO 驗證（openapi-typescript / zod）。
+契約優先：`docs/specs/openapi.yaml` 為權威（初始內容取自 `assets/openapi.skeleton.yaml`；ADR-015）；由它產生前端 `ai-client` 型別與後端 DTO 驗證（openapi-typescript / zod）。
 
 ## 2. 認證與授權
-- OIDC（Google/Apple/Email magic link，可用 Auth0/Keycloak/Supabase Auth 之一；預設本機以簡易 email+password 與 JWT 開發，介面抽象成 `AuthProvider`）。
+- OIDC（Google/Apple/Email magic link，可用 Auth0/Keycloak/Supabase Auth 之一；預設本機以簡易 email+password 與 JWT 開發，介面抽象成 `AuthProvider`）。**P3 只交付抽象＋本機實作；OIDC 供應商整合標「未驗證」（ADR-015）。**
 - Access token（15 分）+ Refresh token（輪替、可撤銷、存 httpOnly cookie）。
-- **RBAC**：組織角色 `owner / admin / editor / viewer`；資源所有權：專案屬於工作區(org) 或個人。所有查詢帶 `org_id` 條件；PostgreSQL 建議啟用 Row Level Security 作第二道防線。
+- **RBAC**：組織角色 `owner / admin / editor / viewer`；資源所有權：專案屬於工作區(org) 或個人。所有查詢帶 `org_id` 條件；PostgreSQL 啟用 Row Level Security 作第二道防線。**連線池環境 MUST 在每個交易內 `SET LOCAL app.org_id`（不可用 session 級 SET）；應用角色不得是表擁有者/superuser（或使用 FORCE RLS）**；測試需涵蓋「未設定 org_id → 查無資料」與「跨租戶讀寫被擋」。
 - 分享連結：`shares.token`（隨機 ≥128 bit，雜湊儲存）、權限唯讀、可到期、可撤銷。
 
 ## 3. API 慣例
 - 版本 `/v1`；JSON；錯誤格式 `{ code, message, details?, requestId }`。
 - 分頁：cursor-based（`?cursor=&limit=`）；排序參數白名單。
-- **Idempotency-Key** 標頭：所有會扣點/建立任務的 POST 必須支援，儲存於 `idempotency_keys` 24 小時。
+- **Idempotency-Key** 標頭：所有會扣點/建立任務的 POST 必須支援，儲存於 `idempotency_keys` 24 小時。同 key 且 `request_hash` 相同 → 回放原回應；同 key 但內容不同 → `422 IDEMPOTENCY_KEY_REUSED`；TTL 後重送視為新請求（帳本冪等鍵綁 jobId，不受 TTL 影響，見 ADR-014）。
 - 樂觀鎖：專案儲存需帶 `baseVersionId`，不符回 409 並附最新版本資訊。
 - 限流：每使用者/每 IP（Redis token bucket）；AI 相關端點另有每日上限（依方案）。
-- 錯誤碼（節錄）：`AUTH_REQUIRED`、`FORBIDDEN`、`NOT_FOUND`、`VALIDATION_FAILED`、`VERSION_CONFLICT`、`INSUFFICIENT_CREDITS`、`RATE_LIMITED`、`UPLOAD_REJECTED`、`MODERATION_BLOCKED`、`JOB_FAILED`、`PROVIDER_UNAVAILABLE`、`SCHEMA_UNSUPPORTED`。
+- 錯誤碼（節錄）：`AUTH_REQUIRED`、`FORBIDDEN`、`NOT_FOUND`、`VALIDATION_FAILED`、`VERSION_CONFLICT`、`INSUFFICIENT_CREDITS`、`RATE_LIMITED`、`UPLOAD_REJECTED`、`MODERATION_BLOCKED`、`JOB_FAILED`、`PROVIDER_UNAVAILABLE`、`SCHEMA_UNSUPPORTED`、`SCENE_LIMIT_EXCEEDED`、`IDEMPOTENCY_KEY_REUSED`、`SCALE_UNKNOWN`（完整列舉見 OpenAPI `ErrorCode`）。
 
 ## 4. 主要端點（完整見 OpenAPI）
 | 分類 | 端點 |
@@ -49,7 +49,7 @@ services/cv-service/ # Python FastAPI（見 06）
 ## 5. 任務（Job）狀態機
 ```
 queued → running → (validating) → succeeded
-                 ↘ failed（可重試？）→ queued（retryCount<2）
+                 ↘ failed（可重試？）→ queued（retryCount<2；`retry_count` 只計「結構驗證層」重試，供應商呼叫層的退避重試不計入，見 ADR-012）
 queued|running → canceled
 ```
 - Job 欄位：`id, type, state, progress(0-100), input_ref, output_ref, cost_estimate, cost_actual, retry_count, error_code, error_message, provenance(jsonb), created_at, finished_at`。
@@ -61,6 +61,7 @@ queued|running → canceled
 - **流程**：送出任務 → `reserve`（負數，餘額不足則 `INSUFFICIENT_CREDITS`，需交易與行鎖/序列化）→ 成功 `settle`（以實際成本調整差額）→ 失敗/取消 `refund`。
 - 餘額 = 帳本加總（可快取於 `credit_balances`，但以帳本為準並有對帳工作）。
 - 禁止直接 UPDATE 餘額；測試：併發送出、重複請求（同 Idempotency-Key）、失敗退款、對帳。
+- **邊界（ADR-014）**：`reserve`＝該 Job 最大成本；`settle` 只能退回差額（實際 ≤ 預扣，不補扣）；帳本冪等鍵 `{jobId}:{reason}`，並有 `(job_id, reason)` 部分唯一索引使 reserve/settle/refund 各只發生一次；僵屍預扣（Job 未終態且超過 2×逾時）由回收工作標 failed 並 refund（冪等）；對帳容差 0，不一致即告警並停止該 org 新預扣；部分退款以 settle 差額表達；「仍要使用未通過預覽」以 `adjust` 記帳（ADR-012）。
 
 ## 7. 儲存佈局（S3 Key）
 ```

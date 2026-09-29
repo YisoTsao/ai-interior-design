@@ -4,11 +4,7 @@
   "title": "Scene Graph v1.0.0",
   "description": "唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。",
   "type": "object",
-  "required": [
-    "schemaVersion",
-    "units",
-    "levels"
-  ],
+  "required": ["schemaVersion", "units", "levels"],
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
@@ -72,15 +68,7 @@
     },
     "level": {
       "type": "object",
-      "required": [
-        "id",
-        "elevation",
-        "height",
-        "walls",
-        "openings",
-        "rooms",
-        "objects"
-      ],
+      "required": ["id", "elevation", "height", "walls", "openings", "rooms", "objects"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -135,12 +123,7 @@
     },
     "wall": {
       "type": "object",
-      "required": [
-        "id",
-        "a",
-        "b",
-        "thickness"
-      ],
+      "required": ["id", "a", "b", "thickness"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -158,12 +141,7 @@
           "maximum": 600
         },
         "type": {
-          "enum": [
-            "structural",
-            "exterior",
-            "partition",
-            "curtain"
-          ]
+          "enum": ["structural", "exterior", "partition", "curtain"]
         },
         "materialId": {
           "$ref": "#/$defs/id"
@@ -180,14 +158,7 @@
     },
     "opening": {
       "type": "object",
-      "required": [
-        "id",
-        "wallId",
-        "type",
-        "offset",
-        "width",
-        "height"
-      ],
+      "required": ["id", "wallId", "type", "offset", "width", "height"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -197,11 +168,7 @@
           "$ref": "#/$defs/id"
         },
         "type": {
-          "enum": [
-            "door",
-            "window",
-            "passage"
-          ]
+          "enum": ["door", "window", "passage"]
         },
         "offset": {
           "type": "integer",
@@ -222,13 +189,7 @@
           "default": 0
         },
         "swing": {
-          "enum": [
-            "left",
-            "right",
-            "double",
-            "sliding",
-            "none"
-          ]
+          "enum": ["left", "right", "double", "sliding", "none"]
         },
         "confidence": {
           "type": "number",
@@ -239,10 +200,7 @@
     },
     "room": {
       "type": "object",
-      "required": [
-        "id",
-        "wallIds"
-      ],
+      "required": ["id", "wallIds"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -273,12 +231,7 @@
     },
     "object": {
       "type": "object",
-      "required": [
-        "id",
-        "catalogId",
-        "position",
-        "rotationY"
-      ],
+      "required": ["id", "catalogId", "position", "rotationY"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -323,20 +276,13 @@
     },
     "annotation": {
       "type": "object",
-      "required": [
-        "id",
-        "type"
-      ],
+      "required": ["id", "type"],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
         },
         "type": {
-          "enum": [
-            "dimension",
-            "text",
-            "note"
-          ]
+          "enum": ["dimension", "text", "note"]
         },
         "data": {
           "type": "object"
@@ -345,12 +291,7 @@
     },
     "camera": {
       "type": "object",
-      "required": [
-        "id",
-        "position",
-        "target",
-        "fovDeg"
-      ],
+      "required": ["id", "position", "target", "fovDeg"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -380,23 +321,13 @@
           "type": "string"
         },
         "source": {
-          "enum": [
-            "manual",
-            "import-vector",
-            "import-raster",
-            "template"
-          ]
+          "enum": ["manual", "import-vector", "import-raster", "template"]
         },
         "scale": {
           "type": "object",
           "properties": {
             "method": {
-              "enum": [
-                "dimension_ocr",
-                "user",
-                "dxf_units",
-                "unknown"
-              ]
+              "enum": ["dimension_ocr", "user", "dxf_units", "unknown"]
             }
           }
         }

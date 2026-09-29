@@ -1,0 +1,5 @@
+docs/specs
+pnpm-lock.yaml
+dist
+coverage
+.turbo

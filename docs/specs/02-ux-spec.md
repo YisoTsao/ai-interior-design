@@ -77,7 +77,7 @@
 元件庫：以 Radix UI（無樣式原語）+ Tailwind 自建；Icon 用 lucide。
 
 ## 8. i18n 與單位
-- 預設 zh-TW，備援 en；文案放 `locales/{zh-TW,en}.json`，禁止硬編碼字串。
+- 預設 zh-TW，備援 en；文案放 `apps/web/src/locales/{zh-TW,en}.json`，禁止硬編碼字串。
 - 長度顯示可選 mm/cm/m；面積 m²/坪；日期以使用者時區顯示。
 - 微文案語氣：簡潔、口語、不用術語（例：說「牆有點歪，已幫你對齊」而非「已執行 Manhattan snap」）。
 

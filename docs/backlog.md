@@ -3,14 +3,14 @@
 > 標記：☐ 未開始｜☑ 完成。軟性指標與受阻項見 PROGRESS。
 
 ## E1 Scene 與幾何核心（P1）
-- [ ] S1.1 Zod schema + JSON Schema 等價測試（FR-301 基礎）— P1
-- [ ] S1.2 migration 框架與 Golden File — P1
-- [ ] S1.3 牆中心線→輪廓（Clipper2）— FR-301 — P1
-- [ ] S1.4 牆角接合 L/T/X — FR-301 — P1
+- [x] S1.1 Zod schema + JSON Schema 等價測試（FR-301 基礎）— P1
+- [x] S1.2 migration 框架與 Golden File — P1
+- [x] S1.3 牆中心線→輪廓（Clipper2）— FR-301 — P1
+- [x] S1.4 牆角接合 L/T/X — FR-301 — P1
 - [ ] S1.5 開口 CSG（幾何資料端；3D 端在 S2.5）— FR-301/203 — P1/P2
-- [ ] S1.6 房間多邊形偵測與面積 — FR-301 — P1
-- [ ] S1.7 吸附與約束（moveWallVertex）— FR-201/202 — P1
-- [ ] S1.8 BOM 計算純函式（骨架）— FR-602 — P1（完整於 P6）
+- [x] S1.6 房間多邊形偵測與面積 — FR-301 — P1
+- [x] S1.7 吸附與約束（moveWallVertex）— FR-201/202 — P1
+- [x] S1.8 BOM 計算純函式（骨架）— FR-602 — P1（完整於 P6）
 
 ## E2 編輯器（P2）
 - [ ] S2.1 Command / Undo / Redo — P6原則、FR-201 — P2
@@ -80,7 +80,7 @@
 - [ ] S8.5 自動更新（未驗證）— P7
 
 ## E9 品質與營運（P1 起持續；P7 收斂）
-- [ ] S9.1 CI/CD — P1
+- [x] S9.1 CI/CD — P1
 - [ ] S9.2 可觀測性 — P7
 - [ ] S9.3 效能與無障礙 — NFR-01/06 — P2/P7
 - [ ] S9.4 威脅模型檢查 — P7

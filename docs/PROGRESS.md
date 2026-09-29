@@ -3,13 +3,13 @@
 
 ## 專案設定（預設值可改）
 - 產品名：InteriorAI｜語言：zh-TW/en｜後端框架：NestJS｜2D 引擎：待 ADR-010｜AI：mock（無金鑰）
-- 最後更新：2026-09-29 23:30｜目前 Phase：P0
+- 最後更新：2026-09-29 23:52｜目前 Phase：P2
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
 |---|---|---|---|---|
 | P0 | 文件與決策 | ☑ | ☑ | check_gates P0 通過 |
-| P1 | 骨架 + scene-schema + core-geometry | ☐ | ☐ | |
+| P1 | 骨架 + scene-schema + core-geometry | ☑ | ☑ | lint/typecheck/test/build 全綠；core-geometry 分支覆蓋 94.59%（硬性≥90%）；60 測試（含 fast-check） |
 | P2 | 編輯器 (2D/3D/Command/資產庫) | ☐ | ☐ | |
 | P3 | 後端基礎 (Auth/專案/上傳/Job/點數) | ☐ | ☐ | |
 | P4 | AI 渲染 (G-buffer/Provider/Router/驗證) | ☐ | ☐ | |

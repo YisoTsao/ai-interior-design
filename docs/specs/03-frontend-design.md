@@ -11,6 +11,8 @@
 | `ui` | 設計系統元件 | React、Radix |
 | `app-state` | Zustand store、Command 系統、Undo/Redo、autosave | scene-schema |
 
+i18n 檔位置：`apps/web/src/locales/{zh-TW,en}.json`（桌面版共用同一份 app，ADR-015）。E2E 位置：根目錄 `e2e/`。
+
 **核心介面（示意，需照此實作）**
 ```ts
 // app-state
@@ -64,6 +66,7 @@ export function exportGBuffer(opts: { scene: THREE.Scene; camera: THREE.Camera; 
 3. **normal**：`MeshNormalMaterial`。
 4. **objectId**：每個物件指定唯一純色（無光照、無抗鋸齒、`NearestFilter`），輸出 `idMap`（顏色→objectId）。
 5. **edge**：對 depth 與 objectId 邊界做邊緣偵測（Sobel/Canny，於 Worker 或 fragment shader）。
+**固定條件**：離屏 render target 一律 `pixelRatio = 1`（避免 objectId/depth 隨 DPR 改變）；depth 輸出 16-bit（或 8-bit 顯式標註），近/遠平面取場景包圍盒推得並寫入 `idMap` 旁的 metadata；objectId 不抗鋸齒；G-buffer 各圖尺寸必須相同。
 輸出為 PNG；注意 `preserveDrawingBuffer` 或在同一 frame 內 `readRenderTargetPixels`，避免黑圖。尺寸維持與最終渲染同比例。**測試**：固定場景/相機的 G-buffer 做快照比對（容許小誤差）。
 
 ## 7. 專案檔 `.idp`
