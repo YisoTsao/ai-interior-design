@@ -60,7 +60,8 @@
     "decorateDone": "Added {{n}} decor items",
     "lighting": "Lighting",
     "lightingNight": "Evening mood",
-    "lightingDay": "Daylight"
+    "lightingDay": "Daylight",
+    "screenshot": "Screenshot (PNG)"
   },
   "tools": {
     "title": "Tools",
@@ -72,7 +73,8 @@
     "pan": "Pan (Space)",
     "translate": "Move (G)",
     "rotate": "Rotate (R)",
-    "scale": "Scale (S)"
+    "scale": "Scale (S)",
+    "place": "Place item"
   },
   "layers": {
     "title": "Layers",
@@ -101,7 +103,11 @@
       "decor": "Decor",
       "openings": "Doors & windows",
       "storage": "Storage"
-    }
+    },
+    "mine": "My uploads {{n}}",
+    "count": "{{n}} items",
+    "userBadge": "Upload",
+    "price": "NT$ {{n}}"
   },
   "outline": {
     "title": "Outline",
@@ -112,7 +118,11 @@
     "wall": "Wall {{n}}",
     "door": "Door {{n}}",
     "window": "Window {{n}}",
-    "empty": "Scene is empty"
+    "empty": "Scene is empty",
+    "show": "Show {{name}}",
+    "hide": "Hide {{name}}",
+    "lock": "Lock {{name}}",
+    "unlock": "Unlock {{name}}"
   },
   "inspector": {
     "title": "Properties",
@@ -165,7 +175,27 @@
     "room": "Room",
     "door": "Door",
     "window": "Window",
-    "passage": "Passage"
+    "passage": "Passage",
+    "reset": "Reset to default",
+    "transform": "Transform",
+    "appearance": "Appearance",
+    "color": "Color",
+    "roughness": "Roughness",
+    "metalness": "Metalness",
+    "opacity": "Opacity",
+    "castShadow": "Cast shadow",
+    "hidden": "Hidden",
+    "objName": "Custom name",
+    "geometry": "Geometry",
+    "wallHeight": "Wall height",
+    "baseboard": "Baseboard",
+    "colorA": "Side A color",
+    "colorB": "Side B color",
+    "materials": "Materials",
+    "doorColor": "Door color",
+    "frameColor": "Frame color",
+    "glassOpacity": "Glass opacity",
+    "tint": "Tint"
   },
   "param": {
     "width": "Width",
@@ -213,7 +243,8 @@
     "SCALE_INVALID": "Scale must be greater than 0",
     "notFound": "Project not found",
     "requestId": "Error code {{id}}",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "WALL_HEIGHT_OUT_OF_RANGE": "Wall height must be between 10 cm and the level height, and above its openings"
   },
   "units": {
     "length": "Length unit",
@@ -243,7 +274,9 @@
     "renameRoom": "rename room",
     "saveCamera": "save view",
     "autoDecorate": "auto-decorate",
-    "importPlan": "import floor plan"
+    "importPlan": "import floor plan",
+    "updateRoom": "Edit room",
+    "environment": "Edit environment"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -385,5 +418,109 @@
     "build": "Create 3D project",
     "needScale": "Confirm the scale before creating the project",
     "skipped": "{{n}} invalid elements were skipped"
+  },
+  "light": {
+    "title": "Light",
+    "on": "On",
+    "lumens": "Luminous flux",
+    "kelvin": "Color temperature",
+    "rgb": "RGB color",
+    "beam": "Beam angle",
+    "penumbra": "Penumbra",
+    "tilt": "Tilt",
+    "pan": "Pan",
+    "castShadow": "Cast shadows",
+    "softness": "Shadow softness",
+    "range": "Range (0 = physical)",
+    "statFlux": "Flux",
+    "statIntensity": "Intensity",
+    "statLuminance": "Luminance",
+    "statLux2m": "Illuminance @2 m",
+    "statWatts": "LED power (est.)",
+    "nightOnly": "Lights render as physical sources in Dollhouse + Night."
+  },
+  "env": {
+    "title": "Environment & exposure",
+    "sky": "Sky outside (night)",
+    "skies": {
+      "moonless": "Moonless 0.001 cd/m²",
+      "moonlit": "Full moon 0.05 cd/m²",
+      "city": "City glow 0.5 cd/m²",
+      "dusk": "Blue hour 15 cd/m²"
+    },
+    "exposure": "Exposure",
+    "ambient": "Indirect light",
+    "sunAzimuth": "Sun azimuth",
+    "sunElevation": "Sun elevation",
+    "sunIntensity": "Sun intensity",
+    "hintNight": "Night: exposure scales physical lights; windows show sky luminance.",
+    "hintDay": "Day: sun settings apply to the dollhouse daylight mode."
+  },
+  "gfx": {
+    "title": "Graphics",
+    "quality": "Quality",
+    "qualities": {
+      "performance": "Performance",
+      "balanced": "Balanced",
+      "ultra": "Ultra"
+    },
+    "ao": "Ambient occlusion",
+    "bloom": "Bloom",
+    "beams": "Volumetric beams",
+    "grade": "Color grade & vignette"
+  },
+  "stats": {
+    "title": "Scene stats",
+    "rooms": "Rooms",
+    "objects": "Objects",
+    "lights": "Lights",
+    "price": "Reference total"
+  },
+  "status": {
+    "tool": "Tool",
+    "selected": "Selected",
+    "keys": "Tab 2D/3D · H hide · F frame · Ctrl+D duplicate"
+  },
+  "upload": {
+    "open": "Upload 3D model",
+    "title": "Upload 3D model",
+    "close": "Close",
+    "desc": "GLB or self-contained glTF (max {{mb}} MB). Stored in this browser only.",
+    "reading": "Reading…",
+    "pick": "Choose a .glb / .gltf file",
+    "preview": "Model preview",
+    "stats": "{{tris}} triangles · {{meshes}} meshes",
+    "name": "Name",
+    "unit": "File units",
+    "units": {
+      "m": "Meters (glTF default)",
+      "cm": "Centimeters",
+      "mm": "Millimeters",
+      "in": "Inches"
+    },
+    "category": "Category",
+    "anchor": "Placement",
+    "anchors": {
+      "floor": "Floor",
+      "wall": "Wall",
+      "ceiling": "Ceiling"
+    },
+    "elevation": "Default height",
+    "license": "I confirm I have the right to use this model (local design and rendering only).",
+    "cancel": "Cancel",
+    "save": "Add to library",
+    "untitled": "Untitled model",
+    "delete": "Delete {{name}}",
+    "deleteConfirm": "Delete \"{{name}}\"? Placed copies will show as grey boxes.",
+    "error": {
+      "UPLOAD_FORMAT": "Only .glb or .gltf files are supported.",
+      "UPLOAD_TOO_LARGE": "The file is too large.",
+      "UPLOAD_PARSE": "Could not read this model (export glTF with external files as GLB).",
+      "UPLOAD_SAVE": "Save failed (browser storage unavailable or full)."
+    },
+    "warn": {
+      "TRIANGLES": "More than {{max}} triangles; the 3D view may slow down.",
+      "SIZE_ODD": "Size looks unusual for meters; check the file units."
+    }
   }
 }

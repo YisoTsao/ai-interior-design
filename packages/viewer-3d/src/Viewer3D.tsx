@@ -1,23 +1,42 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, TransformControls } from '@react-three/drei';
 import type { OrbitControls as OrbitImpl } from 'three-stdlib';
 import { useStore } from 'zustand';
 import { DEFAULTS, activeLevel, transformObject, type EditorStore } from '@interiorai/app-state';
-import { materialMap, objectDims, resolveParams, type Catalog, type Material } from '@interiorai/catalog';
-import { buildingFootprint, offsetPolygon, pointOnWall, wallLength } from '@interiorai/core-geometry';
-import type { Level, SceneObject, Wall } from '@interiorai/scene-schema';
+import { materialMap, objectDims, type Catalog, type CatalogEntry, type Material } from '@interiorai/catalog';
+import {
+  buildingFootprint,
+  detectRooms,
+  offsetPolygon,
+  pointOnWall,
+  wallLength,
+} from '@interiorai/core-geometry';
+import type { Appearance, Level, SceneObject, Wall } from '@interiorai/scene-schema';
 import { viewer3dApi } from './api.js';
 import { renderGBuffer } from './gbuffer.js';
 import { DollhouseStage, type QualityState } from './DollhouseStage.js';
+import { LightBeams, LightGizmo } from './effects.js';
 import { buildFurnitureGeometry, buildOpeningFill, styledVariantKey, variantKey } from './furniture.js';
-import { fixtureLights, lightColorHex, pickActive, windowLights, type LightingMode } from './lighting.js';
+import {
+  DEFAULT_SKY,
+  NIGHT_SKY,
+  effectiveLight,
+  fixtureLights,
+  indirectEstimate,
+  pickActive,
+  windowLights,
+  type LightingMode,
+} from './lighting.js';
+import { instantiateModel, useModel } from './models.js';
 import { FixtureLights, Plinth } from './NightScene.js';
 import { MaterialCache, ResourceScope } from './resources.js';
 import {
+  DEFAULT_GRAPHICS,
   DOLLHOUSE,
   NIGHT,
+  QUALITY_BUDGET,
   STYLE_MATERIALS,
   VIEW_PRESETS,
   classifyWalls,
@@ -27,10 +46,11 @@ import {
   mutedColor,
   presetDirection,
   sameSet,
+  type GraphicsSettings,
   type ViewPreset,
   type ViewStyle,
 } from './style.js';
-import { buildRoomSurfaces, buildWallGeometry } from './walls3d.js';
+import { buildBaseboard, buildRoomSurfaces, buildWallGeometry } from './walls3d.js';
 
 export interface Viewer3DProps {
   store: EditorStore;
@@ -44,6 +64,10 @@ export interface Viewer3DProps {
   viewStyle?: ViewStyle;
   /** 剖面模型的光線：day＝日光（images2）、night＝夜間氛圍（images1，燈具為主光源）；預設 day */
   lighting?: LightingMode;
+  /** 畫質（使用者偏好）；畫質等級改變時重建 Canvas */
+  graphics?: GraphicsSettings;
+  /** 資產目錄版本（使用者上傳模型後遞增，觸發重新分組） */
+  catalogVersion?: number;
 }
 
 const DH_CAMERA = {
@@ -57,6 +81,7 @@ export function Viewer3D(props: Viewer3DProps) {
   const [ctxKey, setCtxKey] = useState(0);
   const dh = props.viewStyle === 'dollhouse';
   const night = dh && props.lighting === 'night';
+  const quality = (props.graphics ?? DEFAULT_GRAPHICS).quality;
   return (
     <div
       className="h-full w-full"
@@ -66,9 +91,9 @@ export function Viewer3D(props: Viewer3DProps) {
       style={{ background: night ? NIGHT.background.edge : dh ? '#ddd5ca' : props.theme.bg }}
     >
       <Canvas
-        key={`${ctxKey}-${dh ? 'dh' : 'simple'}-${night ? 'night' : 'day'}`}
+        key={`${ctxKey}-${dh ? 'dh' : 'simple'}-${night ? 'night' : 'day'}-${quality}`}
         frameloop="demand"
-        dpr={[1, 2]}
+        dpr={QUALITY_BUDGET[quality].dpr}
         shadows={dh ? { enabled: true, type: THREE.PCFShadowMap } : false}
         camera={
           dh
@@ -101,6 +126,8 @@ function SceneContent({
   showCeiling,
   viewStyle,
   lighting,
+  graphics = DEFAULT_GRAPHICS,
+  catalogVersion = 0,
 }: Viewer3DProps) {
   const dh = viewStyle === 'dollhouse';
   const night = dh && lighting === 'night';
@@ -109,11 +136,16 @@ function SceneContent({
   const selection = useStore(store, (s) => s.selection);
   const layers = useStore(store, (s) => s.layers);
   const level = useMemo(() => activeLevel({ scene, levelId }), [scene, levelId]);
+  const env = scene.environment;
   const gl = useThree((s) => s.gl);
   const scene3 = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
   const controls = useRef<OrbitImpl>(null);
+  const budget = QUALITY_BUDGET[graphics.quality];
+  /** 夜間：光度 → 顯示值（曝光 EV 作用在物理光源上） */
+  const k = NIGHT.photometricScale * 2 ** (env?.exposureEv ?? 0);
+  const sky = NIGHT_SKY[env?.sky ?? DEFAULT_SKY];
 
   const scope = useMemo(() => new ResourceScope(), []);
   const lib = useMemo(
@@ -144,13 +176,21 @@ function SceneContent({
       ),
     [scope, dh],
   );
+  const baseboardMat = useMemo(
+    () => scope.track(new THREE.MeshStandardMaterial({ color: '#f1eee8', roughness: 0.55 })),
+    [scope],
+  );
   const glassMat = useMemo(
     () =>
       scope.track(
         night
-          ? // 夜間：窗外是明亮的天光（images1），玻璃自發光並產生光暈
-            new THREE.MeshBasicMaterial({
-              color: new THREE.Color(NIGHT.window.color).multiplyScalar(NIGHT.window.emissive),
+          ? // 夜間（ADR-023）：窗外是夜空——深色反光玻璃，只帶天空亮度的微光（物理量 × 曝光），不再是明亮光板
+            new THREE.MeshStandardMaterial({
+              color: '#0b0e14',
+              roughness: 0.04,
+              metalness: 0.1,
+              emissive: new THREE.Color(sky.color),
+              emissiveIntensity: sky.luminance * k,
             })
           : new THREE.MeshStandardMaterial({
               color: DOLLHOUSE.glassColor,
@@ -160,16 +200,23 @@ function SceneContent({
               depthWrite: false,
             }),
       ),
-    [scope, night],
+    [scope, night, sky, k],
   );
-  /** 自發光材質（依光色與調光；日光模式亮度低、夜間高到會 bloom） */
+  /** 自發光材質（依光色與亮度；日光模式亮度低、夜間高到會 bloom） */
   const emitCache = useRef(new Map<string, THREE.Material>());
-  const emissiveFor = (color: string, dimmer: number) => {
-    const key = `${color}|${dimmer}|${night}`;
+  const emissiveFor = (color: string, ratio: number) => {
+    const key = `${color}|${ratio.toFixed(3)}|${night}|${k}`;
     let m = emitCache.current.get(key);
     if (!m) {
-      const k = dimmer <= 0 ? 0.15 : night ? NIGHT.emissive * (0.25 + 0.75 * dimmer) : 1.1;
-      m = scope.track(new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k) }));
+      const on = ratio > 0;
+      const e = !on
+        ? 0.15
+        : night
+          ? NIGHT.emissive * (0.25 + 0.75 * Math.min(3, ratio)) * (k / NIGHT.photometricScale)
+          : 1.1;
+      m = scope.track(
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(on ? color : '#8a8378').multiplyScalar(e) }),
+      );
       emitCache.current.set(key, m);
     }
     return m;
@@ -177,17 +224,42 @@ function SceneContent({
   const emissiveOf = (o: SceneObject) => {
     const e = catalog.get(o.catalogId);
     if (!e?.light) return emissiveFor('#fff4d6', 1);
-    const p = resolveParams(e, o.params);
-    return emissiveFor(
-      lightColorHex(typeof p.color === 'string' ? p.color : undefined),
-      typeof p.dimmer === 'number' ? p.dimmer / 100 : 1,
-    );
+    const eff = effectiveLight(o, e);
+    return eff ? emissiveFor(eff.color, eff.ratio) : emissiveFor('#000000', 0);
   };
   const quality = useRef<QualityState>({ orbiting: false, dragging: false });
-  const vcMat = useMemo(
-    () => scope.track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })),
-    [scope],
-  );
+  /** 家具頂點色材質：依材質槽的粗糙度／金屬度與外觀覆寫分組快取 */
+  const furnMats = useRef(new Map<string, THREE.MeshStandardMaterial>());
+  const furnSurface = (o: SceneObject) => {
+    const e = catalog.get(o.catalogId);
+    const slot = e?.materialSlots[0];
+    const s = mats.surface(o.materialOverrides?.[slot?.name ?? 'body'] ?? slot?.defaultMaterialId);
+    const a = o.appearance;
+    return {
+      roughness: a?.roughness ?? s.roughness,
+      metalness: a?.metalness ?? s.metalness,
+      opacity: a?.opacity ?? 1,
+    };
+  };
+  const furnMat = (o: SceneObject) => {
+    const s = furnSurface(o);
+    const key = `${s.roughness}|${s.metalness}|${s.opacity}`;
+    let m = furnMats.current.get(key);
+    if (!m) {
+      m = scope.track(
+        new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          roughness: s.roughness,
+          metalness: s.metalness,
+          transparent: s.opacity < 1,
+          opacity: s.opacity,
+          depthWrite: s.opacity >= 1,
+        }),
+      );
+      furnMats.current.set(key, m);
+    }
+    return { key, m };
+  };
   const selMat = useMemo(
     () =>
       scope.track(
@@ -209,10 +281,10 @@ function SceneContent({
     [lid, lel, lh, lw, lo, lr],
   );
   // 剖面模型：依相機方向決定哪些外牆保持全高，其餘降為剖面高度
-  const sides = useMemo(() => (dh ? classifyWalls(structure) : null), [dh, structure]);
+  const sides = useMemo(() => classifyWalls(structure), [structure]);
   const [fullWalls, setFullWalls] = useState<ReadonlySet<string>>(() => new Set());
   const updateCut = () => {
-    if (!sides) return;
+    if (!dh) return;
     const t = controls.current?.target ?? new THREE.Vector3();
     const dir: [number, number] = [camera.position.x - t.x, camera.position.z - t.z];
     setFullWalls((prev) => {
@@ -223,24 +295,46 @@ function SceneContent({
   // 牆幾何依（牆, 高度）快取；結構改變時整批釋放
   const wallCache = useMemo(() => new Map<string, THREE.BufferGeometry>(), [structure]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => wallCache.forEach((g) => scope.release(g)), [wallCache, scope]);
+  /** 牆本身的高度（個別牆高覆寫，ADR-023） */
+  const ownHeight = (w: Wall) => Math.min(w.height ?? structure.height, structure.height);
   const wallHeight = (w: Wall) => {
-    if (!dh || fullWalls.has(w.id)) return structure.height;
+    const own = ownHeight(w);
+    if (!dh || fullWalls.has(w.id)) return own;
     // 夜間（images1）：內牆全高（接收燈光的彩色溢光），靠近相機的外牆只留牆腳
-    if (night)
-      return sides?.get(w.id)?.exterior ? Math.min(NIGHT.lipHeight, structure.height) : structure.height;
-    return Math.min(DOLLHOUSE.cutHeight, structure.height);
+    if (night) return sides.get(w.id)?.exterior ? Math.min(NIGHT.lipHeight, own) : own;
+    return Math.min(DOLLHOUSE.cutHeight, own);
   };
-  const walls = structure.walls.map((w) => {
-    const H = wallHeight(w);
-    const k = `${w.id}|${H}`;
-    let geom = wallCache.get(k);
-    if (!geom) {
-      geom = scope.track(buildWallGeometry(structure, w, H));
-      wallCache.set(k, geom);
-    }
-    return { w, geom, cut: H < structure.height };
-  });
+  const walls = structure.walls
+    .filter((w) => !w.appearance?.hidden)
+    .map((w) => {
+      const H = wallHeight(w);
+      const k2 = `${w.id}|${H}`;
+      let geom = wallCache.get(k2);
+      if (!geom) {
+        geom = scope.track(buildWallGeometry(structure, w, H));
+        wallCache.set(k2, geom);
+      }
+      return { w, geom, cut: H < ownHeight(w) };
+    });
   const cutWallIds = new Set(walls.filter((x) => x.cut).map((x) => x.w.id));
+  // 踢腳板：只加在朝房間的一側；剖面牆高度低於踢腳板時不畫
+  const baseboards = useMemo(() => {
+    const out: { id: string; g: THREE.BufferGeometry }[] = [];
+    for (const w of structure.walls) {
+      if (!w.baseboard || w.appearance?.hidden) continue;
+      const side = sides.get(w.id);
+      let which: 'A' | 'B' | 'both' = 'both';
+      if (side?.exterior && side.outward) {
+        const L = wallLength(w) || 1;
+        const nA: [number, number] = [-(w.b[1] - w.a[1]) / L, (w.b[0] - w.a[0]) / L];
+        which = nA[0] * side.outward[0] + nA[1] * side.outward[1] > 0 ? 'B' : 'A';
+      }
+      const g = buildBaseboard(structure, w, w.baseboard, which);
+      if (g) out.push({ id: w.id, g: scope.track(g) });
+    }
+    return out;
+  }, [structure, sides, scope]);
+  useEffect(() => () => baseboards.forEach((b) => scope.release(b.g)), [baseboards, scope]);
   const rooms = useMemo(
     () =>
       buildRoomSurfaces(structure).map((r) => ({
@@ -274,42 +368,94 @@ function SceneContent({
     [level.openings, level.walls, scope],
   );
   useEffect(() => () => fills.forEach((f) => scope.release(f.geom)), [fills, scope]);
+  /** 門窗外觀覆寫：框／門扇換色、玻璃透明度 */
+  const openingMats = useRef(new Map<string, THREE.Material>());
+  const openingMaterial = (
+    a: Appearance | undefined,
+    selected: boolean,
+  ): THREE.Material | THREE.Material[] => {
+    const frame = selected
+      ? selMat
+      : a?.color || a?.roughness !== undefined
+        ? (() => {
+            const key = `f|${a.color}|${a.roughness}`;
+            let m = openingMats.current.get(key);
+            if (!m) {
+              m = scope.track(
+                new THREE.MeshStandardMaterial({
+                  color: a.color ?? '#b89a78',
+                  roughness: a.roughness ?? 0.7,
+                }),
+              );
+              openingMats.current.set(key, m);
+            }
+            return m;
+          })()
+        : vcMat;
+    if (!dh) return frame;
+    let glass: THREE.Material = glassMat;
+    if (a?.opacity !== undefined && !night) {
+      const key = `g|${a.opacity}`;
+      glass = openingMats.current.get(key) ?? scope.track(glassMat.clone());
+      (glass as THREE.MeshStandardMaterial).opacity = a.opacity;
+      openingMats.current.set(key, glass);
+    }
+    return [frame, glass];
+  };
+  const vcMat = useMemo(
+    () => scope.track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })),
+    [scope],
+  );
 
   // 家具幾何快取（變體鍵）
   const furnGeoms = useRef(new Map<string, THREE.BufferGeometry>());
   const geomFor = (o: SceneObject) => {
     const e = catalog.get(o.catalogId);
+    // 使用者明確指定的顏色直接使用；材質色在剖面模型中轉為莫蘭迪色調
     const opts = dh
-      ? { style: viewStyle, bodyColor: mutedColor(`#${slotColor(o).getHexString()}`) }
+      ? {
+          style: viewStyle,
+          bodyColor: o.appearance?.color ?? mutedColor(`#${slotColor(o).getHexString()}`),
+        }
       : undefined;
-    const k = styledVariantKey(variantKey(e, o.catalogId, o.params), opts);
-    let g = furnGeoms.current.get(k);
+    const key = styledVariantKey(variantKey(e, o.catalogId, o.params), opts);
+    let g = furnGeoms.current.get(key);
     if (!g) {
       g = scope.track(buildFurnitureGeometry(e, o.params, opts));
-      furnGeoms.current.set(k, g);
+      furnGeoms.current.set(key, g);
     }
-    return { key: k, g };
+    return { key, g };
   };
   useEffect(() => {
     const m = furnGeoms.current;
     return () => m.clear();
   }, [scope]);
 
+  const isGlb = (o: SceneObject) => catalog.get(o.catalogId)?.model.kind === 'glb';
   const single = selection.length === 1 ? level.objects.find((o) => o.id === selection[0]) : undefined;
   const selSet = useMemo(() => new Set(selection), [selection]);
   const groups = useMemo(() => {
-    const map = new Map<string, { g: THREE.BufferGeometry; objs: SceneObject[] }>();
+    const map = new Map<
+      string,
+      { g: THREE.BufferGeometry; m: THREE.Material; objs: SceneObject[]; shadow: boolean }
+    >();
     if (!layers.furniture) return [];
     for (const o of level.objects) {
       if (single && o.id === single.id) continue;
-      if (hiddenFixture(o)) continue;
+      if (o.appearance?.hidden || isGlb(o) || hiddenFixture(o)) continue;
       const { key, g } = geomFor(o);
-      const cur = map.get(key) ?? { g, objs: [] };
+      const fm = furnMat(o);
+      const shadow = o.appearance?.castShadow ?? true;
+      const gk = `${key}|${fm.key}|${shadow}`;
+      const cur = map.get(gk) ?? { g, m: fm.m, objs: [], shadow };
       cur.objs.push(o);
-      map.set(key, cur);
+      map.set(gk, cur);
     }
     return [...map.entries()];
-  }, [level.objects, single, layers.furniture, catalog, fullWalls, showCeiling]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [level.objects, single, layers.furniture, catalog, catalogVersion, fullWalls, showCeiling, mats]); // eslint-disable-line react-hooks/exhaustive-deps
+  const glbObjs = layers.furniture
+    ? level.objects.filter((o) => isGlb(o) && !o.appearance?.hidden && !(single && o.id === single.id))
+    : [];
 
   /**
    * 不畫燈體（光仍照射）的物件，避免懸空：
@@ -323,7 +469,7 @@ function SceneContent({
     if (!showCeiling && (t === 'lamp_downlight' || t === 'lamp_track')) return true;
     if (e?.anchor !== 'wall') return false;
     return structure.walls.some((w) => {
-      if (wallHeight(w) >= structure.height) return false;
+      if (wallHeight(w) >= ownHeight(w) && wallHeight(w) >= o.position[1]) return false;
       const L = wallLength(w) || 1;
       const t2 =
         ((o.position[0] - w.a[0]) * (w.b[0] - w.a[0]) + (o.position[2] - w.a[1]) * (w.b[1] - w.a[1])) /
@@ -340,8 +486,13 @@ function SceneContent({
     const slot = e?.materialSlots[0];
     return mats.colorOf(o.materialOverrides?.[slot?.name ?? 'body'] ?? slot?.defaultMaterialId, '#cfc6b8');
   }
-  // 剖面模型的顏色已烘進幾何 → instance color 用白色
-  const bodyColor = (o: SceneObject) => (dh ? new THREE.Color('#ffffff') : slotColor(o));
+  // 剖面模型的顏色已烘進幾何 → instance color 用白色；簡易模式以外觀覆寫色優先
+  const bodyColor = (o: SceneObject) =>
+    dh
+      ? new THREE.Color('#ffffff')
+      : o.appearance?.color
+        ? new THREE.Color(o.appearance.color)
+        : slotColor(o);
 
   const bbox = useMemo(() => {
     const b = new THREE.Box3();
@@ -356,23 +507,85 @@ function SceneContent({
   }, [level]);
 
   // 夜間光源：燈具＋全高外牆上的窗；依畫面焦點挑固定數量
-  const cutKey = [...structure.walls.map((w) => (wallHeight(w) < structure.height ? '1' : '0'))].join('');
+  const cutKey = [...structure.walls.map((w) => (wallHeight(w) < ownHeight(w) ? '1' : '0'))].join('');
+  // catalogVersion：上傳模型後目錄內容改變（catalog 參照不變）
+  const allFixtures = useMemo(
+    () => (night ? fixtureLights(level, catalog) : []),
+    [night, level, catalog, catalogVersion], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const wins = useMemo(() => {
+    if (!night) return [];
+    const cut = new Set(structure.walls.filter((w) => wallHeight(w) < ownHeight(w)).map((w) => w.id));
+    return windowLights(structure, sides, env?.sky ?? DEFAULT_SKY).filter(
+      (l) => !cut.has(structure.openings.find((o) => o.id === l.id)?.wallId ?? ''),
+    );
+  }, [night, structure, sides, cutKey, env?.sky]); // eslint-disable-line react-hooks/exhaustive-deps
   const pools = useMemo(() => {
     if (!night) return null;
-    const cut = new Set(structure.walls.filter((w) => wallHeight(w) < structure.height).map((w) => w.id));
-    const wins = sides
-      ? windowLights(structure, sides).filter(
-          (l) => !cut.has(structure.openings.find((o) => o.id === l.id)?.wallId ?? ''),
-        )
-      : [];
     const c = bbox.getCenter(new THREE.Vector3());
-    return pickActive([...fixtureLights(level, catalog), ...wins], [c.x, 1200, c.z]);
-  }, [night, level, catalog, structure, sides, bbox, cutKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    return pickActive([...allFixtures, ...wins], [c.x, 1200, c.z]);
+  }, [night, allFixtures, wins, bbox]);
+  /**
+   * 間接光（ADR-023）：所有燈具（含未進光源池者）與窗的光通量 → 積分球公式估計平均照度。
+   * 反射面：地板（依材質明度）、實際畫出的牆面（外牆只算室內側）；天花（未顯示時）與被剖掉的牆面視為逸散。
+   * 半球光的「天」色照亮朝上的面（地板），開頂時地板上方沒有天花反射 → 減弱；「地」色照亮朝下的面，來自地板反射。
+   */
+  const ambient = useMemo(() => {
+    if (!night) return undefined;
+    const floorM2 = detectRooms(structure).rooms.reduce((a, r) => a + r.netArea, 0) / 1e6;
+    let wallLit = 0;
+    let wallLost = 0;
+    for (const w of structure.walls) {
+      const L = wallLength(w) / 1000;
+      const sidesN = sides.get(w.id)?.exterior ? 1 : 2;
+      const shown = wallHeight(w) / 1000;
+      wallLit += L * shown * sidesN;
+      wallLost += L * Math.max(0, ownHeight(w) / 1000 - shown) * sidesN;
+    }
+    const floorRho = 0.2;
+    const est = indirectEstimate(
+      [...allFixtures, ...wins],
+      [
+        { areaM2: floorM2, reflectance: floorRho },
+        { areaM2: floorM2, reflectance: showCeiling ? 0.8 : 0 },
+        { areaM2: wallLit, reflectance: 0.7 },
+        { areaM2: wallLost, reflectance: 0 },
+      ],
+    );
+    const c = new THREE.Color(est.color);
+    const sky = c.clone().multiplyScalar(showCeiling ? 1 : 0.55);
+    const ground = c.clone().multiply(new THREE.Color('#b08a62')).multiplyScalar(0.8);
+    return {
+      color: `#${sky.getHexString()}`,
+      ground: `#${ground.getHexString()}`,
+      intensity: Math.max(0.01, est.lux * k),
+    };
+  }, [night, structure, sides, allFixtures, wins, showCeiling, k, cutKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const footprint = useMemo(() => {
     if (!night) return null;
     const outer = buildingFootprint(structure, NIGHT.plinth.margin, NIGHT.plinth.radius);
     return { outer, inner: outer.map((f) => offsetPolygon([f], -45)[0] ?? []) };
   }, [night, structure]);
+  /** 選取燈具的光源示意（兩種風格、日夜都顯示） */
+  const selectedLight = useMemo(
+    () => (single ? fixtureLights({ objects: [single] }, catalog)[0] : undefined),
+    [single, catalog],
+  );
+
+  // 遊戲式選取外框：選取中（非 instanced）的 mesh
+  const outline = useRef<THREE.Object3D[]>([]);
+  useEffect(() => {
+    const out: THREE.Object3D[] = [];
+    if (selSet.size)
+      scene3.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh && !(o as THREE.InstancedMesh).isInstancedMesh && selSet.has(o.userData.id as string))
+          out.push(o);
+      });
+    outline.current = out;
+    invalidate();
+  });
+  const capture = useRef<(() => string) | null>(null);
 
   const size = useThree((s) => s.size);
   const preset = useRef<ViewPreset>('iso-se');
@@ -507,12 +720,14 @@ function SceneContent({
       style: () => (dh ? 'dollhouse' : 'simple'),
       lighting: () => (night ? 'night' : 'day'),
       lights: () => ({
-        total: night ? fixtureLights(level, catalog).length : 0,
+        total: allFixtures.length,
         point: pools?.point.length ?? 0,
         spot: pools?.spot.length ?? 0,
         area: pools?.area.length ?? 0,
         shadows: pools ? [...pools.point, ...pools.spot].filter((l) => l.castShadow).length : 0,
         windows: pools?.area.filter((l) => l.source === 'window').length ?? 0,
+        windowLuminance: night ? sky.luminance : 0,
+        ambient: ambient?.intensity ?? 0,
       }),
       cutWalls: () => [...cutWallIds].sort(),
       currentCamera: () => {
@@ -527,6 +742,11 @@ function SceneContent({
           fovDeg: (camera as THREE.PerspectiveCamera).fov,
         };
       },
+      screenshot: () => {
+        if (capture.current) return capture.current();
+        gl.render(scene3, camera);
+        return gl.domElement.toDataURL('image/png');
+      },
     });
     return () => viewer3dApi.set(null);
   });
@@ -537,18 +757,39 @@ function SceneContent({
   };
 
   const shadow = dh ? { castShadow: true, receiveShadow: true } : {};
+  const commitTransform = (id: string) => (t: Parameters<typeof transformObject>[2]) =>
+    store.getState().exec(transformObject(level.id, id, t));
+  const singleEntry = single ? catalog.get(single.catalogId) : undefined;
   return (
     <>
       {dh ? (
         <>
-          <DollhouseStage bbox={bbox} mats={mats} quality={quality} lighting={night ? 'night' : 'day'} />
-          {pools && <FixtureLights pools={pools} />}
+          <DollhouseStage
+            bbox={bbox}
+            mats={mats}
+            quality={quality}
+            lighting={night ? 'night' : 'day'}
+            env={env}
+            graphics={graphics}
+            ambient={ambient}
+            outline={outline}
+            outlineColor={night ? '#ffd166' : theme.primary}
+            capture={capture}
+          />
+          {pools && (
+            <FixtureLights
+              pools={pools}
+              scale={k}
+              shadowSize={{ spot: budget.spotShadow, point: budget.pointShadow }}
+            />
+          )}
+          {pools && graphics.beams && <LightBeams spots={pools.spot} scale={k} />}
           {footprint && <Plinth footprint={footprint.outer} inner={footprint.inner} />}
         </>
       ) : (
         <>
           <color attach="background" args={[theme.bg]} />
-          <hemisphereLight args={['#ffffff', '#b9b2a6', 1.6]} />
+          <hemisphereLight args={['#ffffff', '#b9b2a6', 1.6 * (env?.ambient ?? 1)]} />
           <directionalLight position={[8000, 12000, 6000]} intensity={1.4} />
         </>
       )}
@@ -569,15 +810,27 @@ function SceneContent({
         walls.map(({ w, geom }) => (
           <mesh
             key={w.id}
-            {...shadow}
+            castShadow={dh && (w.appearance?.castShadow ?? true)}
+            receiveShadow={dh}
             geometry={geom}
             material={[
-              mats.get(w.materialId, '#efece6'),
-              mats.get(w.materialIdB ?? w.materialId, '#efece6'),
+              mats.styled(w.materialId, '#efece6', w.appearance),
+              mats.styled(w.materialIdB ?? w.materialId, '#efece6', w.appearanceB ?? w.appearance),
               selSet.has(w.id) ? selMat : capMat,
             ]}
             onClick={select(w.id)}
             userData={{ id: w.id, gkind: 'wall' }}
+          />
+        ))}
+      {layers.structure &&
+        baseboards.map((b) => (
+          <mesh
+            key={`bb-${b.id}`}
+            {...shadow}
+            geometry={b.g}
+            material={baseboardMat}
+            onClick={select(b.id)}
+            userData={{ id: b.id, gkind: 'wall' }}
           />
         ))}
       {layers.structure &&
@@ -589,8 +842,12 @@ function SceneContent({
                 geometry={r.floor}
                 material={
                   dh
-                    ? mats.get(dollhouseFloorMaterial(room, DEFAULTS.floorMaterialId), '#d8d2c6')
-                    : mats.get(room?.floorMaterialId, '#d8d2c6')
+                    ? mats.styled(
+                        dollhouseFloorMaterial(room, DEFAULTS.floorMaterialId),
+                        '#d8d2c6',
+                        room?.floorAppearance,
+                      )
+                    : mats.styled(room?.floorMaterialId, '#d8d2c6', room?.floorAppearance)
                 }
                 receiveShadow={dh}
                 onClick={select(r.roomId)}
@@ -600,7 +857,11 @@ function SceneContent({
                 <mesh
                   userData={{ gkind: 'ceiling', id: r.roomId }}
                   geometry={r.ceiling}
-                  material={mats.get(room?.ceilingMaterialId ?? 'mat_ceiling_white', '#fafaf7')}
+                  material={mats.styled(
+                    room?.ceilingMaterialId ?? 'mat_ceiling_white',
+                    '#fafaf7',
+                    room?.ceilingAppearance,
+                  )}
                 />
               )}
             </group>
@@ -609,16 +870,14 @@ function SceneContent({
       {layers.structure &&
         fills
           // 剖面牆上的門窗扇會突出矮牆 → 不畫，只留開口
-          .filter((f) => !cutWallIds.has(f.o.wallId))
+          .filter((f) => !cutWallIds.has(f.o.wallId) && !f.o.appearance?.hidden)
           .map((f) => (
             <mesh
               key={f.o.id}
               userData={{ gkind: 'opening', id: f.o.id }}
-              castShadow={dh}
+              castShadow={dh && (f.o.appearance?.castShadow ?? true)}
               geometry={f.geom}
-              material={
-                dh ? [selSet.has(f.o.id) ? selMat : vcMat, glassMat] : selSet.has(f.o.id) ? selMat : vcMat
-              }
+              material={openingMaterial(f.o.appearance, selSet.has(f.o.id))}
               position={f.pos as unknown as [number, number, number]}
               rotation={[0, f.rotY, 0]}
               onClick={select(f.o.id)}
@@ -629,31 +888,52 @@ function SceneContent({
           key={key}
           geom={grp.g}
           objs={grp.objs}
-          material={dh ? [vcMat, emissiveOf(grp.objs[0]!)] : vcMat}
+          material={dh ? [grp.m, emissiveOf(grp.objs[0]!)] : grp.m}
           colorOf={bodyColor}
           selected={selSet}
           highlight={theme.primary}
-          shadows={dh}
+          shadows={dh && grp.shadow}
           onPick={(id, additive) => store.getState().select([id], additive)}
         />
       ))}
-      {single && layers.furniture && (
+      {glbObjs.map((o) => (
+        <group
+          key={o.id}
+          position={[o.position[0], o.position[1], o.position[2]]}
+          rotation={[0, o.rotationY, 0]}
+          scale={(o.scale ?? [1, 1, 1]) as [number, number, number]}
+          onClick={select(o.id)}
+        >
+          <GlbModel obj={o} entry={catalog.get(o.catalogId)!} shadows={dh} />
+        </group>
+      ))}
+      {single && layers.furniture && !single.appearance?.hidden && (
         <SelectedObject
           key={single.id}
           obj={single}
-          geom={geomFor(single).g}
-          material={selMat}
-          emissive={dh ? emissiveOf(single) : undefined}
-          color={bodyColor(single)}
           level={level}
           mode={transformMode}
           uniform={uniformScale}
           catalog={catalog}
-          shadows={dh}
           onDragging={(v) => (quality.current.dragging = v)}
-          onCommit={(t) => store.getState().exec(transformObject(level.id, single.id, t))}
-        />
+          onCommit={commitTransform(single.id)}
+        >
+          {singleEntry?.model.kind === 'glb' ? (
+            <GlbModel obj={single} entry={singleEntry} shadows={dh} />
+          ) : (
+            <SelectedMesh
+              obj={single}
+              geom={geomFor(single).g}
+              material={selMat}
+              surface={furnSurface(single)}
+              emissive={dh ? emissiveOf(single) : undefined}
+              color={bodyColor(single)}
+              shadows={dh && (single.appearance?.castShadow ?? true)}
+            />
+          )}
+        </SelectedObject>
       )}
+      {selectedLight && <LightGizmo light={selectedLight} color={night ? '#ffd166' : theme.primary} />}
     </>
   );
 }
@@ -719,45 +999,91 @@ function FurnitureInstances({
   );
 }
 
-function SelectedObject({
+/** 使用者上傳的 GLB 模型（載入中顯示淡色包圍盒） */
+function GlbModel({ obj, entry, shadows }: { obj: SceneObject; entry: CatalogEntry; shadows: boolean }) {
+  const url = entry.model.kind === 'glb' ? entry.model.url : undefined;
+  const m = useModel(url);
+  const invalidate = useThree((s) => s.invalidate);
+  const inst = useMemo(
+    () => (m && m !== 'error' ? instantiateModel(m, entry.dimsMm, { id: obj.id }, shadows) : null),
+    [m, entry.dimsMm, obj.id, shadows],
+  );
+  useEffect(() => invalidate(), [inst, invalidate]);
+  if (inst) return <primitive object={inst} />;
+  const { w, d, h } = entry.dimsMm;
+  return (
+    <mesh position={[0, h / 2, 0]} userData={{ gkind: 'object', id: obj.id }}>
+      <boxGeometry args={[w, h, d]} />
+      <meshStandardMaterial color={m === 'error' ? '#c0392b' : '#b9b3a8'} transparent opacity={0.5} />
+    </mesh>
+  );
+}
+
+function SelectedMesh({
   obj,
   geom,
   material,
+  surface,
   emissive,
   color,
-  level,
-  mode,
-  uniform,
-  catalog,
   shadows,
-  onDragging,
-  onCommit,
 }: {
   obj: SceneObject;
   geom: THREE.BufferGeometry;
   material: THREE.MeshStandardMaterial;
+  surface: { roughness: number; metalness: number; opacity: number };
   emissive?: THREE.Material;
   color: THREE.Color;
+  shadows?: boolean;
+}) {
+  const mat = useMemo(() => {
+    const m = material.clone();
+    m.color = color;
+    m.roughness = surface.roughness;
+    m.metalness = surface.metalness;
+    if (surface.opacity < 1) {
+      m.transparent = true;
+      m.opacity = surface.opacity;
+    }
+    return m;
+  }, [material, color, surface.roughness, surface.metalness, surface.opacity]);
+  useEffect(() => () => mat.dispose(), [mat]);
+  return (
+    <mesh
+      geometry={geom}
+      material={emissive ? [mat, emissive] : mat}
+      castShadow={shadows}
+      receiveShadow={shadows}
+      userData={{ gkind: 'object', id: obj.id }}
+    />
+  );
+}
+
+function SelectedObject({
+  obj,
+  level,
+  mode,
+  uniform,
+  catalog,
+  onDragging,
+  onCommit,
+  children,
+}: {
+  obj: SceneObject;
   level: Level;
   mode: Viewer3DProps['transformMode'];
   uniform: boolean;
   catalog: Catalog;
-  shadows?: boolean;
   onDragging?: (v: boolean) => void;
   onCommit: (t: {
     position?: [number, number, number];
     rotationY?: number;
     scale?: [number, number, number];
   }) => void;
+  children: ReactNode;
 }) {
   const proxy = useRef<THREE.Group>(null);
   const [ready, setReady] = useState(false);
-  const mat = useMemo(() => {
-    const m = material.clone();
-    m.color = color;
-    return m;
-  }, [material, color]);
-  useEffect(() => () => mat.dispose(), [mat]);
   useLayoutEffect(() => setReady(true), []);
   const entry = catalog.get(obj.catalogId);
   const s = obj.scale ?? [1, 1, 1];
@@ -790,13 +1116,7 @@ function SelectedObject({
         rotation={[0, obj.rotationY, 0]}
         scale={[s[0], s[1], s[2]]}
       >
-        <mesh
-          geometry={geom}
-          material={emissive ? [mat, emissive] : mat}
-          castShadow={shadows}
-          receiveShadow={shadows}
-          userData={{ gkind: 'object', id: obj.id }}
-        />
+        {children}
       </group>
       {ready && proxy.current && !obj.locked && (
         <TransformControls

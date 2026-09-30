@@ -59,7 +59,7 @@ describe('computeBOM（骨架）', () => {
 
 /** 兩房：0..4000 × 0..3000，x=2000 隔間（T 接點）；外牆 A 面（逆時針 → 室內側）m_in、B 面 m_out */
 const twoRooms = (objs: [number, number][] = [], dx = 0, dz = 0): Scene => {
-  const walls = rect(dx, dz, dx + 4000, dz + 3000).map((w) => ({
+  const walls: Scene['levels'][number]['walls'] = rect(dx, dz, dx + 4000, dz + 3000).map((w) => ({
     ...w,
     materialId: 'm_in',
     materialIdB: 'm_out',

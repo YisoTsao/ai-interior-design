@@ -4,6 +4,7 @@ import type { Level } from '@interiorai/scene-schema';
 import {
   areaLuminance,
   fixtureLights,
+  indirectEstimate,
   kelvinToHex,
   lightColorHex,
   pickActive,
@@ -122,7 +123,75 @@ describe('窗戶光源', () => {
     expect(w!.direction).toEqual([-0, 0, 1]); // 南牆 → 朝 +Z（室內）
     expect(w!.position[1]).toBe(1500);
     expect(w!.position[2]).toBeGreaterThan(0);
-    expect(w!.lumens).toBeCloseTo(1.8 * 700);
+    // 夜間窗戶＝天空亮度（預設城市光害 0.5 cd/m²），遠暗於燈具
+    expect(areaLuminance(w!.lumens, 1500, 1200)).toBeCloseTo(0.5);
+    const [dusk] = windowLights(l, classifyWalls(l), 'dusk');
+    expect(areaLuminance(dusk!.lumens, 1500, 1200)).toBeCloseTo(15);
+  });
+});
+
+describe('光源覆寫與間接光（ADR-023）', () => {
+  const lamp = (light: Level['objects'][number]['light'], extra = {}) =>
+    fixtureLights(
+      lvl([
+        {
+          id: 'o',
+          catalogId: 'lamp_downlight_a',
+          position: [0, 2740, 0],
+          rotationY: 0,
+          scale: [1, 1, 1],
+          light,
+          ...extra,
+        },
+      ]),
+      catalog,
+    );
+  it('光通量、色溫、光束角、陰影可覆寫；關燈或隱藏不發光', () => {
+    const [l] = lamp({ lumens: 1200, kelvin: 2200, beamDeg: 24, castShadow: false, penumbra: 0.9 });
+    expect(l!.lumens).toBe(1200);
+    expect(l!.color).toBe(kelvinToHex(2200));
+    expect(l!.beamDeg).toBe(24);
+    expect(l!.castShadow).toBe(false);
+    expect(l!.penumbra).toBe(0.9);
+    expect(lamp({ color: '#00ff00' })[0]!.color).toBe('#00ff00');
+    expect(lamp({ on: false })).toHaveLength(0);
+    expect(lamp({}, { appearance: { hidden: true } })).toHaveLength(0);
+  });
+  it('俯仰 tilt：向下的崁燈 tilt 90° → 朝向正面 +Z；pan 再繞 Y 轉', () => {
+    const r = (v: number[]) => v.map((x) => Math.round(x * 1000) / 1000 + 0);
+    const [t] = lamp({ tiltDeg: 90 });
+    expect(r(t!.direction)).toEqual([0, 0, 1]);
+    const [tp] = lamp({ tiltDeg: 90, panDeg: 90 });
+    expect(r(tp!.direction)).toEqual([1, 0, 0]);
+  });
+  it('間接光：光通量越大越亮、開頂（反射率 0 的面）較暗、顏色為加權平均', () => {
+    const room = [
+      { areaM2: 20, reflectance: 0.3 },
+      { areaM2: 40, reflectance: 0.7 },
+    ];
+    const a = indirectEstimate(
+      [{ lumens: 1000, color: '#ff0000' }],
+      [...room, { areaM2: 20, reflectance: 0.8 }],
+    );
+    const b = indirectEstimate(
+      [{ lumens: 2000, color: '#ff0000' }],
+      [...room, { areaM2: 20, reflectance: 0.8 }],
+    );
+    const open = indirectEstimate(
+      [{ lumens: 2000, color: '#ff0000' }],
+      [...room, { areaM2: 20, reflectance: 0 }],
+    );
+    expect(b.lux).toBeCloseTo(a.lux * 2);
+    expect(open.lux).toBeLessThan(b.lux);
+    expect(a.color).toBe('#ff0000');
+    const mix = indirectEstimate(
+      [
+        { lumens: 100, color: '#ff0000' },
+        { lumens: 100, color: '#0000ff' },
+      ],
+      room,
+    );
+    expect(mix.color).toBe('#800080');
   });
 });
 

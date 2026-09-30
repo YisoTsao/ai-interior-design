@@ -47,6 +47,42 @@ export const PARAMETRIC_TYPES = [
   'led_bar',
   'monitor',
   'curtain',
+  // v1.1 擴充（ADR-023）
+  'sofa_l',
+  'ottoman',
+  'bench',
+  'stool',
+  'table_round',
+  'dresser',
+  'tv',
+  'piano',
+  'fireplace',
+  'washer',
+  'stove',
+  'sink',
+  'upper_cabinet',
+  'range_hood',
+  'shower',
+  'mirror',
+  'wall_art',
+  'wall_shelf',
+  'clock',
+  'vase',
+  'bean_bag',
+  'ceiling_fan',
+  'aircon',
+  'radiator',
+  'coat_rack',
+  'crib',
+  'bunk_bed',
+  'books',
+  'laptop',
+  'rug_round',
+  'neon_sign',
+  'candle',
+  'floor_cushion',
+  'pet_bed',
+  'treadmill',
 ] as const;
 export type ParametricType = (typeof PARAMETRIC_TYPES)[number];
 
@@ -129,6 +165,8 @@ export const CatalogEntrySchema = z.object({
   /** 真實尺寸 mm；w=寬(x)、d=深(z)、h=高(y) */
   dimsMm: z.object({ w: z.int().positive(), d: z.int().positive(), h: z.int().positive() }),
   anchor: z.enum(['floor', 'wall', 'ceiling']),
+  /** 放置時的預設離地高度 mm（壁掛物用；天花物件一律貼天花） */
+  elevationMm: z.int().nonnegative().optional(),
   model: ModelSchema,
   materialSlots: z
     .array(z.object({ name: z.string(), swappable: z.boolean(), defaultMaterialId: z.string() }))
@@ -152,6 +190,8 @@ export const MaterialSchema = z.object({
   /** 貼圖一個重複單元的真實尺寸（mm），用於 repeat = 面尺寸 / realSize（FR-303） */
   realSizeMm: z.object({ w: z.int().positive(), h: z.int().positive() }),
   roughness: z.number().min(0).max(1),
+  /** 金屬度（0 非金屬、1 金屬）；未設定＝0 */
+  metalness: z.number().min(0).max(1).optional(),
   pricePerM2Twd: z.int().nonnegative().optional(),
   license: LicenseSchema,
 });

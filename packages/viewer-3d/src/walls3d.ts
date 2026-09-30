@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { detectRooms, wallLength, wallQuad, type Vec2 } from '@interiorai/core-geometry';
 import type { Level, Wall } from '@interiorai/scene-schema';
 
@@ -245,4 +246,51 @@ export function buildRoomSurfaces(
       ceiling.translate(0, level.height, 0);
       return { key: d.key, roomId: byKey.get(d.key)?.id, floor, ceiling };
     });
+}
+
+/**
+ * 踢腳板（ADR-023）：沿牆兩個側面的細長方塊，高 height、厚 12 mm，落地開口（門、通道、落地窗）處斷開。
+ * sides：只在朝向房間的一側加（外牆外側不加）；'both' 用於內牆。
+ */
+export function buildBaseboard(
+  level: Level,
+  w: Wall,
+  height: number,
+  sides: 'A' | 'B' | 'both',
+  depth = 12,
+): THREE.BufferGeometry | null {
+  if (height <= 0) return null;
+  const L = wallLength(w);
+  if (L < 1) return null;
+  const a = w.a as Vec2;
+  const d: Vec2 = [(w.b[0] - a[0]) / L, (w.b[1] - a[1]) / L];
+  const n: Vec2 = [-d[1], d[0]];
+  const gaps = level.openings
+    .filter((o) => o.wallId === w.id && (o.sill ?? 0) < height)
+    .map((o) => [o.offset, o.offset + o.width] as [number, number])
+    .sort((x, y) => x[0] - y[0]);
+  const spans: [number, number][] = [];
+  let u = w.thickness / 2;
+  for (const [g0, g1] of gaps) {
+    if (g0 > u) spans.push([u, g0]);
+    u = Math.max(u, g1);
+  }
+  if (L - w.thickness / 2 > u) spans.push([u, L - w.thickness / 2]);
+  const parts: THREE.BufferGeometry[] = [];
+  const angle = Math.atan2(-d[1], d[0]);
+  for (const side of sides === 'both' ? (['A', 'B'] as const) : [sides]) {
+    const off = (w.thickness / 2 + depth / 2) * (side === 'A' ? 1 : -1);
+    for (const [u0, u1] of spans) {
+      if (u1 - u0 < 20) continue;
+      const g = new THREE.BoxGeometry(u1 - u0, height, depth);
+      g.rotateY(angle);
+      const um = (u0 + u1) / 2;
+      g.translate(a[0] + d[0] * um + n[0] * off, height / 2, a[1] + d[1] * um + n[1] * off);
+      parts.push(g);
+    }
+  }
+  if (!parts.length) return null;
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((p) => p.dispose());
+  return merged;
 }

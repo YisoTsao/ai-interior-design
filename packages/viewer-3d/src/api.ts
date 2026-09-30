@@ -27,11 +27,24 @@ export interface Viewer3DApi {
   style(): ViewStyle;
   lighting(): 'day' | 'night';
   /** 夜間光源統計（測試用）：燈具總數、各池啟用數、投影數、窗戶光源數 */
-  lights(): { total: number; point: number; spot: number; area: number; shadows: number; windows: number };
+  lights(): {
+    total: number;
+    point: number;
+    spot: number;
+    area: number;
+    shadows: number;
+    windows: number;
+    /** 夜間窗戶（天空）亮度 cd/m² */
+    windowLuminance: number;
+    /** 間接光（半球光）顯示強度 */
+    ambient: number;
+  };
   /** 以目前相機產生 G-buffer（03 §6；AI 渲染前置） */
   gbuffer(o: { width: number; height: number; clay?: boolean }): GBuffer;
   /** 目前被降為剖面高度的牆 id（測試用） */
   cutWalls(): string[];
+  /** 以目前畫面（含後處理）輸出 PNG dataURL */
+  screenshot(): string | null;
   currentCamera(): { position: [number, number, number]; target: [number, number, number]; fovDeg: number };
 }
 let current: Viewer3DApi | null = null;

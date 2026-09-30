@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://interiorai.local/schemas/scene-1.0.0.json",
-  "title": "Scene Graph v1.0.0",
+  "$id": "https://interiorai.local/schemas/scene-1.1.0.json",
+  "title": "Scene Graph v1.1.0",
   "description": "唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。",
   "type": "object",
   "required": ["schemaVersion", "units", "levels"],
@@ -31,6 +31,9 @@
     },
     "meta": {
       "$ref": "#/$defs/meta"
+    },
+    "environment": {
+      "$ref": "#/$defs/environment"
     }
   },
   "$defs": {
@@ -153,6 +156,22 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 6000
+        },
+        "baseboard": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300
+        },
+        "appearance": {
+          "$ref": "#/$defs/appearance"
+        },
+        "appearanceB": {
+          "$ref": "#/$defs/appearance"
         }
       }
     },
@@ -195,6 +214,9 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        },
+        "appearance": {
+          "$ref": "#/$defs/appearance"
         }
       }
     },
@@ -226,6 +248,12 @@
           "type": "number",
           "minimum": 0,
           "maximum": 1
+        },
+        "floorAppearance": {
+          "$ref": "#/$defs/appearance"
+        },
+        "ceilingAppearance": {
+          "$ref": "#/$defs/appearance"
         }
       }
     },
@@ -271,6 +299,16 @@
         },
         "roomId": {
           "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "appearance": {
+          "$ref": "#/$defs/appearance"
+        },
+        "light": {
+          "$ref": "#/$defs/lightOverride"
         }
       }
     },
@@ -330,6 +368,132 @@
               "enum": ["dimension_ocr", "user", "dxf_units", "unknown"]
             }
           }
+        }
+      }
+    },
+    "hex": {
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "appearance": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "外觀覆寫（v1.1，ADR-023）：只影響呈現",
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/hex"
+        },
+        "roughness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "metalness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 1
+        },
+        "castShadow": {
+          "type": "boolean"
+        },
+        "hidden": {
+          "type": "boolean"
+        }
+      }
+    },
+    "lightOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "燈具光源覆寫（v1.1，ADR-023）",
+      "properties": {
+        "on": {
+          "type": "boolean"
+        },
+        "lumens": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 200000
+        },
+        "kelvin": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 12000
+        },
+        "color": {
+          "$ref": "#/$defs/hex"
+        },
+        "beamDeg": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 170
+        },
+        "penumbra": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "tiltDeg": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "panDeg": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "castShadow": {
+          "type": "boolean"
+        },
+        "shadowSoftness": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "rangeMm": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "場景環境（v1.1）",
+      "properties": {
+        "sky": {
+          "enum": ["moonless", "moonlit", "city", "dusk"]
+        },
+        "exposureEv": {
+          "type": "number",
+          "minimum": -6,
+          "maximum": 6
+        },
+        "ambient": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "sunAzimuthDeg": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "sunElevationDeg": {
+          "type": "number",
+          "minimum": 2,
+          "maximum": 90
+        },
+        "sunIntensity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10
         }
       }
     }

@@ -2,6 +2,7 @@ import type { Draft } from 'immer';
 import { current, isDraft } from 'immer';
 import {
   newId,
+  type Environment,
   type Level,
   type Opening,
   type Room,
@@ -41,6 +42,13 @@ const levelOf = (d: Draft<Scene>, levelId: string): Draft<Level> => {
   if (!l)
     throw new CommandRejected([{ code: 'LEVEL_NOT_FOUND', id: levelId, message: `找不到樓層 ${levelId}` }]);
   return l;
+};
+/** 套用 patch；值為 undefined 的鍵視為「恢復預設」而刪除（不在 Scene 留下 undefined） */
+const assignPatch = <T extends object>(target: T, patch: Partial<T>) => {
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) delete (target as Record<string, unknown>)[k];
+    else (target as Record<string, unknown>)[k] = v;
+  }
 };
 const replaceLevel = (target: Draft<Level>, next: Level) => {
   target.walls = next.walls as Draft<Wall>[];
@@ -198,13 +206,26 @@ export function translateWall(levelId: string, wallId: string, delta: Vec2): Com
 export function updateWall(
   levelId: string,
   wallId: string,
-  patch: Partial<Pick<Wall, 'thickness' | 'type' | 'materialId' | 'materialIdB'>>,
+  patch: Partial<
+    Pick<
+      Wall,
+      | 'thickness'
+      | 'type'
+      | 'materialId'
+      | 'materialIdB'
+      | 'height'
+      | 'baseboard'
+      | 'appearance'
+      | 'appearanceB'
+    >
+  >,
 ): Command {
   return {
     id: cid('updateWall'),
     label: 'command.updateWall',
     do: (d) => {
-      const w = levelOf(d, levelId).walls.find((x) => x.id === wallId);
+      const lv = levelOf(d, levelId);
+      const w = lv.walls.find((x) => x.id === wallId);
       if (!w) throw new CommandRejected([{ code: 'WALL_NOT_FOUND', id: wallId, message: '找不到牆' }]);
       if (
         patch.thickness !== undefined &&
@@ -213,7 +234,21 @@ export function updateWall(
         throw new CommandRejected([
           { code: 'THICKNESS_OUT_OF_RANGE', id: wallId, message: '牆厚需介於 20–600 mm 且小於牆長' },
         ]);
-      Object.assign(w, patch);
+      if (patch.height !== undefined) {
+        const top = Math.max(
+          0,
+          ...lv.openings.filter((o) => o.wallId === wallId).map((o) => (o.sill ?? 0) + o.height),
+        );
+        if (patch.height < 100 || patch.height > lv.height || patch.height < top)
+          throw new CommandRejected([
+            {
+              code: 'WALL_HEIGHT_OUT_OF_RANGE',
+              id: wallId,
+              message: '牆高需介於 100 mm 與樓層高度之間，且不能低於牆上的門窗',
+            },
+          ]);
+      }
+      assignPatch(w, patch);
     },
   };
 }
@@ -260,7 +295,8 @@ export function updateOpening(
       const idx = lv.openings.findIndex((x) => x.id === openingId);
       if (idx < 0)
         throw new CommandRejected([{ code: 'OPENING_NOT_FOUND', id: openingId, message: '找不到門窗' }]);
-      const next = { ...plain(lv.openings[idx]!), ...patch } as Opening;
+      const next = { ...plain(lv.openings[idx]!) } as Opening;
+      assignPatch(next, patch);
       if (patch.offset !== undefined) next.offset = Math.round(patch.offset);
       const err = openingFits(plain(lv) as Level, next);
       if (err) throw new CommandRejected([{ code: 'OPENING_INVALID', id: openingId, message: err }]);
@@ -313,7 +349,9 @@ export function transformObject(levelId: string, objectId: string, t: Transform)
 export function updateObject(
   levelId: string,
   objectId: string,
-  patch: Partial<Pick<SceneObject, 'params' | 'materialOverrides' | 'locked' | 'roomId'>>,
+  patch: Partial<
+    Pick<SceneObject, 'params' | 'materialOverrides' | 'locked' | 'roomId' | 'name' | 'appearance' | 'light'>
+  >,
 ): Command {
   return {
     id: cid('updateObject'),
@@ -321,7 +359,38 @@ export function updateObject(
     do: (d) => {
       const o = levelOf(d, levelId).objects.find((x) => x.id === objectId);
       if (!o) throw new CommandRejected([{ code: 'OBJECT_NOT_FOUND', id: objectId, message: '找不到物件' }]);
-      Object.assign(o, patch);
+      assignPatch(o, patch);
+    },
+  };
+}
+
+/** 房間的名稱與地板／天花外觀 */
+export function updateRoom(
+  levelId: string,
+  roomId: string,
+  patch: Partial<Pick<Room, 'floorAppearance' | 'ceilingAppearance'>>,
+): Command {
+  return {
+    id: cid('updateRoom'),
+    label: 'command.updateRoom',
+    do: (d) => {
+      const r = levelOf(d, levelId).rooms.find((x) => x.id === roomId);
+      if (!r) throw new CommandRejected([{ code: 'ROOM_NOT_FOUND', id: roomId, message: '找不到房間' }]);
+      assignPatch(r, patch);
+    },
+  };
+}
+
+/** 場景環境（天空、曝光、環境光、太陽）；patch 中 undefined 的鍵恢復預設 */
+export function setEnvironment(patch: Partial<Environment>): Command {
+  return {
+    id: cid('environment'),
+    label: 'command.environment',
+    do: (d) => {
+      const env = { ...(d.environment ?? {}) };
+      assignPatch(env, patch);
+      if (Object.keys(env).length) d.environment = env;
+      else delete d.environment;
     },
   };
 }

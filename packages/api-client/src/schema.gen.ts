@@ -2037,6 +2037,16 @@ export interface components {
         id: string;
         mm: number;
         vec2: number[];
+        hex: string;
+        /** @description 外觀覆寫（v1.1，ADR-023）：只影響呈現 */
+        appearance: {
+            color?: components["schemas"]["hex"];
+            roughness?: number;
+            metalness?: number;
+            opacity?: number;
+            castShadow?: boolean;
+            hidden?: boolean;
+        };
         wall: {
             id: components["schemas"]["id"];
             a: components["schemas"]["vec2"];
@@ -2047,6 +2057,10 @@ export interface components {
             materialId?: components["schemas"]["id"];
             materialIdB?: components["schemas"]["id"];
             confidence?: number;
+            height?: number;
+            baseboard?: number;
+            appearance?: components["schemas"]["appearance"];
+            appearanceB?: components["schemas"]["appearance"];
         };
         opening: {
             id: components["schemas"]["id"];
@@ -2062,6 +2076,7 @@ export interface components {
             /** @enum {unknown} */
             swing?: "left" | "right" | "double" | "sliding" | "none";
             confidence?: number;
+            appearance?: components["schemas"]["appearance"];
         };
         room: {
             id: components["schemas"]["id"];
@@ -2070,8 +2085,24 @@ export interface components {
             floorMaterialId?: components["schemas"]["id"];
             ceilingMaterialId?: components["schemas"]["id"];
             confidence?: number;
+            floorAppearance?: components["schemas"]["appearance"];
+            ceilingAppearance?: components["schemas"]["appearance"];
         };
         vec3: number[];
+        /** @description 燈具光源覆寫（v1.1，ADR-023） */
+        lightOverride: {
+            on?: boolean;
+            lumens?: number;
+            kelvin?: number;
+            color?: components["schemas"]["hex"];
+            beamDeg?: number;
+            penumbra?: number;
+            tiltDeg?: number;
+            panDeg?: number;
+            castShadow?: boolean;
+            shadowSoftness?: number;
+            rangeMm?: number;
+        };
         object: {
             id: components["schemas"]["id"];
             catalogId: components["schemas"]["id"];
@@ -2086,6 +2117,9 @@ export interface components {
             };
             locked?: boolean;
             roomId?: components["schemas"]["id"];
+            name?: string;
+            appearance?: components["schemas"]["appearance"];
+            light?: components["schemas"]["lightOverride"];
         };
         annotation: {
             id: components["schemas"]["id"];
@@ -2122,8 +2156,18 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** @description 場景環境（v1.1） */
+        environment: {
+            /** @enum {unknown} */
+            sky?: "moonless" | "moonlit" | "city" | "dusk";
+            exposureEv?: number;
+            ambient?: number;
+            sunAzimuthDeg?: number;
+            sunElevationDeg?: number;
+            sunIntensity?: number;
+        };
         /**
-         * Scene Graph v1.0.0
+         * Scene Graph v1.1.0
          * @description 唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。
          */
         "scene.schema": {
@@ -2134,6 +2178,7 @@ export interface components {
             /** @description 命名視角書籤；視埠相機為 UI 暫態，不入 Scene（ADR-001） */
             cameras?: components["schemas"]["camera"][];
             meta?: components["schemas"]["meta"];
+            environment?: components["schemas"]["environment"];
             $defs: {
                 /** @description 程式產生用『前綴_ULID』；可讀 ID（如 w_01）僅限 fixtures（ADR-013） */
                 id: string;
@@ -2161,6 +2206,10 @@ export interface components {
                     materialId?: components["schemas"]["id"];
                     materialIdB?: components["schemas"]["id"];
                     confidence?: number;
+                    height?: number;
+                    baseboard?: number;
+                    appearance?: components["schemas"]["appearance"];
+                    appearanceB?: components["schemas"]["appearance"];
                 };
                 opening: {
                     id: components["schemas"]["id"];
@@ -2176,6 +2225,7 @@ export interface components {
                     /** @enum {unknown} */
                     swing?: "left" | "right" | "double" | "sliding" | "none";
                     confidence?: number;
+                    appearance?: components["schemas"]["appearance"];
                 };
                 room: {
                     id: components["schemas"]["id"];
@@ -2184,6 +2234,8 @@ export interface components {
                     floorMaterialId?: components["schemas"]["id"];
                     ceilingMaterialId?: components["schemas"]["id"];
                     confidence?: number;
+                    floorAppearance?: components["schemas"]["appearance"];
+                    ceilingAppearance?: components["schemas"]["appearance"];
                 };
                 object: {
                     id: components["schemas"]["id"];
@@ -2199,6 +2251,9 @@ export interface components {
                     };
                     locked?: boolean;
                     roomId?: components["schemas"]["id"];
+                    name?: string;
+                    appearance?: components["schemas"]["appearance"];
+                    light?: components["schemas"]["lightOverride"];
                 };
                 annotation: {
                     id: components["schemas"]["id"];
@@ -2223,6 +2278,40 @@ export interface components {
                     };
                 } & {
                     [key: string]: unknown;
+                };
+                hex: string;
+                /** @description 外觀覆寫（v1.1，ADR-023）：只影響呈現 */
+                appearance: {
+                    color?: components["schemas"]["hex"];
+                    roughness?: number;
+                    metalness?: number;
+                    opacity?: number;
+                    castShadow?: boolean;
+                    hidden?: boolean;
+                };
+                /** @description 燈具光源覆寫（v1.1，ADR-023） */
+                lightOverride: {
+                    on?: boolean;
+                    lumens?: number;
+                    kelvin?: number;
+                    color?: components["schemas"]["hex"];
+                    beamDeg?: number;
+                    penumbra?: number;
+                    tiltDeg?: number;
+                    panDeg?: number;
+                    castShadow?: boolean;
+                    shadowSoftness?: number;
+                    rangeMm?: number;
+                };
+                /** @description 場景環境（v1.1） */
+                environment: {
+                    /** @enum {unknown} */
+                    sky?: "moonless" | "moonlit" | "city" | "dusk";
+                    exposureEv?: number;
+                    ambient?: number;
+                    sunAzimuthDeg?: number;
+                    sunElevationDeg?: number;
+                    sunIntensity?: number;
                 };
             };
         };

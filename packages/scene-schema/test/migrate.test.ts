@@ -8,22 +8,37 @@ const golden = (name: string) => fileURLToPath(new URL(`./golden/${name}`, impor
 
 describe('migrate', () => {
   it('目前版本：內容不變且不修改輸入', () => {
-    const s = sampleScene();
+    const s = { ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION };
     const out = migrate(s);
     expect(out).toEqual(s);
     expect(out).not.toBe(s);
   });
-  it('v0（無 schemaVersion）→ 1.0.0，並通過驗證（Golden File）', () => {
+  it('1.0.0 → 1.1.0：新欄位皆選填，只升版號', () => {
+    const s = sampleScene();
+    expect(s.schemaVersion).toBe('1.0.0');
+    expect(migrate(s)).toEqual({ ...s, schemaVersion: '1.1.0' });
+  });
+  it('1.1.0 外觀／光源／環境欄位通過驗證，超出範圍被拒', () => {
+    const s = structuredClone({ ...sampleScene(), schemaVersion: '1.1.0' });
+    s.environment = { sky: 'city', exposureEv: 0.5 };
+    s.levels[0]!.walls[0]!.height = 1200;
+    s.levels[0]!.walls[0]!.appearance = { color: '#aabbcc', roughness: 0.4 };
+    s.levels[0]!.objects[0]!.light = { lumens: 800, kelvin: 2700, tiltDeg: -30 };
+    expect(validateScene(s).ok).toBe(true);
+    s.levels[0]!.objects[0]!.light = { kelvin: 500 };
+    expect(validateScene(s).ok).toBe(false);
+  });
+  it('v0（無 schemaVersion）→ 目前版本，並通過驗證（Golden File）', () => {
     const v0 = JSON.parse(readFileSync(golden('v0-input.json'), 'utf8'));
     const out = migrate(v0);
-    const expectedPath = golden('v0-expected-1.0.0.json');
+    const expectedPath = golden(`v0-expected-${CURRENT_SCHEMA_VERSION}.json`);
     if (!existsSync(expectedPath)) writeFileSync(expectedPath, JSON.stringify(out, null, 2) + '\n');
     expect(out).toEqual(JSON.parse(readFileSync(expectedPath, 'utf8')));
     expect(out.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(validateScene(out).ok).toBe(true);
   });
   it('較新或未知版本 → SCHEMA_UNSUPPORTED', () => {
-    for (const v of ['2.0.0', '1.1.0', 'abc']) {
+    for (const v of ['2.0.0', '1.2.0', 'abc']) {
       expect(() => migrate({ ...sampleScene(), schemaVersion: v })).toThrow(SchemaUnsupportedError);
     }
     expect(() => migrate(null)).toThrow(SchemaUnsupportedError);

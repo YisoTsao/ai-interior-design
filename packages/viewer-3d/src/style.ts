@@ -261,3 +261,44 @@ export function mutedColor(hex: string, maxSat = 0.2, minLight = 0.55): string {
 
 export const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) =>
   a.size === b.size && [...a].every((x) => b.has(x));
+
+// ── 畫質設定（使用者偏好，不進 Scene；ADR-023）──────────────────────
+
+export type GraphicsQuality = 'performance' | 'balanced' | 'ultra';
+export interface GraphicsSettings {
+  quality: GraphicsQuality;
+  /** 環境光遮蔽（GTAO） */
+  ao: boolean;
+  /** 發光體光暈強度 0–2（夜間） */
+  bloom: number;
+  /** 聚光燈的體積光束（夜間） */
+  beams: boolean;
+  /** 暗角＋調色（遊戲感） */
+  grade: boolean;
+}
+export const DEFAULT_GRAPHICS: GraphicsSettings = {
+  quality: 'balanced',
+  ao: true,
+  bloom: 1,
+  beams: true,
+  grade: true,
+};
+/** 各畫質等級的資源預算 */
+export const QUALITY_BUDGET: Record<
+  GraphicsQuality,
+  {
+    dpr: [number, number];
+    msaa: number;
+    sunShadow: number;
+    spotShadow: number;
+    pointShadow: number;
+    ao: number;
+  }
+> = {
+  performance: { dpr: [1, 1], msaa: 0, sunShadow: 1024, spotShadow: 512, pointShadow: 256, ao: 256 },
+  balanced: { dpr: [1, 2], msaa: 4, sunShadow: 2048, spotShadow: 1024, pointShadow: 512, ao: 512 },
+  ultra: { dpr: [1, 2], msaa: 4, sunShadow: 4096, spotShadow: 2048, pointShadow: 1024, ao: 1024 },
+};
+
+/** 日光預設（與 ADR-017 的固定主光方向一致） */
+export const SUN_DEFAULT = { azimuthDeg: -39, elevationDeg: 55, intensity: 2.6 } as const;

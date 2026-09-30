@@ -11,7 +11,7 @@
 - 單 Job 成本上限：見 services/api/models.yaml `budgets`
 - 結構驗證門檻狀態：**未校準**（mock 通過不代表有效，ADR-012）；ai-eval mock 結果見下方 P4 量測
 - 工具鏈：Node 24.14、pnpm 9.15.9（corepack）、TypeScript 6.0.3
-- 最後更新：2026-09-30｜目前 Phase：P6（未開始）
+- 最後更新：2026-09-30｜目前 Phase：P6（未開始；P5.5 ADR-023 已完成）
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
@@ -66,6 +66,14 @@
   PCFSoftShadowMap 在 r186 已移除，改 PCFShadowMap＋radius；無 GLB 資產 → 圓角分件家具；「自動點綴軟裝」為可 undo 的 Command。
   E2E 新增 e2e/style.spec.ts（截圖存 e2e/results/style-*.png）；perf.spec 兩種風格都量。
 
+- P5.5（使用者要求，P6 前）：ADR-023——Scene Schema 1.1.0（外觀／光源覆寫、個別牆高、踢腳板、場景環境；皆選填，migration 只升版號）；
+  夜間窗戶改為夜空亮度（城市 0.5 cd/m²，原 700 lm/m² 日光面板過亮）、間接光改用積分球公式估計；曝光 EV；
+  後處理加 MSAA、選取外框、調色暗角、窄光束體積光；畫質偏好；遊戲 HUD 介面（2D 藍圖配色、物品欄資產庫＋即時縮圖、分節屬性面板、3D 浮動 HUD）；
+  新增 35 種參數化類型／約 55 件家具、16 種材質（metalness）、`elevationMm`；GLB／glTF 上傳（本機 IndexedDB）。E2E 新增 `e2e/properties.spec.ts`。
+  量測（M1 Pro、原生 arm64 Chrome、範例場景 bench 1.5 s）：夜間 59.7 FPS／458 draw calls，與改動前 457 相同；日光 59.8 FPS／151（改動前 150）。
+  perf.spec（200 家具）：剖面模型 60.1 FPS（p95 18.1 ms）、draw calls 最大值 510（含旋轉時剖面牆切換觸發的陰影重算畫格；改動前同一量法亦同級）→ 列入未達標清單。
+- 已知：`@interiorai/assistant` 尚無測試檔，`pnpm test` 在該套件以「No test files」失敗（P6 進行中，非本次改動造成）。
+
 ## 阻礙與待人決策（⚠ 項須寫「解除條件」）
 | Phase | 項目 | 已用什麼替代 | 解除條件 |
 |---|---|---|---|
@@ -83,6 +91,7 @@
 | 點陣平面圖 房間 IoU（合成資料，cad 風格 0.30） | — | 0.493 | 空心雙線牆的房間切割 | 待改善 |
 | 掃描件 OCR 尺度誤差 | — | 中位 17% | 校正 UI 強制確認已兜底；改善 OCR 前處理 | 已兜底 |
 | 真實平面圖準確率 | ≥ 0.80 / 0.85 | 未量測 | 取得合法在地資料（建照圖/DM/手繪/掃描）後評測 | ⚠ 未驗證 |
+| 夜間剖面模型 draw calls（perf.spec 最大畫格） | ≤ 300 | 510 | 旋轉時剖面牆切換只重算受影響光源的陰影；點光陰影改單面／降頻 | 未達標 |
 
 ## P2 量測紀錄（e2e/perf.spec.ts；原生 arm64 Chrome 154、M1 Pro、headless；場景 5 房間 + 200 家具）
 | 指標 | B8 預算〔假設〕 | 實測 | 備註 |

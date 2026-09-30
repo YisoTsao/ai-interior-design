@@ -1,6 +1,6 @@
 import { objectDims, resolveParams, type Catalog, type CatalogEntry } from '@interiorai/catalog';
 import { pointOnWall, wallLength } from '@interiorai/core-geometry';
-import type { Level } from '@interiorai/scene-schema';
+import type { Environment, Level, LightOverride, SceneObject } from '@interiorai/scene-schema';
 import type { WallSide } from './style.js';
 
 /** 3D 光線模式：day＝日光（images2）；night＝夜間氛圍，燈具為主要光源（images1） */
@@ -54,6 +54,12 @@ export interface LightSource {
   size?: { w: number; h: number };
   up?: Vec3;
   castShadow: boolean;
+  /** 聚光邊緣柔化 0–1 */
+  penumbra?: number;
+  /** 陰影柔和度（PCF 半徑） */
+  shadowSoftness?: number;
+  /** 衰減截止距離 mm（0／未設定＝物理無限） */
+  rangeMm?: number;
   /** 天花板燈具（剖面模型中沒有天花板時只隱藏燈體、光仍照射） */
   ceiling: boolean;
   source: 'fixture' | 'window';
@@ -75,35 +81,77 @@ const rotDir = (d: Vec3, rot: number): Vec3 => {
 };
 const FACING: Record<string, Vec3> = { down: [0, -1, 0], up: [0, 1, 0], front: [0, 0, 1] };
 
-/** 場景中所有燈具的光源（依目錄 light 規格＋物件參數 color/dimmer） */
+/** 繞物件局部 X（俯仰）再繞 Y（水平）旋轉方向向量 */
+const aim = (d: Vec3, tiltDeg = 0, panDeg = 0): Vec3 => {
+  const t = (tiltDeg * Math.PI) / 180;
+  const p = (panDeg * Math.PI) / 180;
+  // 正的俯仰角把光束往燈具正面（+Z）轉
+  const y1 = d[1] * Math.cos(t) + d[2] * Math.sin(t);
+  const z1 = -d[1] * Math.sin(t) + d[2] * Math.cos(t);
+  return rotDir([d[0], y1, z1], p);
+};
+
+/**
+ * 燈具的有效光學參數：目錄 light 規格 ← 物件參數（color、dimmer）← 物件光源覆寫 o.light（ADR-023）。
+ * 回傳 null 表示不發光（關燈、調光 0、隱藏）。
+ */
+export function effectiveLight(o: SceneObject, e: CatalogEntry | undefined) {
+  const L = e?.light;
+  if (!e || !L) return null;
+  const ov: LightOverride = o.light ?? {};
+  const p = resolveParams(e, o.params);
+  const dim = typeof p.dimmer === 'number' ? p.dimmer / 100 : 1;
+  if (ov.on === false || dim <= 0 || o.appearance?.hidden) return null;
+  const color =
+    ov.color ??
+    (ov.kelvin ? kelvinToHex(ov.kelvin) : lightColorHex(typeof p.color === 'string' ? p.color : undefined));
+  const baseLumens = ov.lumens ?? L.lumens;
+  return {
+    spec: L,
+    color,
+    lumens: baseLumens * dim,
+    /** 相對目錄預設的亮度比（自發光燈體亮度用） */
+    ratio: L.lumens > 0 ? (baseLumens * dim) / L.lumens : dim,
+    beamDeg: ov.beamDeg ?? L.beamDeg,
+    penumbra: ov.penumbra,
+    castShadow: ov.castShadow ?? L.castShadow,
+    shadowSoftness: ov.shadowSoftness,
+    rangeMm: ov.rangeMm,
+    tiltDeg: ov.tiltDeg ?? 0,
+    panDeg: ov.panDeg ?? 0,
+  };
+}
+
+/** 場景中所有燈具的光源（目錄 light 規格＋物件參數 color/dimmer＋光源覆寫） */
 export function fixtureLights(level: Pick<Level, 'objects'>, catalog: Catalog): LightSource[] {
   const out: LightSource[] = [];
   for (const o of level.objects) {
     const e: CatalogEntry | undefined = catalog.get(o.catalogId);
-    const L = e?.light;
-    if (!e || !L) continue;
-    const p = resolveParams(e, o.params);
-    const dim = typeof p.dimmer === 'number' ? p.dimmer / 100 : 1;
-    if (dim <= 0) continue;
+    const eff = effectiveLight(o, e);
+    if (!e || !eff) continue;
+    const L = eff.spec;
     const s = o.scale ?? [1, 1, 1];
     // 參數化尺寸變動時，發光點依高度比例移動（例如立燈調高）
     const dims = objectDims(e, o.params);
     const k: Vec3 = [dims.w / e.dimsMm.w, dims.h / e.dimsMm.h, dims.d / e.dimsMm.d];
     const local: Vec3 = [L.offset[0] * k[0], L.offset[1] * k[1], L.offset[2] * k[2]];
-    const dir = rotDir(FACING[L.facing]!, o.rotationY);
+    const dir = rotDir(aim(FACING[L.facing]!, eff.tiltDeg, eff.panDeg), o.rotationY);
     out.push({
       id: o.id,
       kind: L.kind,
       position: toWorld(local, o.position, o.rotationY, s),
       direction: dir,
-      color: lightColorHex(typeof p.color === 'string' ? p.color : undefined),
-      lumens: L.lumens * dim,
-      beamDeg: L.beamDeg,
+      color: eff.color,
+      lumens: eff.lumens,
+      beamDeg: eff.beamDeg,
       size: L.size
         ? { w: L.size.w * k[0] * (s[0] ?? 1), h: L.size.h * (L.facing === 'up' ? k[2] : k[1]) }
         : undefined,
       up: L.facing === 'front' ? [0, 1, 0] : rotDir([0, 0, 1], o.rotationY),
-      castShadow: L.castShadow,
+      castShadow: eff.castShadow,
+      penumbra: eff.penumbra,
+      shadowSoftness: eff.shadowSoftness,
+      rangeMm: eff.rangeMm,
       ceiling: e.anchor === 'ceiling',
       source: 'fixture',
     });
@@ -111,12 +159,27 @@ export function fixtureLights(level: Pick<Level, 'objects'>, catalog: Catalog): 
   return out;
 }
 
-/** 窗戶：朝室內的面光源（夜間氛圍中窗戶是明亮的外部光，images1） */
+/**
+ * 室外天空（夜間）的亮度 cd/m² 與色彩：窗戶在夜間不是光源，而是「看得到天空的洞」——
+ * 面光源亮度＝天空亮度（物理：透過開口看到的輻射亮度不變）。數值取各情境的上緣：
+ * 無月 0.001、滿月 0.05、城市光害 0.5、藍調時刻（民用曙暮光）15。
+ */
+export type SkyPreset = NonNullable<Environment['sky']>;
+export const NIGHT_SKY: Record<SkyPreset, { luminance: number; color: string }> = {
+  moonless: { luminance: 0.001, color: '#5b6b9a' },
+  moonlit: { luminance: 0.05, color: '#8ea3d6' },
+  city: { luminance: 0.5, color: '#9aa6c4' },
+  dusk: { luminance: 15, color: '#6f8fd8' },
+};
+export const DEFAULT_SKY: SkyPreset = 'city';
+/** 向下相容：舊版窗光以 700 lm/m² 模擬（ADR-021），ADR-023 起改用天空亮度 */
 export const WINDOW_LM_PER_M2 = 700;
 export function windowLights(
   level: Pick<Level, 'walls' | 'openings'>,
   sides: Map<string, WallSide>,
+  sky: SkyPreset = DEFAULT_SKY,
 ): LightSource[] {
+  const S = NIGHT_SKY[sky];
   const out: LightSource[] = [];
   for (const o of level.openings) {
     if (o.type !== 'window') continue;
@@ -133,8 +196,9 @@ export function windowLights(
       kind: 'area',
       position: [c[0] + inward[0] * inset, (o.sill ?? 0) + o.height / 2, c[1] + inward[2] * inset],
       direction: inward,
-      color: kelvinToHex(6500),
-      lumens: ((o.width * o.height) / 1e6) * WINDOW_LM_PER_M2,
+      color: S.color,
+      // 面光源亮度＝天空亮度：flux = π·L·A
+      lumens: Math.PI * S.luminance * ((o.width * o.height) / 1e6),
       size: { w: o.width, h: o.height },
       up: [0, 1, 0],
       castShadow: false,
@@ -189,4 +253,40 @@ export function pickActive(
     spot: take('spot', pool.spot, shadows.spot),
     area: take('area', pool.area, 0),
   };
+}
+
+/**
+ * 間接光（多次反射）的平均照度估計（積分球公式）：E = Φ·ρ̄ / (A·(1−ρ̄))。
+ * three.js 沒有全域照明，以半球光補上這一項；顏色取各光源依光通量加權的平均色。
+ * surfaces：室內各類表面的面積 m² 與反射率；開頂（無天花）、被剖掉的牆面以反射率 0 計入（光逸散）。
+ */
+export interface IndirectSurface {
+  areaM2: number;
+  reflectance: number;
+}
+export function indirectEstimate(
+  lights: readonly Pick<LightSource, 'lumens' | 'color'>[],
+  surfaces: readonly IndirectSurface[],
+): { lux: number; color: string; reflectance: number } {
+  const flux = lights.reduce((a, l) => a + l.lumens, 0);
+  const area = Math.max(
+    1,
+    surfaces.reduce((a, x) => a + x.areaM2, 0),
+  );
+  const rho = Math.min(0.9, surfaces.reduce((a, x) => a + x.areaM2 * x.reflectance, 0) / area);
+  const lux = (flux * rho) / (area * (1 - rho));
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (const l of lights) {
+    const n = parseInt(l.color.replace('#', ''), 16);
+    r += ((n >> 16) & 255) * l.lumens;
+    g += ((n >> 8) & 255) * l.lumens;
+    b += (n & 255) * l.lumens;
+  }
+  const hex = (v: number) =>
+    Math.round(flux > 0 ? v / flux : 200)
+      .toString(16)
+      .padStart(2, '0');
+  return { lux, color: `#${hex(r)}${hex(g)}${hex(b)}`, reflectance: rho };
 }

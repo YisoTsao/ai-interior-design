@@ -6,12 +6,24 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import type { Environment } from '@interiorai/scene-schema';
+import { GradeShader } from './effects.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { MaterialCache } from './resources.js';
 import type { LightingMode } from './lighting.js';
 import { vignetteTexture } from './NightScene.js';
-import { DOLLHOUSE, NIGHT } from './style.js';
+import {
+  DEFAULT_GRAPHICS,
+  DOLLHOUSE,
+  NIGHT,
+  QUALITY_BUDGET,
+  SUN_DEFAULT,
+  presetDirection,
+  type GraphicsSettings,
+} from './style.js';
 
 /** 互動品質旗標：orbiting＝只動相機（陰影不必重算）；dragging＝物件在動（陰影要重算） */
 export interface QualityState {
@@ -45,14 +57,33 @@ export function DollhouseStage({
   mats,
   quality,
   lighting = 'day',
+  env,
+  graphics = DEFAULT_GRAPHICS,
+  ambient,
+  outline,
+  outlineColor = '#ffd166',
+  capture,
 }: {
   bbox: THREE.Box3;
   mats: MaterialCache;
   quality: React.RefObject<QualityState>;
   /** night：夜間氛圍（images1）— 無日光、燈具為主光源、bloom、暈影背景；底座由 Plinth 另外繪製 */
   lighting?: LightingMode;
+  /** 場景環境（太陽方位／強度、曝光、環境光倍率） */
+  env?: Environment;
+  graphics?: GraphicsSettings;
+  /** 夜間的間接光（依燈具光通量估計，ADR-023）；未提供時用 NIGHT.hemi */
+  ambient?: { color: string; ground: string; intensity: number };
+  /** 選取外框的物件（遊戲式選取光暈） */
+  outline?: React.RefObject<THREE.Object3D[]>;
+  outlineColor?: string;
+  /** 截圖：以完整後處理渲染一次並回傳 PNG dataURL */
+  capture?: React.RefObject<(() => string) | null>;
 }) {
   const night = lighting === 'night';
+  const budget = QUALITY_BUDGET[graphics.quality];
+  const ev = env?.exposureEv ?? 0;
+  const ambientK = env?.ambient ?? 1;
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -63,7 +94,8 @@ export function DollhouseStage({
   // renderer 與環境反射
   useEffect(() => {
     gl.toneMapping = THREE.ACESFilmicToneMapping;
-    gl.toneMappingExposure = night ? 1 : DOLLHOUSE.exposure;
+    // 夜間的曝光直接作用在物理光源（見 Viewer3D 的 photometric scale），色調映射曝光固定
+    gl.toneMappingExposure = night ? 1 : DOLLHOUSE.exposure * 2 ** ev;
     gl.outputColorSpace = THREE.SRGBColorSpace;
     gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
@@ -86,7 +118,7 @@ export function DollhouseStage({
       bg?.dispose();
       gl.shadowMap.autoUpdate = true;
     };
-  }, [gl, scene, invalidate, night]);
+  }, [gl, scene, invalidate, night, ev]);
 
   // 房子尺寸 → 主光位置與陰影相機範圍（貼合房子，避免陰影糊掉）
   const center = useMemo(() => bbox.getCenter(new THREE.Vector3()), [bbox]);
@@ -98,7 +130,12 @@ export function DollhouseStage({
   useLayoutEffect(() => {
     const l = sun.current;
     if (!l) return;
-    const dir = new THREE.Vector3(-0.45, 1, 0.55).normalize();
+    const dir = new THREE.Vector3(
+      ...presetDirection(
+        env?.sunAzimuthDeg ?? SUN_DEFAULT.azimuthDeg,
+        env?.sunElevationDeg ?? SUN_DEFAULT.elevationDeg,
+      ),
+    );
     l.position.copy(center).addScaledVector(dir, extent * 2);
     l.target.position.copy(center);
     l.target.updateMatrixWorld();
@@ -110,7 +147,7 @@ export function DollhouseStage({
     cam.near = extent * 0.5;
     cam.far = extent * 4;
     cam.updateProjectionMatrix();
-    l.shadow.mapSize.set(2048, 2048);
+    l.shadow.mapSize.set(budget.sunShadow, budget.sunShadow);
     l.shadow.radius = 5;
     l.shadow.bias = -0.0004;
     l.shadow.normalBias = 12;
@@ -118,7 +155,7 @@ export function DollhouseStage({
     l.shadow.map = null;
     gl.shadowMap.needsUpdate = true;
     invalidate();
-  }, [center, extent, gl, invalidate]);
+  }, [center, extent, gl, invalidate, env?.sunAzimuthDeg, env?.sunElevationDeg, budget.sunShadow]);
 
   // 木紋底板（外擴 boardMargin，厚 boardThickness，邊緣倒角）
   const board = useMemo(() => {
@@ -133,29 +170,58 @@ export function DollhouseStage({
   }, [bbox]);
   useEffect(() => () => board.dispose(), [board]);
 
-  // 後處理：RenderPass → GTAO → OutputPass（色調映射＋sRGB）
+  // 後處理：RenderPass（MSAA）→ GTAO → Outline → Bloom（夜間）→ OutputPass（色調映射＋sRGB）→ 調色／暗角
   const post = useMemo(() => {
-    const composer = new EffectComposer(gl);
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: budget.msaa });
+    const composer = new EffectComposer(gl, rt);
     composer.addPass(new RenderPass(scene, camera));
-    const ao = new GTAOPass(scene, camera, 512, 512);
+    const ao = new GTAOPass(scene, camera, budget.ao, budget.ao);
     ao.output = GTAOPass.OUTPUT.Default;
     ao.blendIntensity = 1;
     ao.updateGtaoMaterial({ radius: 450, distanceExponent: 1.5, thickness: 800, scale: 1.2, samples: 16 });
     ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+    ao.enabled = graphics.ao;
     composer.addPass(ao);
+    const out = new OutlinePass(new THREE.Vector2(512, 512), scene, camera);
+    out.edgeStrength = 4;
+    out.edgeGlow = 0.6;
+    out.edgeThickness = 1.5;
+    out.pulsePeriod = 0;
+    out.visibleEdgeColor.set(outlineColor);
+    out.hiddenEdgeColor.set(outlineColor).multiplyScalar(0.35);
+    composer.addPass(out);
     // 夜間：自發光部件（燈罩、燈板、螢幕、LED）的光暈
-    const bloom = night
-      ? new UnrealBloomPass(
-          new THREE.Vector2(512, 512),
-          NIGHT.bloom.strength,
-          NIGHT.bloom.radius,
-          NIGHT.bloom.threshold,
-        )
-      : null;
+    const bloom =
+      night && graphics.bloom > 0
+        ? new UnrealBloomPass(
+            new THREE.Vector2(512, 512),
+            NIGHT.bloom.strength * graphics.bloom,
+            NIGHT.bloom.radius,
+            NIGHT.bloom.threshold,
+          )
+        : null;
     if (bloom) composer.addPass(bloom);
     composer.addPass(new OutputPass());
-    return { composer, ao, bloom };
-  }, [gl, scene, camera, night]);
+    const grade = new ShaderPass(GradeShader);
+    grade.uniforms.vignette!.value = night ? 0.5 : 0.28;
+    grade.uniforms.saturation!.value = night ? 1.1 : 1.04;
+    grade.uniforms.contrast!.value = night ? 1.07 : 1.03;
+    grade.uniforms.warmth!.value = night ? 0.004 : 0.006;
+    grade.enabled = graphics.grade;
+    composer.addPass(grade);
+    return { composer, ao, bloom, out, rt };
+  }, [
+    gl,
+    scene,
+    camera,
+    night,
+    budget.msaa,
+    budget.ao,
+    graphics.ao,
+    graphics.bloom,
+    graphics.grade,
+    outlineColor,
+  ]);
   useEffect(() => {
     post.composer.setPixelRatio(dpr);
     post.composer.setSize(size.width, size.height);
@@ -165,10 +231,24 @@ export function DollhouseStage({
     () => () => {
       post.ao.dispose();
       post.bloom?.dispose();
+      post.out.dispose();
       post.composer.dispose();
+      post.rt.dispose();
     },
     [post],
   );
+  useEffect(() => {
+    if (!capture) return;
+    capture.current = () => {
+      post.ao.enabled = graphics.ao;
+      gl.shadowMap.needsUpdate = true;
+      post.composer.render();
+      return gl.domElement.toDataURL('image/png');
+    };
+    return () => {
+      capture.current = null;
+    };
+  }, [capture, post, gl, graphics.ao]);
 
   // 互動時直接輸出到畫面（與 composer 的 HalfFloat 目標是不同的 shader 變體）→ 預先編譯，避免第一次旋轉卡頓
   useEffect(() => {
@@ -176,7 +256,7 @@ export function DollhouseStage({
     return () => clearTimeout(id);
   }, [gl, scene, camera, invalidate]);
 
-  // priority 1 → 由此接手渲染
+  // priority 1 → 由此接手渲染；互動中只關 AO（其餘後處理保留，避免旋轉時畫面跳動）
   useFrame(() => {
     const q = quality.current;
     gl.shadowMap.needsUpdate = !q?.orbiting;
@@ -184,22 +264,31 @@ export function DollhouseStage({
     // 統計一整個畫格（含後處理各 pass）的 draw calls / 三角形
     gl.info.autoReset = false;
     gl.info.reset();
-    if (post.bloom) {
-      // 夜間：互動中只關 AO，bloom 保留（否則燈光在旋轉時會閃爍消失）
-      post.ao.enabled = !interacting;
-      post.composer.render();
-    } else if (interacting) gl.render(scene, camera);
-    else post.composer.render();
+    post.ao.enabled = graphics.ao && !interacting;
+    post.out.selectedObjects = outline?.current ?? [];
+    post.out.enabled = post.out.selectedObjects.length > 0;
+    post.composer.render();
   }, 1);
 
   return (
     <>
       {night ? (
-        <hemisphereLight args={[NIGHT.hemi.sky, NIGHT.hemi.ground, NIGHT.hemi.intensity]} />
+        <hemisphereLight
+          args={[
+            ambient?.color ?? NIGHT.hemi.sky,
+            ambient?.ground ?? NIGHT.hemi.ground,
+            (ambient?.intensity ?? NIGHT.hemi.intensity) * ambientK,
+          ]}
+        />
       ) : (
-        <hemisphereLight args={['#ffffff', '#d9c3a5', 0.6]} />
+        <hemisphereLight args={['#ffffff', '#d9c3a5', 0.6 * ambientK]} />
       )}
-      <directionalLight ref={sun} color="#fff1dc" intensity={night ? 0 : 2.6} castShadow={!night} />
+      <directionalLight
+        ref={sun}
+        color="#fff1dc"
+        intensity={night ? 0 : (env?.sunIntensity ?? SUN_DEFAULT.intensity)}
+        castShadow={!night}
+      />
       <mesh
         visible={!night}
         geometry={board}

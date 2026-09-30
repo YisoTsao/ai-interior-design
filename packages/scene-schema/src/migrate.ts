@@ -18,6 +18,8 @@ export const MIGRATIONS: Migration[] = [
     to: '1.0.0',
     up: (s) => ({ ...s, schemaVersion: '1.0.0', units: 'mm' }),
   },
+  // 1.1.0（ADR-023）：新增的外觀／光源／環境欄位皆為選填 → 只升版號
+  { from: '1.0.0', to: '1.1.0', up: (s) => ({ ...s, schemaVersion: '1.1.0' }) },
 ];
 
 const parse = (v: string) => v.split('.').map((n) => Number(n)) as [number, number, number];

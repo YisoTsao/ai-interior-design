@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CURRENT_SCHEMA_VERSION } from '@interiorai/scene-schema';
 import {
   activeLevel,
   addRectRoom,
@@ -70,7 +71,7 @@ describe('persistence（S2.10）', () => {
     const { set, createStore } = await import('idb-keyval');
     const raw = createStore('interiorai', 'projects');
     await set('p_v0', { id: 'p_v0', name: 'v0', scene: v0, updatedAt: '2020-01-01' }, raw);
-    expect((await loadProject('p_v0'))?.scene.schemaVersion).toBe('1.0.0');
+    expect((await loadProject('p_v0'))?.scene.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     await set(
       'p_broken',
       { id: 'p_broken', name: 'x', scene: { ...scene, levels: [] }, updatedAt: '2020' },

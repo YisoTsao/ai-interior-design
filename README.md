@@ -1,196 +1,296 @@
 # InteriorAI
 
-InteriorAI 是以可編輯 Scene Graph 為核心的室內設計工具，提供 2D 平面編輯、3D 空間檢視與家具資產管理。專案採 pnpm workspace 與 Turborepo 管理；目前可直接使用本機 Web 編輯器，專案資料儲存在瀏覽器本機，雲端 API、平面圖辨識與 AI 渲染尚未進入開發階段。
+InteriorAI 是以可編輯 Scene Graph 為核心的 AI 室內設計平台：2D 平面編輯、3D 等角剖面模型（日光／夜間物理光線）、家具資產庫與 3D 模型上傳、AI 渲染、平面圖辨識。專案採 pnpm workspace＋Turborepo。
 
-> **目前進度：P2 已完成，P3 尚未開始。** 實作狀態以 [`docs/PROGRESS.md`](docs/PROGRESS.md) 和工作項目 [`docs/backlog.md`](docs/backlog.md) 為準。規格文件描述的是目標設計，不代表功能已經完成。
+> **目前進度：P0–P5 完成，P6（AI 助理＋BOM＋匯出）進行中。** 狀態以 [`docs/PROGRESS.md`](docs/PROGRESS.md)、[`docs/backlog.md`](docs/backlog.md) 為準；前台還缺什麼見 [`docs/specs/11-frontend-requirements.md`](docs/specs/11-frontend-requirements.md)。
 
 ## 目錄
 
-- [功能與現況](#功能與現況)
-- [技術架構](#技術架構)
-- [開發環境](#開發環境)
-- [快速開始](#快速開始)
-- [常用指令](#常用指令)
-- [功能開發流程](#功能開發流程)
-- [測試與品質檢查](#測試與品質檢查)
-- [資料與本機服務](#資料與本機服務)
-- [文件索引](#文件索引)
-- [常見問題](#常見問題)
+1. [五分鐘跑起來（只跑前端）](#1-五分鐘跑起來只跑前端)
+2. [完整後端一起跑（登入、雲端儲存、AI 渲染、平面圖辨識）](#2-完整後端一起跑)
+3. [專案結構](#3-專案結構)
+4. [常用指令](#4-常用指令)
+5. [如何 Debug](#5-如何-debug)
+6. [功能速覽與操作](#6-功能速覽與操作)
+7. [測試與品質檢查](#7-測試與品質檢查)
+8. [常見問題](#8-常見問題)
+9. [文件索引](#9-文件索引)
 
-## 功能與現況
+---
 
-目前 Web 編輯器包含：
+## 1. 五分鐘跑起來（只跑前端）
 
-- 專案清單，可建立空白專案或載入兩房一廳範例。
-- 2D 編輯：繪製牆與矩形房間、放置門窗、選取與移動物件、尺寸標註、圖層切換、吸附及 Undo/Redo。
-- 3D 檢視：由場景資料產生牆、地板、天花與開口，可操作家具物件及材質。
-- 家具、門窗及材質資產瀏覽與搜尋。
-- 繁體中文／英文介面、長度與面積單位選擇。
-- 本機自動儲存與離線專案清單。
+前端編輯器**不需要**資料庫、API 或任何金鑰：專案存在瀏覽器 IndexedDB，AI 渲染與登入按鈕在沒有後端時會提示無法連線，其他功能都能用。
 
-尚未完成的主要範圍：
+### 需求
 
-- P3：登入、雲端專案與版本、上傳、Job Queue、點數帳本及可用 API。
-- P4：AI 渲染與結構驗證。
-- P5：DXF／點陣平面圖匯入、辨識與校正。
-- P6：AI 助理、BOM／估價及格式匯出。
-- P7 之後：桌面端、營運與上線準備。
+| 工具 | 版本 | 確認指令 |
+|---|---|---|
+| Node.js | ≥ 22（開發基準 24.14） | `node --version` |
+| pnpm | 9.15.9（由 `packageManager` 鎖定） | `corepack pnpm --version` |
+| 瀏覽器 | 支援 WebGL2 的 Chrome／Edge／Safari 17+ | — |
 
-目前介面上的平面圖上傳與 AI 渲染按鈕會標示所屬 Phase，尚不能執行完整服務流程。
+第一次使用 pnpm：`corepack enable && corepack prepare pnpm@9.15.9 --activate`
 
-## 技術架構
+> **Apple Silicon 注意**：若 `node -p process.arch` 顯示 `x64`，代表 Node 跑在 Rosetta，建置、測試與 E2E 會慢 2–15 倍。建議改裝 arm64 版 Node（見[常見問題](#8-常見問題)）。
 
-```text
-apps/web                 React 19、Vite 8、TypeScript、Tailwind CSS
-packages/scene-schema    Scene Graph 型別、Zod 驗證、migration
-packages/core-geometry   牆體／開口幾何、房間偵測、碰撞與面積
-packages/app-state       Zustand、Command/Undo/Redo、本機儲存與自動儲存
-packages/catalog         資產目錄、參數化物件與材質
-packages/editor-2d       Konva 2D 編輯器
-packages/viewer-3d       React Three Fiber / Three.js 3D 檢視器
-packages/catalog-tools   資產目錄檢查與命令列工具
-services/api             後端規格相關的初始檔案；P3 尚未實作
-docs/                    產品規格、技術設計、ADR、進度與 backlog
-e2e/                     Playwright 端對端測試
-fixtures/                測試用場景資料
-prompts/                 AI 與平面圖流程的提示詞草稿
-```
-
-Scene Graph 是場景資料的單一來源；2D 與 3D 檢視都從同一份場景狀態衍生。長度資料使用整數毫米，顯示單位轉換只在 UI 層處理。持久場景變更經由 app-state 的 Command 歷程管理；選取、工具模式及相機等 UI 狀態不屬於場景資料。
-
-UI 套件 `editor-2d` 與 `viewer-3d` 以 workspace 原始碼匯出；其他核心套件先編譯到 `dist` 再供相依套件使用。因此第一次啟動 Web 前需先建置 Web 所依賴的 workspace 套件，見下方步驟。
-
-## 開發環境
-
-- macOS、Linux 或 Windows（建議使用 macOS／Linux shell 執行下列指令）。
-- Node.js `>=22`。專案進度紀錄的基準版本為 Node `24.14`。
-- pnpm `9.15.9`，由根目錄 `package.json` 的 `packageManager` 欄位指定。
-- Git。
-- 使用 3D 編輯器時，需支援 WebGL 的現代瀏覽器；開發與 E2E 基準使用 Chrome。
-
-確認工具版本：
-
-```sh
-node --version
-corepack pnpm --version
-```
-
-如需透過 Corepack 啟用專案指定版本的 pnpm：
-
-```sh
-corepack prepare pnpm@9.15.9 --activate
-```
-
-## 快速開始
-
-在 repository 根目錄執行：
+### 步驟
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm exec turbo run build --filter='@interiorai/web...'
+# 核心套件（scene-schema、core-geometry、app-state、catalog…）要先編譯出 dist
+pnpm exec turbo run build --filter='@interiorai/web^...'
 pnpm --filter @interiorai/web dev
 ```
 
-Vite 預設會在 <http://localhost:5173> 提供 Web app。若預設 port 已被占用，Vite 會改用下一個可用 port，請以啟動輸出中的 `Local` 網址為準。
+打開終端機顯示的 `Local` 網址（預設 <http://localhost:5173>），點「從範例開始」→ 右上 `3D` 切換到立體檢視。
 
-開啟後可在專案清單建立空白專案，或選擇「從範例開始」進入編輯器。範例專案可切換 2D／3D 檢視，新增牆體或從左側資產庫操作家具。Web app 不需要先啟動 API、資料庫或雲端服務；目前專案儲存是本機功能，清除瀏覽器網站資料會一併移除本機專案。
+> 改了 `packages/scene-schema`、`core-geometry`、`app-state`、`catalog`、`image-ops`、`api-client`、`assistant` 的程式碼後，要重新 `pnpm --filter <套件> build`（或 `pnpm --filter <套件> exec tsc -p tsconfig.build.json --watch` 開 watch）Vite 才會看到。`editor-2d`、`viewer-3d` 是原始碼套件，存檔即熱更新。
 
-停止開發伺服器可在執行中的終端機按 `Ctrl+C`。
+---
 
-## 常用指令
+## 2. 完整後端一起跑
 
-所有命令都從 repository 根目錄執行：
-
-| 指令                                    | 用途                                                |
-| --------------------------------------- | --------------------------------------------------- |
-| `pnpm --filter @interiorai/web dev`     | 啟動 Vite 開發伺服器                                |
-| `pnpm --filter @interiorai/web build`   | 型別檢查並建置 Web app；需先建置 workspace 相依套件 |
-| `pnpm --filter @interiorai/web preview` | 在 `4173` 預覽已建置的 Web app                      |
-| `pnpm lint`                             | 對 repository 執行 ESLint，警告視為錯誤             |
-| `pnpm typecheck`                        | 透過 Turborepo 執行 workspace TypeScript 型別檢查   |
-| `pnpm test`                             | 透過 Turborepo 執行 workspace 單元測試              |
-| `pnpm build`                            | 建置 workspace 套件與 Web app                       |
-| `pnpm coverage`                         | 執行 workspace 測試並產生覆蓋率報告                 |
-| `pnpm test:e2e`                         | 執行根目錄 `e2e/` 的 Playwright 測試                |
-| `pnpm licenses:check`                   | 檢查 npm 套件授權與資產目錄授權資料                 |
-| `pnpm format`                           | 使用 Prettier 格式化 repository 檔案                |
-
-執行單一 workspace 的測試或型別檢查，例如：
+需要 Docker（Postgres 16、Redis 7、MinIO）。AI 供應商預設是 **mock**，不需要任何雲端金鑰。
 
 ```sh
-pnpm --filter @interiorai/core-geometry test
-pnpm --filter @interiorai/app-state test
-pnpm --filter @interiorai/web typecheck
+# 1) 基礎服務
+docker compose up -d postgres redis minio
+
+# 2) API（NestJS，http://localhost:3000/v1）
+pnpm --filter @interiorai/api build
+MIGRATION_DATABASE_URL=postgres://app:app@localhost:5432/interiorai pnpm --filter @interiorai/api migrate
+pnpm --filter @interiorai/api seed          # 把 packages/catalog 的種子資產寫進資料庫
+pnpm --filter @interiorai/api start
+
+# 3) Worker（BullMQ：渲染、平面圖匯入 Job）— 另開終端機
+pnpm --filter @interiorai/worker build && pnpm --filter @interiorai/worker start
+
+# 4)（選用）平面圖辨識 cv-service（Python 3.11+）
+cd services/cv-service
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/uvicorn app.main:app --port 8100 --reload
+#   或：docker compose --profile cv up -d cv-service
+
+# 5) 前端指向本機 API（預設就是 http://localhost:3000/v1）
+pnpm --filter @interiorai/web dev
 ```
 
-`pnpm test:e2e` 會由 Playwright 設定先建置 Web app，再透過 Vite preview 啟動 `http://localhost:4173`。本機 E2E 使用已安裝的 Chrome；CI 使用 Playwright 的 Chromium。Apple Silicon 若 Node 執行於 Rosetta，E2E 設定會使用 `tools/chrome-arm64.sh` 啟動原生 arm64 Chrome。
+| 服務 | 位址 | 帳密／備註 |
+|---|---|---|
+| Web（Vite） | http://localhost:5173 | — |
+| API | http://localhost:3000/v1 | 健康檢查 `GET /v1/healthz` |
+| Postgres | localhost:5432 | 遷移擁有者 `app/app`；API 以 `interiorai_app_login` 連線（migrate 會建立） |
+| MinIO Console | http://localhost:9001 | `minio / minio12345` |
+| cv-service | http://localhost:8100 | `POST /v1/parse` |
 
-## 功能開發流程
+### 環境變數
 
-1. **確認階段與需求**：先讀 [`docs/PROGRESS.md`](docs/PROGRESS.md) 和 [`docs/backlog.md`](docs/backlog.md)，確認工作項目、依賴與目前 Phase。需求細節從 [`docs/specs/`](docs/specs/) 查找。
-2. **確認資料與設計決策**：涉及 Scene Graph、尺寸單位、幾何、套件邊界或跨 Phase 契約時，先查閱相關 [`docs/adr/`](docs/adr/)；若改變既有決策，新增或更新 ADR，並同步更新相關規格。
-3. **在正確套件實作**：場景 schema 放在 `scene-schema`；幾何純函式放在 `core-geometry`；場景狀態和可復原命令放在 `app-state`；畫布與互動分別放在 `editor-2d`、`viewer-3d`；頁面組合與瀏覽器互動放在 `apps/web`。避免在 UI 元件重複實作幾何或直接繞過場景狀態管理。
-4. **同步在地化與素材授權**：面向使用者的文字同時更新 `apps/web/src/locales/zh-TW.json` 和 `apps/web/src/locales/en.json`。新增資產時依照 [`docs/licenses.md`](docs/licenses.md) 登記來源和授權。
-5. **加入同層測試**：純資料／幾何／狀態邏輯放在對應 package 的 `test/`；元件測試放在 Web app 測試目錄；跨畫面操作放在根目錄 `e2e/`。測試需驗證可觀察行為，不只測試實作細節。
-6. **由快到廣驗證**：先跑受影響 package 的測試或型別檢查，再跑 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm build`；變更使用者流程、畫布操作、無障礙或跨瀏覽器行為時，再跑 `pnpm test:e2e`。涉及授權或目錄資料時加跑 `pnpm licenses:check`。
-7. **同步專案追蹤文件**：完成 backlog 工作後更新 `docs/backlog.md` 與 `docs/PROGRESS.md`，記錄 Gate 結果、量測環境、受阻事項和未達標指標。不要只因 mock 測試通過，就宣稱真實 AI／CV 品質或成本已校準。
+開發模式下 API 所有連線都有預設值（見 `services/api/src/config.ts`），**不需要 `.env`**；API 不會自動讀 `.env` 檔，要覆寫請在指令前加變數或用 `export`。`NODE_ENV=production` 時所有值都必須明確提供。
 
-Git pre-commit hook 會執行 `pnpm lint`，並檢查 `packages/`、`apps/` 下的 TypeScript、TSX 與 JSON 檔案格式。
+| 變數 | 用途 | 開發預設 |
+|---|---|---|
+| `VITE_API_URL` | 前端 build 時注入的 API 位址 | `http://localhost:3000/v1` |
+| `PORT` | API 埠 | `3000` |
+| `DATABASE_URL` / `SYSTEM_DATABASE_URL` | 應用（受 RLS）／維運（BYPASSRLS）連線 | 見 config.ts |
+| `REDIS_URL` | BullMQ | `redis://localhost:6379` |
+| `S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY_ID`、`S3_SECRET_ACCESS_KEY` | 物件儲存 | MinIO 預設 |
+| `AI_PROVIDER` | `mock`／`openai`／`flux` | `mock` |
+| `OPENAI_API_KEY`、`BFL_API_KEY` | 只在真實供應商驗證時使用，**不可提交、不可進前端 bundle** | — |
+| `CV_SERVICE_URL` | 平面圖辨識服務 | `http://localhost:8100` |
 
-## 測試與品質檢查
+`.env.example` 列出上述變數，可複製成 `.env` 後用 `set -a; source .env; set +a` 載入目前的 shell。
 
-專案使用 Vitest 執行套件與 Web 單元測試、Testing Library 測試 React 元件，並以 Playwright 覆蓋主要編輯器流程。幾何核心也使用 `fast-check` 驗證性質；端對端測試包含 `@axe-core/playwright` 無障礙檢查與效能量測。
+---
 
-提交前的建議檢查：
+## 3. 專案結構
+
+```text
+apps/web                 React 19 + Vite 8 + Tailwind 4：頁面、面板（遊戲 HUD 風格）、i18n
+packages/scene-schema    Scene Graph 型別（Zod）＋ JSON Schema ＋ migration（目前 v1.1.0）
+packages/core-geometry   牆體／開口幾何、房間偵測、碰撞、面積、BOM（純函式，禁止依賴 three/DOM）
+packages/app-state       Zustand store、Command（可 Undo/Redo）、IndexedDB 自動儲存、自動點綴
+packages/catalog         資產目錄（~100 件參數化家具／燈具）、材質、光源規格、授權檢查
+packages/editor-2d       Konva 2D 平面編輯器
+packages/viewer-3d       React Three Fiber 3D 檢視器：剖面模型、物理燈光、後處理、GLB 載入、縮圖、G-buffer
+packages/api-client      由 OpenAPI 產生的前端型別與 client
+packages/assistant       AI 助理工具定義與 mock（P6）
+packages/image-ops       影像處理（渲染驗證用）
+services/api             NestJS API（Auth、專案版本、上傳、Job、點數帳本、渲染、平面圖匯入）
+services/worker          BullMQ worker
+services/cv-service      Python 平面圖辨識（DXF／點陣）
+e2e/                     Playwright 端對端測試（需要 Docker：會自動起測試用後端）
+docs/                    PRD、規格、ADR、進度、backlog
+```
+
+資料流：**Scene Graph 是唯一事實來源**。所有持久變更都經由 `app-state` 的 Command（`store.exec(cmd)`），2D、3D、屬性面板都只是 Scene 的投影；選取、工具、相機、畫質等 UI 狀態不進 Scene。長度一律整數 mm。
+
+---
+
+## 4. 常用指令
+
+都在 repository 根目錄執行。
+
+| 指令 | 用途 |
+|---|---|
+| `pnpm --filter @interiorai/web dev` | 前端開發伺服器（HMR） |
+| `pnpm --filter @interiorai/web build && pnpm --filter @interiorai/web preview` | 建置後在 :4173 預覽（最接近正式環境） |
+| `pnpm lint` | ESLint（警告視為錯誤；含 i18n 字串檢查） |
+| `pnpm typecheck` / `pnpm test` / `pnpm build` | 全 workspace 型別檢查／單元測試／建置 |
+| `pnpm --filter @interiorai/viewer-3d test` | 只跑單一套件測試 |
+| `pnpm test:integration`、`pnpm test:contract` | API 整合／契約測試（需要 Docker） |
+| `pnpm test:e2e` | Playwright E2E（需要 Docker） |
+| `pnpm licenses:check` | 套件與資產授權檢查 |
+| `pnpm catalog check` | 資產目錄 schema／授權檢查 |
+| `pnpm format` | Prettier |
+
+---
+
+## 5. 如何 Debug
+
+### 5.1 VS Code 一鍵除錯
+
+`.vscode/launch.json` 已提供下列設定（`執行與偵錯` 面板選擇即可）：
+
+| 設定 | 做什麼 |
+|---|---|
+| **Web: Chrome（Vite dev）** | 先自己跑 `pnpm --filter @interiorai/web dev`，再用這個開 Chrome；可在 `.tsx`／`packages/*/src` 直接下中斷點 |
+| **API: 啟動並除錯** | 以 `--inspect` 跑已建置的 API（先 `pnpm --filter @interiorai/api build`），中斷點下在 `services/api/src` |
+| **API: 附加到 9229** | 附加到自行以 `node --inspect dist/main.js` 啟動的 API／worker |
+| **Vitest: 目前檔案** | 對正在編輯的測試檔跑 vitest 並可停在中斷點 |
+| **Playwright: 目前檔案（除錯模式）** | 以 `PWDEBUG=1` 開啟 Playwright Inspector 逐步執行 |
+
+### 5.2 瀏覽器端
+
+- **測試鉤子 `window.__editor`**（進入編輯器後可在 DevTools Console 使用）：
+
+  ```js
+  const ed = window.__editor;
+  ed.store.getState().scene                 // 目前的 Scene Graph（JSON）
+  ed.store.getState().selection             // 選取中的 id
+  ed.store.getState().history.past.map(h => h.label)   // 復原歷史
+  ed.viewer3d().info()                      // draw calls、三角形、GPU 資源數
+  ed.viewer3d().lights()                    // 夜間光源池、陰影數、窗戶亮度、間接光強度
+  await ed.viewer3d().bench(4000)           // 旋轉 4 秒量 FPS
+  ed.viewer3d().viewPreset('iso-nw')        // 切視角
+  ed.viewer3d().screenshot()                // 目前畫面（含後處理）的 PNG dataURL
+  ed.viewer3d().gbuffer({ width: 512, height: 384, clay: true })  // AI 渲染用的 G-buffer
+  ed.plan2d().worldToClient([1000, 2000])   // 2D 世界座標 → 螢幕座標
+  await ed.flush()                          // 立即存檔
+  ```
+
+- **React DevTools**：看元件 props／狀態；Zustand store 以 `__editor.store` 直接讀最快。
+- **3D 場景**：安裝 Chrome 擴充「Three.js DevTools」或在 Console 用 `ed.viewer3d().info()`；畫面全黑或閃爍時，先把畫質切到「效能」、關掉光暈／體積光束（右側面板未選取任何物件時的「畫質」分節）縮小範圍。HDR 後處理中任何 NaN 會被光暈擴散到整個畫面——新增 shader 時務必避開 0 長度 normalize 與負底數 `pow`。
+- **本機資料**：DevTools → Application → IndexedDB：`interiorai`／`projects`（專案）、`interiorai-assets`（上傳的 3D 模型）；`localStorage` 存偏好（`viewStyle`、`lighting`、`graphics`、`lang`、單位）。清掉即重置。
+- **Vite**：`pnpm --filter @interiorai/web dev -- --debug` 顯示模組解析細節；「無法解析 `@interiorai/*`」通常是核心套件沒 build（見第 1 節）。
+
+### 5.3 後端
+
+- API 結構化日誌輸出在 stdout（`log.info('api.listening', …)`）；開發模式會以 OpenAPI 驗證**回應**，不符契約直接回 500，看日誌裡的 `path` 找欄位。
+- `node --inspect=9229 services/api/dist/main.js` 後用 VS Code「API: 附加到 9229」或 Chrome `chrome://inspect`。
+- Job 卡住：`docker compose exec redis redis-cli KEYS 'bull:*'`；資料：`docker compose exec postgres psql -U app interiorai`。
+- 上傳的檔案：MinIO Console <http://localhost:9001>。
+
+### 5.4 cv-service（Python）
 
 ```sh
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm test:e2e
+cd services/cv-service
+.venv/bin/python -m pytest -q -k dxf            # 只跑某類測試
+.venv/bin/python -m eval.debug 1 filled out.png # 把辨識結果疊到圖上（GT 綠、預測紅/藍/洋紅）
+.venv/bin/python -m debugpy --listen 5678 -m uvicorn app.main:app --port 8100   # 再用 VS Code 附加
+```
+
+### 5.5 測試除錯
+
+```sh
+pnpm --filter @interiorai/app-state exec vitest --ui            # Vitest UI
+pnpm --filter @interiorai/viewer-3d exec vitest run -t "間接光"   # 以名稱篩選
+pnpm exec playwright test e2e/lighting.spec.ts --headed         # 看得到瀏覽器
+pnpm exec playwright test --ui                                  # Playwright UI 模式
+pnpm exec playwright show-trace test-results/**/trace.zip       # 失敗時自動保留 trace
+```
+
+E2E 截圖存在 `e2e/results/*.png`（剖面模型、夜間光線的對照圖）。
+
+---
+
+## 6. 功能速覽與操作
+
+**編輯器版面**（遊戲 HUD 風格）：左＝建造面板（工具快捷列、圖層、資產庫／物件清單），中＝2D 藍圖或 3D 視埠（左上浮動 HUD：視角、截圖、軟裝、風格、光線），右＝屬性面板，底＝狀態列。
+
+| 功能 | 操作 |
+|---|---|
+| 畫牆／房間／門窗 | 左側工具列（V 選取、W 畫牆、D 門、N 窗、空白鍵平移） |
+| 放家具 | 資產庫點選後在 2D 點擊，或拖進 2D 畫布；卡片縮圖為即時 3D 渲染 |
+| 3D 移動／旋轉／縮放 | 選取後 G／R／S，或屬性面板輸入數值 |
+| **任何物件的細部屬性** | 選取後右側面板：變換、參數、外觀（顏色、粗糙度、金屬度、不透明度、陰影、隱藏）、材質 |
+| **燈光** | 選燈具 →「光源」分節：開關、光通量（lm）、色溫（K）、RGB 光色、光束角、邊緣柔化、俯仰／水平角、陰影與柔和度、衰減距離；即時顯示 cd、2 m 照度、估計耗電；3D 中顯示光束示意 |
+| **牆** | 長度、厚度、個別牆高、踢腳板、A/B 面顏色、粗糙度、陰影、隱藏、材質 |
+| **門窗／房間** | 門片／窗框顏色、玻璃不透明度；地板與天花染色、粗糙度 |
+| **環境與曝光** | 不選任何物件時右側面板：夜空亮度（無月／滿月／城市／藍調時刻）、曝光 EV、間接光倍率、太陽方位／仰角／強度 |
+| **畫質** | 同上：效能／平衡／極致、AO、光暈、體積光束、調色暗角（存在本機偏好） |
+| **上傳 3D 模型** | 資產庫搜尋框旁的上傳鈕：GLB／自含式 glTF，選單位、分類、放置方式 → 加入「我的上傳」 |
+| 隱藏／鎖定 | 物件清單每列的眼睛／鎖頭；H 隱藏選取物件 |
+| 截圖 | 3D HUD 相機鈕（含後處理的 PNG） |
+| 快捷鍵 | Tab 2D/3D、F 全景、Ctrl/Cmd+Z/Y 復原重做、Ctrl/Cmd+D 複製、Delete 刪除、Esc 取消 |
+
+夜間光線的物理模型見 [ADR-021](docs/adr/ADR-021-night-lighting-fixtures.md)、[ADR-023](docs/adr/ADR-023-properties-physical-night-game-ui.md)：燈具以 lm→cd 換算為真實光源；窗戶在夜間是「看得到夜空的開口」（亮度＝天空亮度，城市光害約 0.5 cd/m²），不再是發光板；間接光依全部燈具光通量以積分球公式估算。
+
+---
+
+## 7. 測試與品質檢查
+
+提交前建議依序：
+
+```sh
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm test:e2e           # 需要 Docker
 pnpm licenses:check
 ```
 
-完整 P2 Gate 及已量測項目請查看 [`docs/PROGRESS.md`](docs/PROGRESS.md)。效能數據必須連同硬體、瀏覽器與測試條件解讀；開發機的數值不等同正式基準機結果。
+Git pre-commit hook 會跑 `pnpm lint` 與 Prettier 檢查。新增面向使用者的文字要同時加到 `apps/web/src/locales/zh-TW.json` 與 `en.json`（有測試檢查鍵一致）。開發流程細節（階段、ADR、測試層級）見 [`docs/rules.md`](docs/rules.md) 與 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
 
-## 資料與本機服務
+---
 
-- 樣本場景位於 `fixtures/scenes/`；場景格式及 JSON Schema 位於 `packages/scene-schema/`。
-- Web 專案資料目前使用瀏覽器 IndexedDB 本機儲存，不會同步到雲端。
-- 根目錄 `docker-compose.yml` 描述規劃中的 PostgreSQL、Redis、MinIO 與 CV service 開發依賴；這些服務不是目前 Web 編輯器的啟動前置條件。
-- 後端進度仍在 P3 之前；`services/api/` 尚未提供可供 Web app 使用的完整 API。CV service 也尚未建立，因此目前不要將 Docker Compose 視為可啟動的完整產品後端。
-- AI provider、資料庫、上傳與帳務的正式設定方式，待相應 Phase 實作後再依服務文件補充；目前不需要 API 金鑰或 `.env` 才能開啟前端。
+## 8. 常見問題
 
-## 文件索引
+**Vite 顯示無法解析 `@interiorai/*`**：核心套件還沒有 `dist`。執行 `pnpm exec turbo run build --filter='@interiorai/web^...'`。
 
-| 文件                                                                         | 說明                                   |
-| ---------------------------------------------------------------------------- | -------------------------------------- |
-| [`docs/PROGRESS.md`](docs/PROGRESS.md)                                       | Phase 狀態、Gate、量測、阻礙與決策紀錄 |
-| [`docs/backlog.md`](docs/backlog.md)                                         | Epic、Story 與需求覆蓋對照             |
-| [`docs/specs/01-prd.md`](docs/specs/01-prd.md)                               | 產品目標、範圍與功能需求               |
-| [`docs/specs/02-ux-spec.md`](docs/specs/02-ux-spec.md)                       | UX 流程與互動規格                      |
-| [`docs/specs/03-frontend-design.md`](docs/specs/03-frontend-design.md)       | 前端套件、狀態、幾何與測試設計         |
-| [`docs/specs/04-backend-design.md`](docs/specs/04-backend-design.md)         | 後端 API、認證、Job 與點數帳本設計     |
-| [`docs/specs/08-devops-security-qa.md`](docs/specs/08-devops-security-qa.md) | DevOps、安全、測試及 Gate 規則         |
-| [`docs/adr/`](docs/adr/)                                                     | 架構決策紀錄（ADR）                    |
-| [`docs/specs/openapi.yaml`](docs/specs/openapi.yaml)                         | API 契約草稿；服務實作尚未完成         |
+**改了 schema／幾何程式碼但畫面沒變**：這些套件要重新 build（或開 `tsc --watch`），見第 1 節。
 
-## 常見問題
+**3D 很慢、E2E 首次載入 30 秒以上（Apple Silicon）**：Node 是 x86_64 版、終端機跑在 Rosetta。`node -p process.arch` 應為 `arm64`。以 nvm 重新安裝 arm64 版 Node，並關閉終端機 App 的「使用 Rosetta 開啟」。E2E 設定在 Rosetta 下會改用 `tools/chrome-arm64.sh` 啟動原生 Chrome 作為暫時解法。
 
-### Vite 顯示無法解析 `@interiorai/*` 套件
+**3D 畫面全黑**：先確認 WebGL2（<https://get.webgl.org/webgl2/>）。再把畫質切到「效能」並關閉光暈／體積光束；若因此恢復，是後處理管線中有無效數值，見 5.2。
 
-初次啟動時，核心 workspace 套件可能還沒有 `dist` 輸出。先在 repository 根目錄建置 Web app 與其 workspace 相依套件，再啟動 Vite：
+**開發伺服器不是 5173**：port 被占用時 Vite 會換下一個，以終端機的 `Local` 網址為準。
 
-```sh
-pnpm exec turbo run build --filter='@interiorai/web...'
-pnpm --filter @interiorai/web dev
+**專案存在哪裡？**：未登入時存在該瀏覽器的 IndexedDB；登入並連上 API 後渲染前會自動存雲端版本。上傳的 3D 模型目前只存在本機瀏覽器。
+
+**`pnpm test:e2e` 失敗在 webServer**：E2E 會用 Testcontainers 起真實後端，需要 Docker 在執行中，**也需要 cv-service 的 Python venv**（`services/cv-service/.venv`，建立方式見第 2 節步驟 4）；缺少時會出現 `spawn …/.venv/bin/uvicorn ENOENT`。只想跑前端相關 spec 時，可暫時用只啟動 Web 的設定：
+
+```ts
+// playwright.web-only.config.ts（不要提交）
+import base from './playwright.config';
+export default { ...base, webServer: [(base.webServer as any[])[1]] };
 ```
 
-### 開發伺服器不是跑在 5173
+```sh
+pnpm exec playwright test -c playwright.web-only.config.ts e2e/editor.spec.ts e2e/lighting.spec.ts e2e/properties.spec.ts
+```
 
-若 5173 已被其他程序占用，Vite 會自動選擇下一個可用 port；使用終端機輸出的 `Local` URL。若要釋放原 port，可先停止仍在執行的 Vite 終端程序。
+---
 
-### 專案在哪裡保存？
+## 9. 文件索引
 
-目前儲存在該瀏覽器的 IndexedDB。這不是雲端備份；換瀏覽器或清除網站資料後，專案不會自動跟著移轉。
+| 文件 | 說明 |
+|---|---|
+| [`docs/PROGRESS.md`](docs/PROGRESS.md) | Phase 狀態、Gate、量測、阻礙與決策 |
+| [`docs/backlog.md`](docs/backlog.md) | Epic／Story 與需求對照 |
+| [`docs/specs/11-frontend-requirements.md`](docs/specs/11-frontend-requirements.md) | **前台需求規格書 v2：對標市面平台的功能缺口與驗收** |
+| [`docs/specs/01-prd.md`](docs/specs/01-prd.md) | 產品目標與功能需求 |
+| [`docs/specs/02-ux-spec.md`](docs/specs/02-ux-spec.md) | UX 流程與互動 |
+| [`docs/specs/03-frontend-design.md`](docs/specs/03-frontend-design.md) | 前端架構、狀態、幾何、測試 |
+| [`docs/specs/04-backend-design.md`](docs/specs/04-backend-design.md) | 後端 API、Job、點數帳本 |
+| [`docs/specs/openapi.yaml`](docs/specs/openapi.yaml) | API 契約 |
+| [`docs/adr/`](docs/adr/) | 架構決策紀錄 |
+| [`services/api/README.md`](services/api/README.md)、[`services/cv-service/README.md`](services/cv-service/README.md) | 服務細節 |

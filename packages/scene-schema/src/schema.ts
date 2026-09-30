@@ -11,7 +11,7 @@ export const LIMITS = {
   minWallLength: 100,
 } as const;
 
-export const CURRENT_SCHEMA_VERSION = '1.0.0';
+export const CURRENT_SCHEMA_VERSION = '1.1.0';
 
 const id = z
   .string()
@@ -22,6 +22,48 @@ const mm = z.int().min(-LIMITS.coord).max(LIMITS.coord);
 const vec2 = z.tuple([mm, mm]);
 const vec3 = z.tuple([mm, mm, mm]);
 const confidence = z.number().min(0).max(1);
+const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
+/**
+ * 外觀覆寫（v1.1，ADR-023）：只影響呈現、不影響幾何與碰撞；未設定＝沿用材質／目錄預設。
+ * color 取代材質底色（貼圖紋理保留）；opacity 對門窗套用在玻璃。
+ */
+export const AppearanceSchema = z.strictObject({
+  color: hex.optional(),
+  roughness: z.number().min(0).max(1).optional(),
+  metalness: z.number().min(0).max(1).optional(),
+  opacity: z.number().min(0.05).max(1).optional(),
+  castShadow: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+});
+
+/**
+ * 燈具光源覆寫（v1.1，ADR-023）：物理量。未設定＝目錄 light 規格／物件參數 color、dimmer。
+ * tiltDeg/panDeg：光束相對燈具的俯仰／水平轉角；rangeMm：衰減截止距離（0＝物理無限）。
+ */
+export const LightOverrideSchema = z.strictObject({
+  on: z.boolean().optional(),
+  lumens: z.number().min(0).max(200_000).optional(),
+  kelvin: z.int().min(1000).max(12_000).optional(),
+  color: hex.optional(),
+  beamDeg: z.number().min(5).max(170).optional(),
+  penumbra: z.number().min(0).max(1).optional(),
+  tiltDeg: z.number().min(-180).max(180).optional(),
+  panDeg: z.number().min(-180).max(180).optional(),
+  castShadow: z.boolean().optional(),
+  shadowSoftness: z.number().min(0).max(20).optional(),
+  rangeMm: z.int().min(0).max(100_000).optional(),
+});
+
+/** 場景環境（v1.1）：室外天空、曝光、環境光、太陽；夜間天空亮度依物理量（cd/m²）對應 */
+export const EnvironmentSchema = z.strictObject({
+  sky: z.enum(['moonless', 'moonlit', 'city', 'dusk']).optional(),
+  exposureEv: z.number().min(-6).max(6).optional(),
+  ambient: z.number().min(0).max(4).optional(),
+  sunAzimuthDeg: z.number().min(-180).max(180).optional(),
+  sunElevationDeg: z.number().min(2).max(90).optional(),
+  sunIntensity: z.number().min(0).max(10).optional(),
+});
 
 export const WallSchema = z.strictObject({
   id,
@@ -32,6 +74,12 @@ export const WallSchema = z.strictObject({
   materialId: id.optional(),
   materialIdB: id.optional(),
   confidence: confidence.optional(),
+  /** 個別牆高（mm）；未設定＝樓層高 */
+  height: z.int().min(100).max(6000).optional(),
+  /** 踢腳板高度（mm；0＝無） */
+  baseboard: z.int().min(0).max(300).optional(),
+  appearance: AppearanceSchema.optional(),
+  appearanceB: AppearanceSchema.optional(),
 });
 
 export const OpeningSchema = z.strictObject({
@@ -45,6 +93,7 @@ export const OpeningSchema = z.strictObject({
   sill: z.int().min(0).optional(),
   swing: z.enum(['left', 'right', 'double', 'sliding', 'none']).optional(),
   confidence: confidence.optional(),
+  appearance: AppearanceSchema.optional(),
 });
 
 export const RoomSchema = z.strictObject({
@@ -54,6 +103,8 @@ export const RoomSchema = z.strictObject({
   floorMaterialId: id.optional(),
   ceilingMaterialId: id.optional(),
   confidence: confidence.optional(),
+  floorAppearance: AppearanceSchema.optional(),
+  ceilingAppearance: AppearanceSchema.optional(),
 });
 
 export const ObjectSchema = z.strictObject({
@@ -67,6 +118,10 @@ export const ObjectSchema = z.strictObject({
   materialOverrides: z.record(z.string(), id).optional(),
   locked: z.boolean().optional(),
   roomId: id.optional(),
+  /** 使用者自訂名稱 */
+  name: z.string().max(60).optional(),
+  appearance: AppearanceSchema.optional(),
+  light: LightOverrideSchema.optional(),
 });
 
 export const AnnotationSchema = z.looseObject({
@@ -109,6 +164,7 @@ export const SceneSchema = z.strictObject({
   units: z.literal('mm'),
   levels: z.array(LevelSchema).min(1),
   cameras: z.array(CameraSchema).max(LIMITS.cameras).optional(),
+  environment: EnvironmentSchema.optional(),
   meta: MetaSchema.optional(),
 });
 
@@ -119,5 +175,8 @@ export type SceneObject = z.infer<typeof ObjectSchema>;
 export type Level = z.infer<typeof LevelSchema>;
 export type Camera = z.infer<typeof CameraSchema>;
 export type Scene = z.infer<typeof SceneSchema>;
+export type Appearance = z.infer<typeof AppearanceSchema>;
+export type LightOverride = z.infer<typeof LightOverrideSchema>;
+export type Environment = z.infer<typeof EnvironmentSchema>;
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];

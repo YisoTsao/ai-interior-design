@@ -6,3 +6,5 @@ export * from './style.js';
 export * from './furniture.js';
 export * from './gbuffer.js';
 export * from './lighting.js';
+export * from './models.js';
+export * from './thumbnails.js';

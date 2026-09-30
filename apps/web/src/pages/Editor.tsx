@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ArrowLeft, Bookmark, Box, Eye, Leaf, Map, Maximize, Redo2, Undo2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Box, Camera, Eye, Leaf, Map, Maximize, Redo2, Undo2 } from 'lucide-react';
 import {
   activeLevel,
   addObject,
@@ -15,10 +15,10 @@ import {
   saveCameraBookmark,
   startAutosave,
 } from '@interiorai/app-state';
-import { objectDims } from '@interiorai/catalog';
+import { defaultElevation } from '@interiorai/catalog';
 import { Plan2D, plan2dApi } from '@interiorai/editor-2d';
 import { VIEW_PRESETS, Viewer3D, viewer3dApi, type ViewPreset } from '@interiorai/viewer-3d';
-import { catalog, materials } from '../catalogData';
+import { catalog, materials, useCatalogVersion } from '../catalogData';
 import { BottomBar } from '../editor/BottomBar';
 import { IconButton, LangToggle, OfflineBadge } from '../editor/common';
 import { EditorCtx, useEditor, useEditorStore } from '../editor/context';
@@ -113,6 +113,8 @@ function EditorShell() {
   const areaUnit = usePrefs((s) => s.areaUnit);
   const viewStyle = usePrefs((s) => s.viewStyle);
   const lighting = usePrefs((s) => s.lighting);
+  const graphics = usePrefs((s) => s.graphics);
+  const catalogVersion = useCatalogVersion();
   const [mode, setMode] = useState<TransformMode>('translate');
   const [uniformScale, setUniformScale] = useState(true);
   const [showCeiling, setShowCeiling] = useState(false);
@@ -128,7 +130,7 @@ function EditorShell() {
     const [x, z] = api.clientToWorld([e.clientX, e.clientY]);
     const s = store.getState();
     const lvl = activeLevel(s);
-    const y = entry.anchor === 'ceiling' ? lvl.height - objectDims(entry).h : 0;
+    const y = defaultElevation(entry, lvl.height);
     s.exec(
       addObject(s.levelId, {
         catalogId: entry.id,
@@ -139,16 +141,16 @@ function EditorShell() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="game-ui flex h-full flex-col">
       <a href="#canvas" className="sr-only focus:not-sr-only">
         {t('app.skip')}
       </a>
-      <TopBar mode={mode} setMode={setMode} showCeiling={showCeiling} setShowCeiling={setShowCeiling} />
+      <TopBar mode={mode} setMode={setMode} />
       <div className="flex min-h-0 flex-1">
         <LeftPanel />
         <main
           id="canvas"
-          className="relative min-w-0 flex-1"
+          className="relative min-w-0 flex-1 bg-bg"
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
           tabIndex={-1}
@@ -195,9 +197,12 @@ function EditorShell() {
                 showCeiling={showCeiling}
                 viewStyle={viewStyle}
                 lighting={lighting}
+                graphics={graphics}
+                catalogVersion={catalogVersion}
               />
             )}
           </CanvasBoundary>
+          {view === '3d' && <ViewportHud showCeiling={showCeiling} setShowCeiling={setShowCeiling} />}
         </main>
         <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
       </div>
@@ -206,17 +211,7 @@ function EditorShell() {
   );
 }
 
-function TopBar({
-  mode,
-  setMode,
-  showCeiling,
-  setShowCeiling,
-}: {
-  mode: TransformMode;
-  setMode: (m: TransformMode) => void;
-  showCeiling: boolean;
-  setShowCeiling: (v: boolean) => void;
-}) {
+function TopBar({ mode, setMode }: { mode: TransformMode; setMode: (m: TransformMode) => void }) {
   const { t } = useTranslation();
   const store = useEditorStore();
   const name = useEditor((s) => s.projectName);
@@ -225,16 +220,20 @@ function TopBar({
   const undoable = useEditor(canUndo);
   const redoable = useEditor(canRedo);
   const lastLabel = useEditor((s) => s.history.past.at(-1)?.label);
-  const cams = useEditor((s) => s.scene.cameras?.length ?? 0);
-  const { lengthUnit, areaUnit, setLength, setArea, viewStyle, setViewStyle, lighting, setLighting } =
-    usePrefs();
+  const { lengthUnit, areaUnit, setLength, setArea } = usePrefs();
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2">
+    <header className="hud-bar relative z-10 flex h-12 shrink-0 items-center gap-2 overflow-x-auto px-2 whitespace-nowrap">
       <Link to="/" className="icon-btn" aria-label={t('top.back')} title={t('top.back')}>
         <ArrowLeft size={18} aria-hidden />
       </Link>
+      <span
+        className="hidden font-[Rajdhani] text-lg font-bold tracking-widest text-primary xl:inline"
+        aria-hidden
+      >
+        INTERIOR<span className="text-accent">AI</span>
+      </span>
       <input
-        className="field w-56 font-sans"
+        className="field w-48 shrink-0 font-sans"
         aria-label={t('top.name')}
         value={name}
         onChange={(e) => store.getState().rename(e.target.value)}
@@ -266,7 +265,7 @@ function TopBar({
         <Redo2 size={18} aria-hidden />
       </IconButton>
       <div className="mx-2 h-6 w-px bg-border" />
-      <div role="radiogroup" aria-label={t('top.view2d')} className="flex rounded-md border border-border">
+      <div role="radiogroup" aria-label={t('top.view2d')} className="hud-seg">
         <IconButton
           label={t('top.view2d')}
           pressed={view === '2d'}
@@ -286,99 +285,13 @@ function TopBar({
       </div>
       {view === '3d' && (
         <>
-          <div className="flex gap-1 text-xs" role="radiogroup" aria-label={t('tools.translate')}>
+          <div className="hud-seg" role="radiogroup" aria-label={t('tools.translate')}>
             {(['translate', 'rotate', 'scale'] as const).map((m) => (
-              <button
-                key={m}
-                className={`btn px-2 py-1 ${mode === m ? 'btn-primary' : ''}`}
-                aria-pressed={mode === m}
-                onClick={() => setMode(m)}
-              >
+              <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>
                 {t(`tools.${m}`)}
               </button>
             ))}
           </div>
-          <IconButton label={t('top.personView')} onClick={() => viewer3dApi.get()?.personView()}>
-            <Eye size={18} aria-hidden />
-          </IconButton>
-          <IconButton label={t('top.frameAll')} onClick={() => viewer3dApi.get()?.frameAll()}>
-            <Maximize size={18} aria-hidden />
-          </IconButton>
-          <IconButton
-            label={t('top.bookmark')}
-            onClick={() => {
-              const cam = viewer3dApi.get()?.currentCamera();
-              if (!cam) return;
-              const nm = t('top.bookmarkName', { n: cams + 1 });
-              if (store.getState().exec(saveCameraBookmark({ name: nm, ...cam })))
-                store.getState().notify('info', t('saved.camera', { name: nm }));
-            }}
-          >
-            <Bookmark size={18} aria-hidden />
-          </IconButton>
-          <IconButton
-            label={t('top.decorate')}
-            testId="auto-decorate"
-            onClick={() => {
-              const s = store.getState();
-              const plan = planDecor(activeLevel(s), catalog);
-              if (plan.length && s.exec(autoDecorate(s.levelId, plan)))
-                s.notify('info', t('top.decorateDone', { n: plan.length }));
-              else s.notify('info', t('top.decorateNone'));
-            }}
-          >
-            <Leaf size={18} aria-hidden />
-          </IconButton>
-          <label className="flex items-center gap-1 text-xs">
-            <span className="sr-only">{t('top.style')}</span>
-            <select
-              className="field w-28 font-sans"
-              value={viewStyle}
-              onChange={(e) => setViewStyle(e.target.value as typeof viewStyle)}
-              data-testid="view-style"
-            >
-              <option value="dollhouse">{t('top.styleDollhouse')}</option>
-              <option value="simple">{t('top.styleSimple')}</option>
-            </select>
-          </label>
-          {viewStyle === 'dollhouse' && (
-            <label className="flex items-center gap-1 text-xs">
-              <span className="sr-only">{t('top.lighting')}</span>
-              <select
-                className="field w-28 font-sans"
-                value={lighting}
-                onChange={(e) => setLighting(e.target.value as typeof lighting)}
-                data-testid="view-lighting"
-              >
-                <option value="night">{t('top.lightingNight')}</option>
-                <option value="day">{t('top.lightingDay')}</option>
-              </select>
-            </label>
-          )}
-          {viewStyle === 'dollhouse' && (
-            <label className="flex items-center gap-1 text-xs">
-              <span className="sr-only">{t('top.viewPreset')}</span>
-              <select
-                className="field w-28 font-sans"
-                value=""
-                onChange={(e) =>
-                  e.target.value && viewer3dApi.get()?.viewPreset(e.target.value as ViewPreset)
-                }
-                data-testid="view-preset"
-              >
-                <option value="">{t('top.viewPreset')}</option>
-                {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((p) => (
-                  <option key={p} value={p}>
-                    {t(`top.preset.${p}`)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="flex items-center gap-1 text-xs">
-            <input type="checkbox" checked={showCeiling} onChange={(e) => setShowCeiling(e.target.checked)} />{' '}
-            {t('top.ceiling')}
-          </label>
         </>
       )}
       <div className="ml-auto flex items-center gap-2">
@@ -414,5 +327,127 @@ function TopBar({
         {view === '3d' && <RenderPanel />}
       </div>
     </header>
+  );
+}
+
+/**
+ * 3D 視埠 HUD（遊戲式浮動工具列）：視角、截圖、軟裝、風格／光線／視角預設、天花板。
+ * 放在畫布左上角，頂列只留專案層級的操作。
+ */
+function ViewportHud({
+  showCeiling,
+  setShowCeiling,
+}: {
+  showCeiling: boolean;
+  setShowCeiling: (v: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const store = useEditorStore();
+  const cams = useEditor((s) => s.scene.cameras?.length ?? 0);
+  const { viewStyle, setViewStyle, lighting, setLighting } = usePrefs();
+  return (
+    <div
+      className="hud-panel absolute top-3 left-3 z-10 flex max-w-[calc(100%-24px)] flex-wrap items-center gap-1 p-1.5"
+      role="toolbar"
+      aria-label={t('top.view3d')}
+    >
+      <IconButton label={t('top.personView')} onClick={() => viewer3dApi.get()?.personView()}>
+        <Eye size={18} aria-hidden />
+      </IconButton>
+      <IconButton label={t('top.frameAll')} onClick={() => viewer3dApi.get()?.frameAll()}>
+        <Maximize size={18} aria-hidden />
+      </IconButton>
+      <IconButton
+        label={t('top.bookmark')}
+        onClick={() => {
+          const cam = viewer3dApi.get()?.currentCamera();
+          if (!cam) return;
+          const nm = t('top.bookmarkName', { n: cams + 1 });
+          if (store.getState().exec(saveCameraBookmark({ name: nm, ...cam })))
+            store.getState().notify('info', t('saved.camera', { name: nm }));
+        }}
+      >
+        <Bookmark size={18} aria-hidden />
+      </IconButton>
+      <IconButton
+        label={t('top.screenshot')}
+        testId="top-screenshot"
+        onClick={() => {
+          const url = viewer3dApi.get()?.screenshot();
+          if (!url) return;
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `interiorai-${Date.now()}.png`;
+          a.click();
+        }}
+      >
+        <Camera size={18} aria-hidden />
+      </IconButton>
+      <IconButton
+        label={t('top.decorate')}
+        testId="auto-decorate"
+        onClick={() => {
+          const s = store.getState();
+          const plan = planDecor(activeLevel(s), catalog);
+          if (plan.length && s.exec(autoDecorate(s.levelId, plan)))
+            s.notify('info', t('top.decorateDone', { n: plan.length }));
+          else s.notify('info', t('top.decorateNone'));
+        }}
+      >
+        <Leaf size={18} aria-hidden />
+      </IconButton>
+      <label className="flex items-center gap-1 text-xs">
+        <span className="sr-only">{t('top.style')}</span>
+        <select
+          className="field w-28 font-sans"
+          value={viewStyle}
+          onChange={(e) => setViewStyle(e.target.value as typeof viewStyle)}
+          data-testid="view-style"
+        >
+          <option value="dollhouse">{t('top.styleDollhouse')}</option>
+          <option value="simple">{t('top.styleSimple')}</option>
+        </select>
+      </label>
+      {viewStyle === 'dollhouse' && (
+        <label className="flex items-center gap-1 text-xs">
+          <span className="sr-only">{t('top.lighting')}</span>
+          <select
+            className="field w-28 font-sans"
+            value={lighting}
+            onChange={(e) => setLighting(e.target.value as typeof lighting)}
+            data-testid="view-lighting"
+          >
+            <option value="night">{t('top.lightingNight')}</option>
+            <option value="day">{t('top.lightingDay')}</option>
+          </select>
+        </label>
+      )}
+      {viewStyle === 'dollhouse' && (
+        <label className="flex items-center gap-1 text-xs">
+          <span className="sr-only">{t('top.viewPreset')}</span>
+          <select
+            className="field w-28 font-sans"
+            value=""
+            onChange={(e) => e.target.value && viewer3dApi.get()?.viewPreset(e.target.value as ViewPreset)}
+            data-testid="view-preset"
+          >
+            <option value="">{t('top.viewPreset')}</option>
+            {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((p) => (
+              <option key={p} value={p}>
+                {t(`top.preset.${p}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <button
+        className="hud-chip"
+        aria-pressed={showCeiling}
+        onClick={() => setShowCeiling(!showCeiling)}
+        data-testid="toggle-ceiling"
+      >
+        {t('top.ceiling')}
+      </button>
+    </div>
   );
 }

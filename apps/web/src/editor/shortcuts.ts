@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { deleteEntities, duplicateObjects, type EditorStore } from '@interiorai/app-state';
+import { deleteEntities, duplicateObjects, updateObject, type EditorStore } from '@interiorai/app-state';
+import { viewer3dApi } from '@interiorai/viewer-3d';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
@@ -55,6 +56,24 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
           return setMode('rotate');
         case 's':
           return setMode('scale');
+        case 'h': {
+          // 隱藏／顯示選取的家具（外觀覆寫 hidden）
+          const lv = s.scene.levels.find((l) => l.id === s.levelId);
+          const objs = lv?.objects.filter((o) => s.selection.includes(o.id)) ?? [];
+          if (!objs.length) return;
+          const hide = objs.some((o) => !o.appearance?.hidden);
+          for (const o of objs) {
+            const next = { ...(o.appearance ?? {}) };
+            if (hide) next.hidden = true;
+            else delete next.hidden;
+            s.exec(
+              updateObject(s.levelId, o.id, { appearance: Object.keys(next).length ? next : undefined }),
+            );
+          }
+          return;
+        }
+        case 'f':
+          return s.view === '3d' && viewer3dApi.get()?.frameAll();
         case 'tab':
           e.preventDefault();
           return s.setView(s.view === '2d' ? '3d' : '2d');

@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import type { AreaUnit, LengthUnit } from '@interiorai/editor-2d';
-import type { LightingMode, ViewStyle } from '@interiorai/viewer-3d';
+import {
+  DEFAULT_GRAPHICS,
+  type GraphicsSettings,
+  type LightingMode,
+  type ViewStyle,
+} from '@interiorai/viewer-3d';
 
 interface Prefs {
   lengthUnit: LengthUnit;
@@ -11,6 +16,9 @@ interface Prefs {
   setViewStyle(s: ViewStyle): void;
   lighting: LightingMode;
   setLighting(l: LightingMode): void;
+  /** 畫質（本機偏好） */
+  graphics: GraphicsSettings;
+  setGraphics(p: Partial<GraphicsSettings>): void;
 }
 const read = <T extends string>(k: string, fb: T): T => {
   try {
@@ -26,6 +34,16 @@ const write = (k: string, v: string) => {
     /* ignore */
   }
 };
+const readGraphics = (): GraphicsSettings => {
+  try {
+    const raw = localStorage.getItem('graphics');
+    return raw
+      ? { ...DEFAULT_GRAPHICS, ...(JSON.parse(raw) as Partial<GraphicsSettings>) }
+      : DEFAULT_GRAPHICS;
+  } catch {
+    return DEFAULT_GRAPHICS;
+  }
+};
 /** 使用者偏好（每位使用者本機；不進 Scene） */
 export const usePrefs = create<Prefs>((set) => ({
   lengthUnit: read<LengthUnit>('lengthUnit', 'cm'),
@@ -37,4 +55,11 @@ export const usePrefs = create<Prefs>((set) => ({
   // 預設夜間氛圍（images1：燈具為主要光源）
   lighting: read<LightingMode>('lighting', 'night'),
   setLighting: (lighting) => (write('lighting', lighting), set({ lighting })),
+  graphics: readGraphics(),
+  setGraphics: (p) =>
+    set((st) => {
+      const graphics = { ...st.graphics, ...p };
+      write('graphics', JSON.stringify(graphics));
+      return { graphics };
+    }),
 }));

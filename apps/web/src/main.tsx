@@ -6,6 +6,10 @@ import './styles.css';
 import { ProjectsPage } from './pages/Projects';
 import { EditorPage } from './pages/Editor';
 import { PlanReviewPage } from './features/plan-review/PlanReview';
+import { initUserAssets } from './userAssets';
+
+// 使用者上傳的 3D 模型（IndexedDB）→ 資產目錄
+void initUserAssets();
 
 const router = createBrowserRouter([
   { path: '/', element: <ProjectsPage /> },

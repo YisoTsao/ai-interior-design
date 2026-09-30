@@ -244,7 +244,7 @@ function resolveAdd(ctx: AssistantCtx, a: Record<string, unknown>): ResolveResul
       : e.anchor === 'wall'
         ? e.id === 'curtain_pair'
           ? 0
-          : 1400
+          : (e.elevationMm ?? 1400)
         : 0;
   const obj: SceneObject = {
     id: newId('obj'),

@@ -60,7 +60,8 @@
     "decorateDone": "已加入 {{n}} 件軟裝",
     "lighting": "光線",
     "lightingNight": "夜間氛圍",
-    "lightingDay": "日光"
+    "lightingDay": "日光",
+    "screenshot": "截圖（PNG）"
   },
   "tools": {
     "title": "工具",
@@ -72,7 +73,8 @@
     "pan": "平移 (Space)",
     "translate": "移動 (G)",
     "rotate": "旋轉 (R)",
-    "scale": "縮放 (S)"
+    "scale": "縮放 (S)",
+    "place": "放置家具"
   },
   "layers": {
     "title": "圖層",
@@ -101,7 +103,11 @@
       "decor": "裝飾",
       "openings": "門窗",
       "storage": "收納"
-    }
+    },
+    "mine": "我的上傳 {{n}}",
+    "count": "{{n}} 件",
+    "userBadge": "上傳",
+    "price": "NT$ {{n}}"
   },
   "outline": {
     "title": "物件清單",
@@ -112,7 +118,11 @@
     "wall": "牆 {{n}}",
     "door": "門 {{n}}",
     "window": "窗 {{n}}",
-    "empty": "場景是空的"
+    "empty": "場景是空的",
+    "show": "顯示 {{name}}",
+    "hide": "隱藏 {{name}}",
+    "lock": "鎖定 {{name}}",
+    "unlock": "解除鎖定 {{name}}"
   },
   "inspector": {
     "title": "屬性",
@@ -165,7 +175,27 @@
     "room": "房間",
     "door": "門",
     "window": "窗",
-    "passage": "通道"
+    "passage": "通道",
+    "reset": "恢復預設",
+    "transform": "變換",
+    "appearance": "外觀",
+    "color": "顏色",
+    "roughness": "粗糙度",
+    "metalness": "金屬度",
+    "opacity": "不透明度",
+    "castShadow": "投射陰影",
+    "hidden": "隱藏",
+    "objName": "自訂名稱",
+    "geometry": "尺寸",
+    "wallHeight": "牆高",
+    "baseboard": "踢腳板",
+    "colorA": "A 面顏色",
+    "colorB": "B 面顏色",
+    "materials": "材質",
+    "doorColor": "門片顏色",
+    "frameColor": "窗框顏色",
+    "glassOpacity": "玻璃不透明度",
+    "tint": "染色"
   },
   "param": {
     "width": "寬",
@@ -213,7 +243,8 @@
     "SCALE_INVALID": "縮放必須大於 0",
     "notFound": "找不到這個專案",
     "requestId": "錯誤代碼 {{id}}",
-    "dismiss": "關閉"
+    "dismiss": "關閉",
+    "WALL_HEIGHT_OUT_OF_RANGE": "牆高需介於 10 公分與樓層高度之間，且不能低於牆上的門窗"
   },
   "units": {
     "length": "長度單位",
@@ -243,7 +274,9 @@
     "renameRoom": "重新命名房間",
     "saveCamera": "儲存視角",
     "autoDecorate": "自動點綴軟裝",
-    "importPlan": "匯入平面圖"
+    "importPlan": "匯入平面圖",
+    "updateRoom": "修改房間",
+    "environment": "修改環境"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -385,5 +418,109 @@
     "build": "建立 3D 專案",
     "needScale": "確認尺度後才能建立專案",
     "skipped": "有 {{n}} 個元素不合法已略過"
+  },
+  "light": {
+    "title": "光源",
+    "on": "開燈",
+    "lumens": "光通量",
+    "kelvin": "色溫",
+    "rgb": "RGB 光色",
+    "beam": "光束角",
+    "penumbra": "邊緣柔化",
+    "tilt": "俯仰角",
+    "pan": "水平角",
+    "castShadow": "投射陰影",
+    "softness": "陰影柔和度",
+    "range": "衰減距離（0＝物理）",
+    "statFlux": "光通量",
+    "statIntensity": "發光強度",
+    "statLuminance": "亮度",
+    "statLux2m": "2 m 處照度",
+    "statWatts": "LED 耗電（估）",
+    "nightOnly": "燈光在「剖面模型＋夜間氛圍」中以物理光源呈現。"
+  },
+  "env": {
+    "title": "環境與曝光",
+    "sky": "窗外天空（夜間）",
+    "skies": {
+      "moonless": "無月夜 0.001 cd/m²",
+      "moonlit": "滿月 0.05 cd/m²",
+      "city": "城市光害 0.5 cd/m²",
+      "dusk": "藍調時刻 15 cd/m²"
+    },
+    "exposure": "曝光補償",
+    "ambient": "間接光倍率",
+    "sunAzimuth": "太陽方位",
+    "sunElevation": "太陽仰角",
+    "sunIntensity": "日光強度",
+    "hintNight": "夜間：曝光作用在物理光源上；窗戶亮度＝天空亮度。",
+    "hintDay": "日光：太陽設定作用在剖面模型的日光模式。"
+  },
+  "gfx": {
+    "title": "畫質",
+    "quality": "畫質等級",
+    "qualities": {
+      "performance": "效能",
+      "balanced": "平衡",
+      "ultra": "極致"
+    },
+    "ao": "環境光遮蔽",
+    "bloom": "光暈",
+    "beams": "體積光束",
+    "grade": "調色與暗角"
+  },
+  "stats": {
+    "title": "場景統計",
+    "rooms": "房間",
+    "objects": "物件",
+    "lights": "燈具",
+    "price": "參考總價"
+  },
+  "status": {
+    "tool": "工具",
+    "selected": "已選",
+    "keys": "Tab 切換 2D/3D · H 隱藏 · F 全景 · Ctrl+D 複製"
+  },
+  "upload": {
+    "open": "上傳 3D 模型",
+    "title": "上傳 3D 模型",
+    "close": "關閉",
+    "desc": "支援 GLB 或自含式 glTF（最大 {{mb}} MB）。模型只存在這個瀏覽器，不會上傳到雲端。",
+    "reading": "讀取中…",
+    "pick": "選擇或拖入 .glb／.gltf 檔",
+    "preview": "模型預覽",
+    "stats": "{{tris}} 三角形 · {{meshes}} 個網格",
+    "name": "名稱",
+    "unit": "檔案單位",
+    "units": {
+      "m": "公尺（glTF 標準）",
+      "cm": "公分",
+      "mm": "公釐",
+      "in": "英吋"
+    },
+    "category": "分類",
+    "anchor": "放置方式",
+    "anchors": {
+      "floor": "落地",
+      "wall": "壁掛",
+      "ceiling": "吸頂／吊掛"
+    },
+    "elevation": "預設離地高度",
+    "license": "我確認擁有此模型的使用權（僅供本機設計與渲染）。",
+    "cancel": "取消",
+    "save": "加入資產庫",
+    "untitled": "未命名模型",
+    "delete": "刪除 {{name}}",
+    "deleteConfirm": "刪除「{{name}}」？已放置的物件會變成灰色方塊。",
+    "error": {
+      "UPLOAD_FORMAT": "只支援 .glb 或 .gltf 檔。",
+      "UPLOAD_TOO_LARGE": "檔案太大了。",
+      "UPLOAD_PARSE": "無法讀取這個模型（glTF 若有外部 .bin／貼圖，請先匯出成 GLB）。",
+      "UPLOAD_SAVE": "儲存失敗（瀏覽器儲存空間不足或無法使用）。"
+    },
+    "warn": {
+      "TRIANGLES": "面數超過 {{max}}，可能影響 3D 流暢度。",
+      "SIZE_ODD": "尺寸看起來不像公尺單位，請確認檔案單位。"
+    }
   }
 }

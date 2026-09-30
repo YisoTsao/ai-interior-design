@@ -16,7 +16,7 @@ import {
   updateOpening,
   type EditorStore,
 } from '@interiorai/app-state';
-import { objectDims, type Catalog } from '@interiorai/catalog';
+import { defaultElevation, objectDims, type Catalog } from '@interiorai/catalog';
 import {
   closestOnSegment,
   detectRooms,
@@ -315,8 +315,7 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
       const entry = catalog.get(placeId);
       if (!entry) return;
       const q = doSnap(p);
-      const dims = objectDims(entry);
-      const y = entry.anchor === 'ceiling' ? level.height - dims.h : 0;
+      const y = defaultElevation(entry, level.height);
       const before = new Set(level.objects.map((o) => o.id));
       if (exec(addObject(levelId, { catalogId: entry.id, position: [q[0], y, q[1]], rotationY: 0 }))) {
         const added = activeLevel(store.getState()).objects.find((o) => !before.has(o.id));

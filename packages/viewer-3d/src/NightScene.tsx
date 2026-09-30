@@ -20,7 +20,16 @@ const off = (i: number) => new THREE.Vector3(0, -1e6 - i, 0);
  * 燈具光源池（夜間氛圍）：固定數量的 point/spot/area → 光源增減不會重新編譯 shader。
  * 物理量：lm → cd（點/聚光，mm 世界 ×1e6）或 nit（面光源），再乘 NIGHT.photometricScale。
  */
-export function FixtureLights({ pools }: { pools: LightPools }) {
+export function FixtureLights({
+  pools,
+  scale = NIGHT.photometricScale,
+  shadowSize = { spot: 1024, point: 512 },
+}: {
+  pools: LightPools;
+  /** 光度 → 顯示值（NIGHT.photometricScale × 2^曝光 EV） */
+  scale?: number;
+  shadowSize?: { spot: number; point: number };
+}) {
   const invalidate = useThree((s) => s.invalidate);
   const gl = useThree((s) => s.gl);
   if (!rectLibReady) {
@@ -30,7 +39,7 @@ export function FixtureLights({ pools }: { pools: LightPools }) {
   const points = useRef<(THREE.PointLight | null)[]>([]);
   const spots = useRef<(THREE.SpotLight | null)[]>([]);
   const areas = useRef<(THREE.RectAreaLight | null)[]>([]);
-  const k = NIGHT.photometricScale;
+  const k = scale;
 
   useLayoutEffect(() => {
     const color = new THREE.Color();
@@ -49,7 +58,9 @@ export function FixtureLights({ pools }: { pools: LightPools }) {
       l.position.set(...s.position);
       l.color.copy(color.set(s.color));
       l.intensity = pointIntensity(s.lumens) * k;
+      l.distance = s.rangeMm ?? 0;
       l.castShadow = s.castShadow;
+      l.shadow.radius = s.shadowSoftness ?? 4;
     });
     apply(spots.current, pools.spot, (l, s, i) => {
       if (!s) {
@@ -67,9 +78,12 @@ export function FixtureLights({ pools }: { pools: LightPools }) {
       );
       l.target.updateMatrixWorld();
       l.angle = ((beam / 2) * Math.PI) / 180;
+      l.penumbra = s.penumbra ?? 0.8;
+      l.distance = s.rangeMm ?? 0;
       l.color.copy(color.set(s.color));
       l.intensity = spotIntensity(s.lumens, beam) * k;
       l.castShadow = s.castShadow;
+      l.shadow.radius = s.shadowSoftness ?? 5;
     });
     apply(areas.current, pools.area, (l, s, i) => {
       if (!s || !s.size) {
@@ -102,7 +116,7 @@ export function FixtureLights({ pools }: { pools: LightPools }) {
           decay={2}
           distance={0}
           intensity={0}
-          shadow-mapSize={[512, 512]}
+          shadow-mapSize={[shadowSize.point, shadowSize.point]}
           shadow-bias={-0.004}
           shadow-radius={4}
           shadow-camera-near={30}
@@ -120,7 +134,7 @@ export function FixtureLights({ pools }: { pools: LightPools }) {
           distance={0}
           penumbra={0.55}
           intensity={0}
-          shadow-mapSize={[1024, 1024]}
+          shadow-mapSize={[shadowSize.spot, shadowSize.spot]}
           shadow-bias={-0.0006}
           shadow-radius={5}
           shadow-camera-near={50}

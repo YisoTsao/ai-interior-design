@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Material as CatalogMaterial } from '@interiorai/catalog';
+import type { Appearance } from '@interiorai/scene-schema';
 
 /** 追蹤本 viewer 建立的 GPU 資源；卸載/切換專案時一次 dispose（B5、03 §3） */
 export class ResourceScope {
@@ -198,11 +199,47 @@ export class MaterialCache {
             : this.opts.wallRoughness !== undefined && wallish && def?.pattern !== 'tile'
               ? this.opts.wallRoughness
               : (def?.roughness ?? 0.85),
+        metalness: def?.metalness ?? 0,
         side: THREE.FrontSide,
       }),
     );
     this.cache.set(key, m);
     return m;
+  }
+  /**
+   * 套用外觀覆寫的衍生材質（ADR-023）：貼圖共用、只換底色／粗糙度／金屬度／透明度。
+   * 無覆寫時回傳共用材質本身。
+   */
+  styled(id: string | undefined, fallback: string, a: Appearance | undefined): THREE.MeshStandardMaterial {
+    const base = this.get(id, fallback);
+    if (
+      !a ||
+      (a.color === undefined &&
+        a.roughness === undefined &&
+        a.metalness === undefined &&
+        a.opacity === undefined)
+    )
+      return base;
+    const key = `${id ?? `__${fallback}`}|${a.color ?? ''}|${a.roughness ?? ''}|${a.metalness ?? ''}|${a.opacity ?? ''}`;
+    let m = this.cache.get(key);
+    if (m) return m;
+    m = this.scope.track(base.clone());
+    // 有貼圖時貼圖本身帶底色 → 以 color 乘上去作為「染色」；純色材質直接換色
+    if (a.color) m.color.set(a.color);
+    if (a.roughness !== undefined) m.roughness = a.roughness;
+    if (a.metalness !== undefined) m.metalness = a.metalness;
+    if (a.opacity !== undefined && a.opacity < 1) {
+      m.transparent = true;
+      m.opacity = a.opacity;
+      m.depthWrite = false;
+    }
+    this.cache.set(key, m);
+    return m;
+  }
+  /** 材質庫中的物理參數（家具頂點色材質用） */
+  surface(id: string | undefined): { roughness: number; metalness: number } {
+    const def = id ? this.lib.get(id) : undefined;
+    return { roughness: def?.roughness ?? 0.8, metalness: def?.metalness ?? 0 };
   }
   colorOf(id: string | undefined, fallback = '#d9d6cf'): THREE.Color {
     return new THREE.Color(id ? (this.lib.get(id)?.color ?? fallback) : fallback);

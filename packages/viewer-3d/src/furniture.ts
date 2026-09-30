@@ -62,6 +62,25 @@ const rbox =
     return { g: new RoundedBoxGeometry(W, H, D, soft ? 2 : 1, r), x, y: y + H / 2, z, color };
   };
 
+/** 朝 +Z 的圓盤（鐘面、洗衣機門等） */
+const disc = (r: number, depth: number, x: number, y: number, z: number, color = BODY, seg = 28): Part => {
+  const g = new THREE.CylinderGeometry(r, r, depth, seg);
+  g.rotateX(Math.PI / 2);
+  return { g, x, y, z, color };
+};
+/** 旋轉體（花瓶等）；profile 為 [半徑, 高] 序列 */
+const lathe = (profile: [number, number][], x: number, y: number, z: number, color = BODY): Part => ({
+  g: new THREE.LatheGeometry(
+    profile.map(([r, h]) => new THREE.Vector2(Math.max(0.5, r), h)),
+    28,
+  ),
+  x,
+  y,
+  z,
+  color,
+});
+const ART = ['#c9b79c', '#8fa3a8', '#b86b4b', '#e6dfd3', '#5d6b5a'];
+
 function parts(type: string, w: number, d: number, h: number, p: Record<string, number | string>): Part[] {
   const legs = (top: number, inset = 40, s = 40, color = ACCENT) =>
     [
@@ -269,6 +288,317 @@ function parts(type: string, w: number, d: number, h: number, p: Record<string, 
       }
       return out;
     }
+
+    case 'sofa_l': {
+      const d0 = Math.min(950, d * 0.56);
+      const cw = Math.min(900, w * 0.34);
+      const zc0 = -d / 2 + d0 / 2;
+      const zc1 = -d / 2 + d0 + (d - d0) / 2;
+      return [
+        box(w, 120, d0, 0, 60, zc0, ACCENT),
+        box(cw, 120, d - d0, w / 2 - cw / 2, 60, zc1, ACCENT),
+        box(w, h - 180, 200, 0, 180, -d / 2 + 100),
+        box(180, h * 0.62 - 180, d0, -w / 2 + 90, 180, zc0),
+        box(w - 180, 180, d0 - 200, 90, 180, zc0 + 100),
+        box(cw, 180, d - d0, w / 2 - cw / 2, 180, zc1),
+        box(160, h * 0.5 - 180, d - d0, w / 2 - 80, 180, zc1),
+        ...legs(60, 60, 50, DARK),
+      ];
+    }
+    case 'ottoman':
+      return [cyl(w * 0.42, w * 0.42, 40, 0, 0, 0, DARK), cyl(w / 2, w / 2, h - 40, 0, 40, 0)];
+    case 'bench':
+      return [box(w, 60, d, 0, h - 60, 0), ...legs(h - 60, 50, 45, ACCENT)];
+    case 'stool': {
+      const ring = new THREE.TorusGeometry(w * 0.3, 10, 6, 20);
+      ring.rotateX(Math.PI / 2);
+      return [
+        cyl(w * 0.45, w * 0.42, 70, 0, h - 70, 0),
+        cyl(22, 22, h - 70, 0, 20, 0, ACCENT, 12),
+        cyl(w * 0.34, w * 0.38, 20, 0, 0, 0, ACCENT),
+        { g: ring, x: 0, y: h * 0.33, z: 0, color: ACCENT },
+      ];
+    }
+    case 'table_round': {
+      const top = cyl(w / 2, w / 2, 40, 0, h - 40, 0, BODY, 40);
+      top.g.scale(1, 1, d / w);
+      return [top, cyl(55, 55, h - 60, 0, 20, 0, ACCENT), cyl(w * 0.24, w * 0.28, 22, 0, 0, 0, ACCENT)];
+    }
+    case 'rug_round': {
+      const r = cyl(w / 2, w / 2, Math.max(4, h), 0, 0, 0, BODY, 48);
+      r.g.scale(1, 1, d / w);
+      return [r];
+    }
+    case 'dresser': {
+      const n = 5;
+      const out: Part[] = [box(w, h - 80, d, 0, 80, 0), ...legs(80, 50, 40, DARK)];
+      for (let i = 1; i < n; i++) out.push(box(w - 40, 6, 6, 0, 80 + ((h - 80) * i) / n, d / 2 + 2, DARK));
+      for (let i = 0; i < n; i++)
+        out.push(box(120, 16, 16, 0, 80 + ((h - 80) * (i + 0.5)) / n - 8, d / 2 + 6, ACCENT));
+      return out;
+    }
+    case 'tv': {
+      const wall = d < 70;
+      return [
+        box(w, h - (wall ? 0 : 80), Math.min(40, d), 0, wall ? 0 : 80, 0, DARK),
+        box(w - 30, h - (wall ? 30 : 110), 4, 0, wall ? 15 : 95, Math.min(40, d) / 2 + 1, '#101216'),
+        ...(wall
+          ? []
+          : [box(w * 0.08, 80, d, -w * 0.36, 0, 0, DARK), box(w * 0.08, 80, d, w * 0.36, 0, 0, DARK)]),
+      ];
+    }
+    case 'piano':
+      return [
+        box(w, h - 100, d * 0.55, 0, 100, -d * 0.225),
+        box(w - 60, 70, d * 0.42, 0, 660, d / 2 - d * 0.21),
+        box(w - 220, 22, d * 0.3, 0, 730, d / 2 - d * 0.2, LIGHT),
+        box(60, 660, 60, -w / 2 + 80, 0, d / 2 - 60),
+        box(60, 660, 60, w / 2 - 80, 0, d / 2 - 60),
+        box(w * 0.5, 12, 30, 0, h - 350, -d * 0.225 + d * 0.275 + 15, DARK),
+      ];
+    case 'fireplace':
+      return [
+        box(w, h - 50, d, 0, 0, 0),
+        box(w + 80, 50, d + 60, 0, h - 50, 30),
+        box(w * 0.62, h * 0.5, 6, 0, h * 0.12, d / 2 + 1, '#15130f'),
+        box(w * 0.5, 30, 60, 0, h * 0.12, d / 2 - 20, '#3b2a1c'),
+        box(w * 0.44, h * 0.16, 10, 0, h * 0.12 + 30, d / 2 + 6, EMIT),
+      ];
+    case 'washer':
+      return [
+        box(w, h, d, 0, 0, 0),
+        box(w - 40, 90, 6, 0, h - 120, d / 2 + 3, LIGHT),
+        disc(w * 0.33, 24, 0, h * 0.44, d / 2 + 12, DARK),
+        disc(w * 0.25, 10, 0, h * 0.44, d / 2 + 26, GLASS),
+      ];
+    case 'stove':
+      return [
+        box(w, h - 40, d - 20, 0, 0, -10),
+        box(w, 40, d, 0, h - 40, 0, DARK),
+        box(w - 120, h * 0.4, 6, 0, h * 0.2, d / 2 - 7, '#1d1f22'),
+        box(w - 80, 20, 20, 0, h * 0.64, d / 2, '#9ea3a6'),
+        ...[-1, 1].flatMap((sx) =>
+          [-1, 1].map((sz) => cyl(70, 70, 10, sx * w * 0.22, h, sz * d * 0.2, '#1b1b1b')),
+        ),
+      ];
+    case 'sink':
+      return [
+        box(w, h - 40, d - 20, 0, 0, -10),
+        box(w, 40, d, 0, h - 40, 0, LIGHT),
+        box(w * 0.55, 8, d * 0.55, 0, h - 4, 0, '#8f9496'),
+        cyl(14, 14, 260, 0, h, -d * 0.36, '#c8cacc', 10),
+        box(24, 24, 170, 0, h + 236, -d * 0.36 + 85, '#c8cacc'),
+        box(w - 40, 6, 6, 0, h * 0.5, d / 2 - 8, DARK),
+      ];
+    case 'upper_cabinet':
+      return [
+        box(w, h, d, 0, 0, 0),
+        box(6, h - 20, 6, 0, 10, d / 2 + 2, DARK),
+        box(12, 120, 18, -40, 30, d / 2 + 8, DARK),
+        box(12, 120, 18, 40, 30, d / 2 + 8, DARK),
+      ];
+    case 'range_hood':
+      return [
+        box(w * 0.34, h * 0.6, d * 0.5, 0, h * 0.4, -d * 0.25),
+        box(w, h * 0.12, d, 0, 0, 0),
+        box(w * 0.8, h * 0.28, d * 0.7, 0, h * 0.12, -d * 0.15),
+      ];
+    case 'shower': {
+      const post = (x: number, z: number) => box(30, h - 60, 30, x, 60, z);
+      return [
+        box(w, 60, d, 0, 0, 0, LIGHT),
+        post(-w / 2 + 15, d / 2 - 15),
+        post(w / 2 - 15, d / 2 - 15),
+        post(w / 2 - 15, -d / 2 + 15),
+        box(w, 30, 30, 0, h - 30, d / 2 - 15),
+        box(30, 30, d, w / 2 - 15, h - 30, 0),
+        box(24, h - 400, 24, -w / 2 + 120, 200, -d / 2 + 30, '#c8cacc'),
+        cyl(100, 100, 16, -w / 2 + 120, h - 230, -d / 2 + 140, '#c8cacc'),
+      ];
+    }
+    case 'mirror':
+      return [box(w, h, d, 0, 0, 0), box(w - 60, h - 60, 4, 0, 30, d / 2 + 1, '#dde6ea')];
+    case 'wall_art': {
+      const cw = w - 70;
+      const ch = h - 70;
+      return [
+        box(w, h, d, 0, 0, 0, DARK),
+        box(cw, ch, 4, 0, 35, d / 2 + 1, ART[3]!),
+        box(cw * 0.45, ch * 0.55, 5, -cw * 0.2, 35 + ch * 0.3, d / 2 + 2, ART[0]!),
+        box(cw * 0.3, ch * 0.35, 6, cw * 0.22, 35 + ch * 0.12, d / 2 + 3, ART[2]!),
+        box(cw * 0.18, ch * 0.7, 7, cw * 0.1, 35 + ch * 0.2, d / 2 + 2, ART[1]!),
+      ];
+    }
+    case 'wall_shelf':
+      return [
+        box(w, 25, d, 0, 0, 0),
+        box(20, 120, d * 0.7, -w / 2 + 80, -120, -d * 0.15, DARK),
+        box(20, 120, d * 0.7, w / 2 - 80, -120, -d * 0.15, DARK),
+        box(w * 0.08, 220, d * 0.7, -w * 0.3, 25, 0, ART[2]!),
+        box(w * 0.06, 200, d * 0.7, -w * 0.22, 25, 0, ART[1]!),
+        box(w * 0.07, 230, d * 0.7, -w * 0.14, 25, 0, ART[0]!),
+      ];
+    case 'clock':
+      return [
+        disc(w / 2, d, 0, h / 2, 0, DARK, 40),
+        disc(w / 2 - 20, 6, 0, h / 2, d / 2, LIGHT, 40),
+        box(10, h * 0.3, 4, 0, h / 2, d / 2 + 5, DARK),
+        box(h * 0.22, 10, 4, h * 0.11, h / 2 - 5, d / 2 + 6, DARK),
+      ];
+    case 'vase': {
+      const r = w / 2;
+      return [
+        lathe(
+          [
+            [r * 0.55, 0],
+            [r * 0.95, h * 0.3],
+            [r * 0.7, h * 0.72],
+            [r * 0.38, h * 0.9],
+            [r * 0.46, h],
+          ],
+          0,
+          0,
+          0,
+        ),
+        cyl(8, 8, h * 0.5, 0, h * 0.8, 0, '#5a4a36', 6),
+        { g: new THREE.IcosahedronGeometry(r * 0.5, 0), x: 0, y: h * 1.25, z: 0, color: '#8a9b72' },
+      ];
+    }
+    case 'bean_bag': {
+      const g = new THREE.SphereGeometry(1, 24, 16);
+      g.scale(w / 2, h / 2, d / 2);
+      return [{ g, x: 0, y: h / 2, z: 0, color: BODY }];
+    }
+    case 'floor_cushion':
+      return [box(w, h, d, 0, 0, 0)];
+    case 'ceiling_fan': {
+      const out: Part[] = [
+        cyl(16, 16, h * 0.55, 0, h * 0.45, 0, DARK, 10),
+        cyl(120, 100, 110, 0, h * 0.2, 0, DARK),
+        cyl(100, 100, 40, 0, h * 0.12, 0, EMIT),
+      ];
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const r = w * 0.27;
+        out.push(box(w * 0.44, 10, 130, Math.cos(a) * r, h * 0.26, Math.sin(a) * r, BODY, a));
+      }
+      return out;
+    }
+    case 'aircon':
+      return [
+        box(w, h, d, 0, 0, 0),
+        box(w - 60, 22, 6, 0, 36, d / 2 + 1, '#c9ccce'),
+        box(40, 12, 4, w / 2 - 80, h - 60, d / 2 + 2, '#7fd1a8'),
+      ];
+    case 'radiator': {
+      const n = Math.max(3, Math.floor(w / 80));
+      const out: Part[] = [box(w, 30, d * 0.5, 0, 90, 0, ACCENT), box(w, 30, d * 0.5, 0, h - 30, 0, ACCENT)];
+      for (let i = 0; i < n; i++) out.push(box(w / n - 20, h - 100, d, -w / 2 + (w / n) * (i + 0.5), 100, 0));
+      out.push(box(40, 90, d, -w / 2 + 60, 0, 0, DARK), box(40, 90, d, w / 2 - 60, 0, 0, DARK));
+      return out;
+    }
+    case 'coat_rack': {
+      const out: Part[] = [cyl(w * 0.35, w * 0.4, 30, 0, 0, 0), cyl(22, 22, h - 30, 0, 30, 0, BODY, 10)];
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        out.push(box(160, 18, 18, Math.cos(a) * 80, h - 180, Math.sin(a) * 80, DARK, a));
+      }
+      return out;
+    }
+    case 'crib': {
+      const out: Part[] = [
+        box(w - 60, 120, d - 60, 0, 300, 0, LIGHT),
+        ...legs(h, 25, 50),
+        box(w, 40, 40, 0, h - 40, -d / 2 + 20),
+        box(w, 40, 40, 0, h - 40, d / 2 - 20),
+        box(40, 40, d, -w / 2 + 20, h - 40, 0),
+        box(40, 40, d, w / 2 - 20, h - 40, 0),
+        box(w, 50, d, 0, 250, 0),
+      ];
+      const n = Math.floor((d - 100) / 90);
+      for (let i = 1; i < n; i++)
+        for (const sx of [-1, 1])
+          out.push(box(20, h - 340, 20, sx * (w / 2 - 20), 300, -d / 2 + 50 + ((d - 100) * i) / n));
+      return out;
+    }
+    case 'bunk_bed': {
+      const up = h * 0.58;
+      const out: Part[] = [
+        ...legs(h, 35, 70),
+        box(w, 120, d, 0, 180, 0),
+        box(w - 100, 180, d - 100, 0, 300, 0, LIGHT),
+        box(w, 120, d, 0, up, 0),
+        box(w - 100, 160, d - 100, 0, up + 120, 0, LIGHT),
+        box(40, 260, d * 0.7, w / 2 - 20, up + 120, -d * 0.1),
+        box(40, 260, d, -w / 2 + 20, up + 120, 0),
+      ];
+      for (const z of [d / 2 - 40, d / 2 - 400]) out.push(box(40, up + 120, 40, w / 2 + 30, 0, z, ACCENT));
+      for (let i = 1; i <= 4; i++)
+        out.push(box(40, 30, 360, w / 2 + 30, ((up + 120) * i) / 5, d / 2 - 220, ACCENT));
+      return out;
+    }
+    case 'books': {
+      const cols = [ART[2]!, ART[1]!, ART[0]!, ART[4]!];
+      return cols.map((c, i) =>
+        box(
+          w * (0.82 + (i % 2) * 0.15),
+          h / 4,
+          d * (0.85 + (i % 3) * 0.05),
+          0,
+          (i * h) / 4,
+          0,
+          c,
+          (i - 1.5) * 0.08,
+        ),
+      );
+    }
+    case 'laptop': {
+      const scr = new THREE.BoxGeometry(w, d * 0.9, 8);
+      scr.rotateX(-0.3);
+      return [
+        box(w, 18, d, 0, 0, 0, '#9ea2a6'),
+        { g: scr, x: 0, y: 18 + d * 0.43, z: -d / 2 - d * 0.12, color: '#20252c' },
+      ];
+    }
+    case 'neon_sign': {
+      const ring = new THREE.TorusGeometry(h * 0.3, 12, 8, 36);
+      return [
+        box(w, h, 10, 0, 0, -d / 2 + 5, '#1d1d20'),
+        { g: ring, x: -w * 0.28, y: h / 2, z: d / 2 - 12, color: EMIT },
+        box(w * 0.42, 24, 24, w * 0.12, h * 0.68, d / 2 - 12, EMIT),
+        box(w * 0.3, 24, 24, w * 0.06, h * 0.46, d / 2 - 12, EMIT),
+        box(w * 0.38, 24, 24, w * 0.1, h * 0.24, d / 2 - 12, EMIT),
+      ];
+    }
+    case 'candle': {
+      const spots: [number, number, number][] = [
+        [-w * 0.3, 0, h * 0.8],
+        [0, d * 0.1, h],
+        [w * 0.3, -d * 0.1, h * 0.6],
+      ];
+      return spots.flatMap(([x, z, hh]) => [
+        cyl(w * 0.14, w * 0.14, hh - 30, x, 0, z, BODY, 16),
+        { g: new THREE.ConeGeometry(10, 34, 8), x, y: hh - 30 + 17, z, color: EMIT },
+      ]);
+    }
+    case 'pet_bed': {
+      const ring = new THREE.TorusGeometry(w * 0.36, h * 0.42, 10, 28);
+      ring.rotateX(Math.PI / 2);
+      ring.scale(1, 1, d / w);
+      const base = cyl(w * 0.4, w * 0.4, h * 0.3, 0, 0, 0, LIGHT, 28);
+      base.g.scale(1, 1, d / w);
+      return [base, { g: ring, x: 0, y: h * 0.45, z: 0, color: BODY }];
+    }
+    case 'treadmill':
+      return [
+        box(w * 0.8, 180, d, 0, 0, 0, DARK),
+        box(w * 0.6, 12, d * 0.82, 0, 180, d * 0.05, '#1c1c1c'),
+        box(50, h - 180, 50, -w * 0.4, 180, -d / 2 + 200),
+        box(50, h - 180, 50, w * 0.4, 180, -d / 2 + 200),
+        box(w, 70, 260, 0, h - 90, -d / 2 + 200),
+        box(30, 30, 500, -w * 0.4, h - 350, -d / 2 + 430),
+        box(30, 30, 500, w * 0.4, h - 350, -d / 2 + 430),
+      ];
     case 'rug':
       return [box(w, Math.max(4, h), d, 0, 0, 0)];
     case 'plant': {
@@ -353,8 +683,8 @@ function dollhouseParts(
     case 'rug':
       return [soft(w, Math.max(8, h), d, 0, 0, 0)];
     case 'plant': {
-      // 盆栽：陶盆＋土＋三團葉叢
-      const r = Math.min(w, d);
+      // 盆栽：陶盆＋土＋三團葉叢（矮盆栽的葉叢依高度縮小，不超過目錄高度）
+      const r = Math.min(w, d, h * 0.55);
       const potH = h * 0.28;
       const leaf = (s: number, x: number, y: number, z: number, color: string): Part => {
         const g = new THREE.IcosahedronGeometry(r * s, 1);
