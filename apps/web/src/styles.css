@@ -605,3 +605,23 @@ body {
   border: 1px solid var(--border);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
 }
+
+/* 觸控裝置（FE-MOB-01）：可點擊目標至少 44 px */
+@media (pointer: coarse) {
+  .game-ui .icon-btn,
+  .game-ui .hotbar-slot,
+  .game-ui .hud-seg > button,
+  .game-ui .btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .game-ui .hud-chip {
+    min-height: 36px;
+  }
+}
+/* 窄螢幕（FE-MOB-02）：頂列可橫向捲動、對話框滿版 */
+@media (max-width: 640px) {
+  .game-ui .hud-bar {
+    gap: 4px;
+  }
+}

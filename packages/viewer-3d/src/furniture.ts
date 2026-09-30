@@ -633,6 +633,28 @@ function parts(type: string, w: number, d: number, h: number, p: Record<string, 
         { g: leaves, x: 0, y: h * 0.3 + h * 0.36, z: 0, color: '#6d8f5d' },
       ];
     }
+    case 'mep': {
+      // 水電點位（FE-DOC-05）：面板或管口，顏色依種類
+      const pt = String(p.point ?? 'outlet');
+      const col: Record<string, string> = {
+        data: '#4f8bd6',
+        tv: '#8a8f98',
+        water_cold: '#3f86e0',
+        water_hot: '#e0513f',
+        drain: '#3a3a3a',
+        gas: '#e8c23a',
+      };
+      if (pt === 'drain') return [cyl(w / 2, w / 2, Math.max(8, h), 0, 0, 0, col.drain)];
+      if (pt.startsWith('water') || pt === 'gas')
+        return [
+          box(w, h, 8, 0, 0, -d / 2 + 4, '#f2f2f2'),
+          cyl(w * 0.3, w * 0.3, h * 0.6, 0, h * 0.2, 0, col[pt]),
+        ];
+      return [
+        box(w, h, d, 0, 0, 0, '#f4f4f2'),
+        box(w * 0.5, h * 0.5, 3, 0, h * 0.25, d / 2, col[pt] ?? '#cfcfcf'),
+      ];
+    }
     default:
       return [box(w, h, d, 0, 0, 0)];
   }

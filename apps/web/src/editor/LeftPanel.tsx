@@ -64,6 +64,7 @@ const CATS: CatalogEntry['category'][] = [
   'decor',
   'openings',
   'structure',
+  'mep',
 ];
 /** 分類色（物品欄「稀有度」色條） */
 export const CATEGORY_COLOR: Record<CatalogEntry['category'], string> = {
@@ -79,6 +80,7 @@ export const CATEGORY_COLOR: Record<CatalogEntry['category'], string> = {
   openings: '#9fb0c6',
   storage: '#d9b36c',
   structure: '#8fa3b8',
+  mep: '#e08a1e',
 };
 
 const materialsById = materialMap(materials);

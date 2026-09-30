@@ -93,6 +93,17 @@ export interface Plan2DProps {
   underlay?: Underlay | null;
   /** 熱度圖（照度分析 FE-LGT-03）：格心世界座標＋顏色 */
   heatmap?: { step: number; cells: { x: number; z: number; color: string }[] } | null;
+  /** 留言釘選（FE-SHR-03） */
+  pins?: CommentPin[];
+  onPinClick?: (id: string) => void;
+}
+export interface CommentPin {
+  id: string;
+  x: number;
+  z: number;
+  label: string;
+  resolved: boolean;
+  active: boolean;
 }
 export type PlanStyle = 'blueprint' | 'color' | 'mono';
 export interface SnapSettings {
@@ -184,6 +195,8 @@ export function Plan2D({
   planStyle = 'blueprint',
   underlay,
   heatmap,
+  pins,
+  onPinClick,
   theme: baseTheme,
 }: Omit<Plan2DProps, 'theme'> & { theme: Plan2DTheme }) {
   const theme = useMemo(
@@ -832,12 +845,97 @@ export function Plan2D({
   const previewLevel = drag && (drag.kind === 'vertex' || drag.kind === 'wall') ? drag.preview : null;
   const dimLevel = previewLevel?.level ?? level;
 
+  // 觸控（FE-MOB-01）：兩指縮放／平移（攔在 Konva 之前）、長按＝右鍵選單
+  const touches = useRef(new Map<number, Vec2>());
+  const gesture = useRef<{ d: number; mid: Vec2; view: ViewTransform } | null>(null);
+  const longPress = useRef<{ timer: number; at: Vec2 } | null>(null);
+  const localPt = (e: React.PointerEvent): Vec2 => {
+    const r = wrap.current!.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  };
+  const pinch = () => {
+    const [a, b] = [...touches.current.values()] as [Vec2, Vec2];
+    return {
+      d: Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
+      mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as Vec2,
+    };
+  };
+  const clearLong = () => {
+    if (longPress.current) window.clearTimeout(longPress.current.timer);
+    longPress.current = null;
+  };
+  const touchHandlers = {
+    onPointerDownCapture: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      touches.current.set(e.pointerId, localPt(e));
+      if (touches.current.size === 1) {
+        const at = localPt(e);
+        const cx = e.clientX;
+        const cy = e.clientY;
+        longPress.current = {
+          at,
+          timer: window.setTimeout(() => {
+            longPress.current = null;
+            if (!onContextMenu || touches.current.size !== 1) return;
+            const n = stageRef.current?.getIntersection({ x: at[0], y: at[1] });
+            const name = n?.name() ?? '';
+            const hit = ['wall', 'object', 'opening', 'room', 'annotation'].includes(name) ? n!.id() : null;
+            if (hit && !store.getState().selection.includes(hit)) store.getState().select([hit]);
+            setDrag(null);
+            onContextMenu({ clientX: cx, clientY: cy, hit, world: screenToWorld(v, at) });
+          }, 550),
+        };
+      }
+      if (touches.current.size === 2) {
+        clearLong();
+        setDrag(null);
+        const { d, mid } = pinch();
+        gesture.current = { d, mid, view: v };
+        e.stopPropagation();
+      }
+    },
+    onPointerMoveCapture: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'touch' || !touches.current.has(e.pointerId)) return;
+      touches.current.set(e.pointerId, localPt(e));
+      if (longPress.current) {
+        const p = localPt(e);
+        if (Math.hypot(p[0] - longPress.current.at[0], p[1] - longPress.current.at[1]) > 8) clearLong();
+      }
+      const g = gesture.current;
+      if (g && touches.current.size >= 2) {
+        const { d, mid } = pinch();
+        const moved: ViewTransform = {
+          ...g.view,
+          ox: g.view.ox + mid[0] - g.mid[0],
+          oy: g.view.oy + mid[1] - g.mid[1],
+        };
+        setView(zoomAt(moved, mid, d / g.d));
+        e.stopPropagation();
+      }
+    },
+    onPointerUpCapture: (e: React.PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      touches.current.delete(e.pointerId);
+      clearLong();
+      if (gesture.current) {
+        if (touches.current.size < 2) gesture.current = null;
+        e.stopPropagation();
+      }
+    },
+  };
+
   return (
     <div
       ref={wrap}
       className="relative h-full w-full overflow-hidden"
-      style={{ background: theme.bg, cursor: tool === 'select' ? 'default' : 'crosshair' }}
+      style={{
+        background: theme.bg,
+        cursor: tool === 'select' ? 'default' : 'crosshair',
+        touchAction: 'none',
+      }}
       data-testid="plan2d"
+      {...touchHandlers}
+      onPointerCancelCapture={touchHandlers.onPointerUpCapture}
     >
       <Stage
         ref={stageRef}
@@ -916,6 +1014,44 @@ export function Plan2D({
             )}
           </Group>
         </Layer>
+        {pins && pins.length > 0 && (
+          <Layer>
+            {pins.map((p) => {
+              const [sx, sy] = worldToScreen(v, [p.x, p.z]);
+              return (
+                <Group
+                  key={p.id}
+                  x={sx}
+                  y={sy}
+                  onPointerDown={(e) => {
+                    e.cancelBubble = true;
+                    onPinClick?.(p.id);
+                  }}
+                  opacity={p.resolved ? 0.45 : 1}
+                >
+                  <Line
+                    points={[0, 0, -11, -16, -11, -30, 11, -30, 11, -16]}
+                    closed
+                    fill={p.active ? theme.primary : '#ff6b5e'}
+                    stroke="#ffffff"
+                    strokeWidth={1.5}
+                  />
+                  <Text
+                    text={p.label}
+                    x={-11}
+                    y={-27}
+                    width={22}
+                    align="center"
+                    fontSize={11}
+                    fontStyle="bold"
+                    fill="#fff"
+                    listening={false}
+                  />
+                </Group>
+              );
+            })}
+          </Layer>
+        )}
         {/* drag/preview layer（ADR-010：拖曳時只重畫這一層） */}
         <Layer listening={tool === 'select'}>
           <Group x={v.ox} y={v.oy} scaleX={v.scale} scaleY={v.scale}>
@@ -1447,7 +1583,22 @@ const StaticPlan = memo(function StaticPlan({
                   perfectDrawEnabled={false}
                 />
                 {ptype === 'stairs' && <StairSymbol o={o} catalog={catalog} theme={theme} />}
-                {e && (
+                {ptype === 'mep' && (
+                  <MepSymbol
+                    id={o.id}
+                    x={o.position[0]}
+                    z={o.position[2]}
+                    point={String(
+                      o.params?.point ??
+                        (e?.model.kind === 'parametric' ? e.model.params.point?.default : '') ??
+                        '',
+                    )}
+                    px={px}
+                    selected={sel.has(o.id)}
+                    theme={theme}
+                  />
+                )}
+                {e && ptype !== 'mep' && (
                   <Text
                     x={c[0]}
                     y={c[1] - 6 * px}
@@ -1999,4 +2150,62 @@ function useImage(src: string | null): HTMLImageElement | null {
     };
   }, [src]);
   return img;
+}
+
+/** 水電點位符號（FE-DOC-05）：圓圈＋代碼，顏色依種類；與施工圖圖例一致 */
+export const MEP_LEGEND: Record<string, { code: string; color: string }> = {
+  outlet: { code: 'P', color: '#e08a1e' },
+  outlet_counter: { code: 'P+', color: '#e08a1e' },
+  switch: { code: 'S', color: '#8c5bd6' },
+  data: { code: 'D', color: '#3f7fd0' },
+  tv: { code: 'TV', color: '#6b7380' },
+  water_cold: { code: 'W', color: '#2f86e0' },
+  water_hot: { code: 'H', color: '#e0513f' },
+  drain: { code: 'Dr', color: '#444a52' },
+  gas: { code: 'G', color: '#c9a21c' },
+  ac: { code: 'AC', color: '#2aa89a' },
+};
+function MepSymbol({
+  id,
+  x,
+  z,
+  point,
+  px,
+  selected,
+  theme,
+}: {
+  id: string;
+  x: number;
+  z: number;
+  point: string;
+  px: number;
+  selected: boolean;
+  theme: Plan2DTheme;
+}) {
+  const m = MEP_LEGEND[point] ?? { code: '?', color: theme.muted };
+  const r = 9 * px;
+  return (
+    <Group x={x} y={z}>
+      <Circle
+        id={id}
+        name="object"
+        radius={r}
+        fill="#ffffff"
+        stroke={selected ? theme.primary : m.color}
+        strokeWidth={selected ? 2.5 : 1.5}
+        strokeScaleEnabled={false}
+      />
+      <Text
+        text={m.code}
+        fontSize={8 * px}
+        fontStyle="bold"
+        fill={m.color}
+        width={r * 2}
+        offsetX={r}
+        offsetY={4 * px}
+        align="center"
+        listening={false}
+      />
+    </Group>
+  );
 }

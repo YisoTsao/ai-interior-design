@@ -9,7 +9,7 @@ import {
 } from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, TransformControls } from '@react-three/drei';
+import { Html, OrbitControls, TransformControls } from '@react-three/drei';
 import type { OrbitControls as OrbitImpl } from 'three-stdlib';
 import { useStore } from 'zustand';
 import {
@@ -109,6 +109,15 @@ export interface Viewer3DProps {
   section?: Section;
   /** FPS 過低時回呼一次（FE-V3D-12） */
   onPerfLow?: () => void;
+  /** 留言釘選（FE-SHR-03）：世界座標 mm */
+  pins?: {
+    id: string;
+    position: [number, number, number];
+    label: string;
+    resolved: boolean;
+    active: boolean;
+  }[];
+  onPinClick?: (id: string) => void;
   onContextMenu?: (e: {
     clientX: number;
     clientY: number;
@@ -185,6 +194,8 @@ function SceneContent({
   showCollisions = true,
   section,
   onPerfLow,
+  pins,
+  onPinClick,
 }: Viewer3DProps) {
   const dh = viewStyle === 'dollhouse';
   const night = dh && lighting === 'night';
@@ -1167,6 +1178,34 @@ function SceneContent({
       <Measure3D active={tool === 'measure'} />
       {section && section.kind !== 'none' && <SectionPlanes section={section} />}
       <PerfWatch onLow={onPerfLow} />
+      {pins?.map((p) => (
+        <Html
+          key={p.id}
+          position={[p.position[0], p.position[1] || 1200, p.position[2]]}
+          center
+          zIndexRange={[30, 0]}
+        >
+          <button
+            type="button"
+            onClick={() => onPinClick?.(p.id)}
+            data-testid="comment-pin-3d"
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: '12px 12px 12px 2px',
+              background: p.active ? '#f2c14e' : '#ff6b5e',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 11,
+              border: '2px solid #fff',
+              opacity: p.resolved ? 0.45 : 1,
+              cursor: 'pointer',
+            }}
+          >
+            {p.label}
+          </button>
+        </Html>
+      ))}
       <OrbitControls
         ref={controls}
         makeDefault

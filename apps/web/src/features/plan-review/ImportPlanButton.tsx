@@ -44,8 +44,8 @@ export function ImportPlanButton({ className = 'btn' }: { className?: string }) 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button className={className} data-testid="import-plan">
-          <FileUp size={16} aria-hidden /> {t('planImport.button')}
+        <button className={className} data-testid="import-plan" aria-label={t('planImport.button')}>
+          <FileUp size={16} aria-hidden /> <span className="max-sm:hidden">{t('planImport.button')}</span>
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>

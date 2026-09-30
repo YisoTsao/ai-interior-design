@@ -664,3 +664,78 @@ export function setPresentationNote(cameraId: string, text: string): Command {
     },
   };
 }
+
+/** 留言標註（FE-SHR-03）：釘在樓層座標上的討論串；存在 scene.meta.comments */
+export interface CommentReply {
+  id: string;
+  author: string;
+  text: string;
+  at: string;
+}
+export interface CommentThread {
+  id: string;
+  levelId: string;
+  /** 世界座標 x, z（mm）；y 為 3D 釘選高度 */
+  position: [number, number, number];
+  author: string;
+  text: string;
+  at: string;
+  resolved: boolean;
+  replies: CommentReply[];
+}
+export const commentsOf = (scene: Scene): CommentThread[] =>
+  (scene.meta as { comments?: CommentThread[] } | undefined)?.comments ?? [];
+const withComments = (d: Draft<Scene>, f: (list: CommentThread[]) => CommentThread[]) => {
+  const meta = (d.meta ?? {}) as Record<string, unknown>;
+  meta.comments = f(((meta.comments as CommentThread[] | undefined) ?? []).map((c) => ({ ...c })));
+  d.meta = meta as Draft<Scene>['meta'];
+};
+export function addComment(
+  c: Omit<CommentThread, 'id' | 'at' | 'resolved' | 'replies'> & { id?: string },
+): Command & { commentId: string } {
+  const id = c.id ?? newId('ann').replace('ann_', 'cmt_');
+  return {
+    id: cid('comment'),
+    label: 'command.addComment',
+    commentId: id,
+    do: (d) =>
+      withComments(d, (l) => [
+        ...l,
+        { ...c, id, at: new Date().toISOString(), resolved: false, replies: [] },
+      ]),
+  };
+}
+export function replyComment(threadId: string, author: string, text: string): Command {
+  return {
+    id: cid('reply'),
+    label: 'command.replyComment',
+    do: (d) =>
+      withComments(d, (l) =>
+        l.map((c) =>
+          c.id === threadId
+            ? {
+                ...c,
+                replies: [
+                  ...c.replies,
+                  { id: newId('ann').replace('ann_', 'rep_'), author, text, at: new Date().toISOString() },
+                ],
+              }
+            : c,
+        ),
+      ),
+  };
+}
+export function resolveComment(threadId: string, resolved: boolean): Command {
+  return {
+    id: cid('resolve'),
+    label: 'command.resolveComment',
+    do: (d) => withComments(d, (l) => l.map((c) => (c.id === threadId ? { ...c, resolved } : c))),
+  };
+}
+export function deleteComment(threadId: string): Command {
+  return {
+    id: cid('delComment'),
+    label: 'command.deleteComment',
+    do: (d) => withComments(d, (l) => l.filter((c) => c.id !== threadId)),
+  };
+}

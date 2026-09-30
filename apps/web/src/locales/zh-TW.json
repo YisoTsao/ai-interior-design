@@ -159,7 +159,8 @@
       "decor": "裝飾",
       "openings": "門窗",
       "storage": "收納",
-      "structure": "結構"
+      "structure": "結構",
+      "mep": "水電"
     },
     "mine": "我的上傳 {{n}}",
     "count": "{{n}} 件",
@@ -307,7 +308,8 @@
     "dimmer": "亮度 %",
     "style": "樣式",
     "shape": "形狀",
-    "steps": "階數"
+    "steps": "階數",
+    "mepPoint": "點位種類"
   },
   "room": {
     "unnamed": "未命名房間",
@@ -410,7 +412,11 @@
     "pasteStyle": "貼上樣式",
     "placeSet": "放置套組",
     "restoreVersion": "還原版本",
-    "presentationNote": "編輯講者備註"
+    "presentationNote": "編輯講者備註",
+    "addComment": "新增留言",
+    "replyComment": "回覆留言",
+    "resolveComment": "變更留言狀態",
+    "deleteComment": "刪除留言"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -1026,7 +1032,9 @@
     "needs2d": "PNG 平面圖需在 2D 視圖匯出。",
     "needs3d": "圖片與 3D 模型需在 3D 視圖匯出。",
     "working": "處理中…",
-    "failed": "匯出失敗：{{message}}"
+    "failed": "匯出失敗：{{message}}",
+    "drawings": "施工圖集（列印／PDF）",
+    "drawingsHint": "A3 橫式：平面尺寸、家具配置、地坪、天花燈具迴路、水電點位、各房間立面。"
   },
   "history": {
     "title": "歷史紀錄",
@@ -1302,5 +1310,56 @@
   },
   "perf": {
     "lowered": "畫面不夠順（< 45 FPS），已自動調為「{{q}}」畫質"
+  },
+  "mep": {
+    "outlet": "插座",
+    "outlet_counter": "檯面插座",
+    "switch": "開關",
+    "data": "網路",
+    "tv": "電視",
+    "water_cold": "冷水",
+    "water_hot": "熱水",
+    "drain": "排水",
+    "gas": "瓦斯",
+    "ac": "冷氣"
+  },
+  "drawings": {
+    "title": "施工圖集",
+    "plan": "平面尺寸圖",
+    "furniture": "家具配置圖",
+    "floor": "地坪材質圖",
+    "ceiling": "天花燈具與迴路圖",
+    "mep": "水電點位圖",
+    "elevation": "{{room}} 立面 {{n}}",
+    "circuit": "迴路",
+    "room": "空間",
+    "count": "數量",
+    "flux": "光通量",
+    "symbol": "符號",
+    "item": "項目",
+    "mepNote": "點位旁數字為離地高度（mm）。",
+    "disclaimer": "本圖由 InteriorAI 自動產生，尺寸以現場丈量為準；水電點位請由合格技師確認。"
+  },
+  "editor": {
+    "loading": "載入專案中…",
+    "retry": "重試"
+  },
+  "comments": {
+    "title": "留言",
+    "add": "新增留言",
+    "placing": "點畫面放置…",
+    "placeHint": "點選要留言的位置（Esc 取消）",
+    "text": "留言內容",
+    "open": "未解決（{{n}}）",
+    "all": "全部（{{n}}）",
+    "name": "顯示名稱",
+    "me": "我",
+    "empty": "沒有留言",
+    "reply": "回覆…",
+    "send": "送出",
+    "resolve": "標記已解決",
+    "reopen": "重新開啟",
+    "delete": "刪除",
+    "hint": "點畫面上的紅色釘選可開啟對應的討論串。"
   }
 }

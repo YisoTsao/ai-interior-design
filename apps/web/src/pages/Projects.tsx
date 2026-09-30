@@ -177,7 +177,7 @@ export function ProjectsPage() {
         void importFiles(e.dataTransfer.files);
       }}
     >
-      <header className="hud-bar flex h-14 items-center gap-3 px-4">
+      <header className="hud-bar flex min-h-14 flex-wrap items-center gap-3 px-4 py-2">
         <span className="font-[Rajdhani] text-lg font-bold tracking-widest text-primary" aria-hidden>
           INTERIOR<span className="text-accent">AI</span>
         </span>
@@ -185,8 +185,13 @@ export function ProjectsPage() {
         <OfflineBadge />
         <div className="ml-auto flex items-center gap-2">
           <LangToggle />
-          <label className="btn cursor-pointer" title={t('projects.openFileHint')}>
-            <FolderOpen size={16} aria-hidden /> {t('projects.openFile')}
+          <label
+            className="btn cursor-pointer"
+            title={t('projects.openFileHint')}
+            aria-label={t('projects.openFile')}
+          >
+            <FolderOpen size={16} aria-hidden />{' '}
+            <span className="max-sm:hidden">{t('projects.openFile')}</span>
             <input
               type="file"
               accept={PROJECT_EXT}
@@ -201,17 +206,23 @@ export function ProjectsPage() {
             />
           </label>
           <ImportPlanButton />
-          <button className="btn btn-primary" onClick={() => setWizard(true)} data-testid="new-project">
-            <FilePlus2 size={16} aria-hidden /> {t('projects.newProject')}
+          <button
+            className="btn btn-primary"
+            onClick={() => setWizard(true)}
+            data-testid="new-project"
+            aria-label={t('projects.newProject')}
+          >
+            <FilePlus2 size={16} aria-hidden />{' '}
+            <span className="max-sm:hidden">{t('projects.newProject')}</span>
           </button>
         </div>
       </header>
-      <div className="mx-auto max-w-6xl p-6">
+      <div className="mx-auto max-w-6xl p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <label className="relative">
             <Search size={14} className="absolute top-1/2 left-2 -translate-y-1/2 text-muted" aria-hidden />
             <input
-              className="field w-64"
+              className="field w-64 max-sm:w-44"
               style={{ paddingLeft: 28 }}
               placeholder={t('projects.search')}
               aria-label={t('projects.search')}

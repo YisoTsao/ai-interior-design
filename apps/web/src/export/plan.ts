@@ -131,13 +131,23 @@ export function planToSvg(
   o: {
     nameOf: (catalogId: string) => string;
     roomFill?: (kind: string | undefined) => string;
+    /** 依房間填色（優先於 roomFill；例如地坪圖依地板材質） */
+    roomFillOf?: (room: Level['rooms'][number]) => string;
+    /** 房間第二行文字（預設面積） */
+    roomSub?: (room: Level['rooms'][number], areaM2: number) => string;
     title?: string;
+    /** 家具（預設顯示） */
+    furniture?: boolean | ((catalogId: string) => boolean);
+    /** 外框總尺寸線 */
+    dims?: boolean;
+    /** 額外 SVG 元素（畫在最上層；世界座標 mm） */
+    extra?: string[];
   },
 ): string {
   const pts = level.walls.flatMap((w) => [w.a, w.b]);
   const xs = pts.map((p) => p[0]);
   const zs = pts.map((p) => p[1]);
-  const pad = 800;
+  const pad = o.dims ? 1600 : 800;
   const [x0, x1, z0, z1] = xs.length
     ? [Math.min(...xs) - pad, Math.max(...xs) + pad, Math.min(...zs) - pad, Math.max(...zs) + pad]
     : [-5000, 5000, -5000, 5000];
@@ -147,11 +157,13 @@ export function planToSvg(
   const det = detectRooms(level).rooms;
   for (const r of level.rooms) {
     const d = det.find((x) => x.key === [...r.wallIds].sort().join('|'));
-    if (d) parts.push(`<polygon points="${P(d.floor)}" fill="${fill(r.kind)}"/>`);
+    if (d)
+      parts.push(`<polygon points="${P(d.floor)}" fill="${o.roomFillOf ? o.roomFillOf(r) : fill(r.kind)}"/>`);
   }
   for (const ob of level.objects) {
     const e = catalog.get(ob.catalogId);
     if (!e || e.anchor === 'ceiling' || ob.appearance?.hidden) continue;
+    if (o.furniture === false || (typeof o.furniture === 'function' && !o.furniture(ob.catalogId))) continue;
     const d = objectDims(e, ob.params, ob.scale);
     const fp = objectFootprint(ob.position, ob.rotationY, d.w, d.d);
     parts.push(
@@ -181,9 +193,32 @@ export function planToSvg(
     const cz = d.floor.reduce((s, p) => s + p[1], 0) / d.floor.length;
     parts.push(
       `<text x="${num(cx)}" y="${num(cz - 150)}" font-size="220" font-weight="700" text-anchor="middle" fill="#333">${esc(r.label ?? '')}</text>`,
-      `<text x="${num(cx)}" y="${num(cz + 150)}" font-size="150" text-anchor="middle" fill="#666">${(d.netArea / 1e6).toFixed(2)} m²</text>`,
+      `<text x="${num(cx)}" y="${num(cz + 150)}" font-size="150" text-anchor="middle" fill="#666">${esc(o.roomSub ? o.roomSub(r, d.netArea / 1e6) : `${(d.netArea / 1e6).toFixed(2)} m²`)}</text>`,
     );
   }
+  if (o.dims && xs.length) {
+    // 外框總尺寸（上方寬、左側深），含延伸線與箭頭短線
+    const [bx0, bx1, bz0, bz1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+    const ty = bz0 - 900;
+    const lx = bx0 - 900;
+    const tick = (x: number, y: number) =>
+      `<line x1="${x - 80}" y1="${y + 80}" x2="${x + 80}" y2="${y - 80}" stroke="#222" stroke-width="18"/>`;
+    parts.push(
+      `<line x1="${bx0}" y1="${ty}" x2="${bx1}" y2="${ty}" stroke="#222" stroke-width="12"/>`,
+      `<line x1="${bx0}" y1="${bz0 - 150}" x2="${bx0}" y2="${ty - 150}" stroke="#222" stroke-width="8"/>`,
+      `<line x1="${bx1}" y1="${bz0 - 150}" x2="${bx1}" y2="${ty - 150}" stroke="#222" stroke-width="8"/>`,
+      tick(bx0, ty),
+      tick(bx1, ty),
+      `<text x="${num((bx0 + bx1) / 2)}" y="${ty - 120}" font-size="200" text-anchor="middle" fill="#222">${Math.round(bx1 - bx0)}</text>`,
+      `<line x1="${lx}" y1="${bz0}" x2="${lx}" y2="${bz1}" stroke="#222" stroke-width="12"/>`,
+      `<line x1="${bx0 - 150}" y1="${bz0}" x2="${lx - 150}" y2="${bz0}" stroke="#222" stroke-width="8"/>`,
+      `<line x1="${bx0 - 150}" y1="${bz1}" x2="${lx - 150}" y2="${bz1}" stroke="#222" stroke-width="8"/>`,
+      tick(lx, bz0),
+      tick(lx, bz1),
+      `<text x="${lx - 150}" y="${num((bz0 + bz1) / 2)}" font-size="200" text-anchor="middle" fill="#222" transform="rotate(-90 ${lx - 150} ${num((bz0 + bz1) / 2)})">${Math.round(bz1 - bz0)}</text>`,
+    );
+  }
+  parts.push(...(o.extra ?? []));
   const title = o.title ? `<title>${esc(o.title)}</title>` : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${z0} ${x1 - x0} ${z1 - z0}" width="${Math.round((x1 - x0) / 10)}" height="${Math.round((z1 - z0) / 10)}" font-family="system-ui, 'Noto Sans TC', sans-serif">${title}

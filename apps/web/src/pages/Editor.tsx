@@ -23,6 +23,7 @@ import {
   Leaf,
   Map,
   Maximize,
+  MessageSquare,
   Presentation as Presentation2,
   Receipt,
   Ruler,
@@ -41,6 +42,7 @@ import { CommandPalette, type PaletteCommand } from '../editor/CommandPalette';
 import { ExportDialog } from '../editor/ExportDialog';
 import { MoodboardPanel } from '../editor/MoodboardPanel';
 import { Presentation } from '../editor/Presentation';
+import { CommentsPanel, useComments } from '../editor/CommentsPanel';
 import { captureThumb, VersionsPanel } from '../editor/VersionsPanel';
 import { HistoryPanel } from '../editor/HistoryPanel';
 import { ProjectInfoDialog } from '../editor/ProjectInfoDialog';
@@ -64,7 +66,9 @@ import {
   loadProject,
   planDecor,
   saveCameraBookmark,
+  addComment,
   batch,
+  commentsOf,
   FURNITURE_SETS,
   setMaterial,
   stackElevation,
@@ -97,9 +101,11 @@ export function EditorPage() {
   const { t } = useTranslation();
   const store = useMemo(() => createEditorStore(), []);
   const [state, setState] = useState<'loading' | 'ready' | 'missing' | { error: string }>('loading');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let dead = false;
+    setState('loading');
     loadProject(id!)
       .then((rec) => {
         if (dead) return;
@@ -113,7 +119,7 @@ export function EditorPage() {
     return () => {
       dead = true;
     };
-  }, [id, store]);
+  }, [id, store, retry]);
 
   useEffect(() => {
     if (state !== 'ready') return;
@@ -139,8 +145,13 @@ export function EditorPage() {
 
   if (state === 'loading')
     return (
-      <div className="grid h-full place-items-center text-muted" aria-busy="true">
-        …
+      <div className="game-ui flex h-full flex-col" aria-busy="true" data-testid="editor-skeleton">
+        <div className="hud-bar h-12 shrink-0" />
+        <div className="flex min-h-0 flex-1 gap-0">
+          <div className="hud-panel w-[300px] animate-pulse max-md:hidden" />
+          <div className="grid flex-1 place-items-center text-sm text-muted">{t('editor.loading')}</div>
+          <div className="hud-panel w-[320px] animate-pulse max-lg:hidden" />
+        </div>
       </div>
     );
   if (state === 'missing' || typeof state === 'object')
@@ -150,9 +161,20 @@ export function EditorPage() {
           <p>
             {state === 'missing' ? t('error.notFound') : t('projects.loadError', { message: state.error })}
           </p>
-          <Link to="/" className="btn">
-            {t('top.back')}
-          </Link>
+          <div className="flex justify-center gap-2">
+            {state !== 'missing' && (
+              <button
+                className="btn btn-primary"
+                onClick={() => setRetry((n) => n + 1)}
+                data-testid="editor-retry"
+              >
+                {t('editor.retry')}
+              </button>
+            )}
+            <Link to="/" className="btn">
+              {t('top.back')}
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -195,8 +217,9 @@ function EditorShell() {
   }, [store]);
   const stopPresent = useCallback(() => setPresenting(false), []);
   // 面板收合（FE-UX-07）：\ 鍵切換兩側面板＝全螢幕畫布
-  const [showLeft, setShowLeft] = useState(true);
-  const [showRight, setShowRight] = useState(true);
+  // 窄螢幕（手機、直立平板）預設收合兩側面板，畫布滿版（FE-MOB-02）
+  const [showLeft, setShowLeft] = useState(() => window.innerWidth >= 900);
+  const [showRight, setShowRight] = useState(() => window.innerWidth >= 1100);
   const togglePanels = useCallback(() => {
     const on = !(showLeft || showRight);
     setShowLeft(on);
@@ -221,6 +244,7 @@ function EditorShell() {
       p('export', 'exports.title'),
       p('mood', 'mood.title'),
       p('versions', 'versions.title'),
+      p('comments', 'comments.title'),
       p('info', 'projectInfo.title'),
       p('history', 'history.title'),
       p('shortcuts', 'shortcuts.title'),
@@ -307,6 +331,45 @@ function EditorShell() {
   const actions = useMemo(() => editActions(store), [store]);
   const scene = useEditor((s) => s.scene);
   const levelId = useEditor((s) => s.levelId);
+  // 留言釘選（FE-SHR-03）
+  const comments = commentsOf(scene);
+  const commentUi = useComments();
+  const pins2d = useMemo(
+    () =>
+      comments
+        .filter((c) => c.levelId === levelId)
+        .map((c) => ({
+          id: c.id,
+          x: c.position[0],
+          z: c.position[2],
+          label: String(comments.indexOf(c) + 1),
+          resolved: c.resolved,
+          active: commentUi.active === c.id,
+        })),
+    [comments, levelId, commentUi.active],
+  );
+  const pins3d = useMemo(
+    () =>
+      pins2d.map((p) => ({
+        ...p,
+        position: [p.x, comments.find((c) => c.id === p.id)?.position[1] ?? 1200, p.z] as [
+          number,
+          number,
+          number,
+        ],
+      })),
+    [pins2d, comments],
+  );
+  useEffect(() => {
+    if (!commentUi.placing) return;
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && useComments.getState().set({ placing: false });
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [commentUi.placing]);
+  const openPin = useCallback((id: string) => {
+    useComments.getState().set({ active: id });
+    setPanel('comments');
+  }, []);
   // 下一層（淡色參考）
   const ghost = useMemo(() => {
     const cur = scene.levels.find((l) => l.id === levelId);
@@ -453,6 +516,8 @@ function EditorShell() {
                 planStyle={planStyle}
                 underlay={underlay}
                 heatmap={heatmap}
+                pins={pins2d}
+                onPinClick={openPin}
                 onContextMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, world: e.world })}
                 requestText={async (initial) =>
                   (
@@ -478,6 +543,8 @@ function EditorShell() {
                 displayMode={displayMode}
                 levelsMode={levelsMode}
                 section={section}
+                pins={pins3d}
+                onPinClick={openPin}
                 onPerfLow={() => {
                   const g = usePrefs.getState().graphics;
                   const next =
@@ -506,6 +573,35 @@ function EditorShell() {
             />
           )}
           {!presenting && <LevelBar ask={prompt.ask} />}
+          {commentUi.placing && (
+            <div
+              className="absolute inset-0 z-20 cursor-crosshair"
+              data-testid="comment-overlay"
+              onClick={async (e) => {
+                const w =
+                  view === '2d'
+                    ? plan2dApi.get()?.clientToWorld([e.clientX, e.clientY])
+                    : viewer3dApi.get()?.clientToFloor(e.clientX, e.clientY);
+                useComments.getState().set({ placing: false });
+                if (!w) return;
+                const r = await prompt.ask(t('comments.add'), [
+                  { key: 'text', label: t('comments.text'), value: '' },
+                ]);
+                if (!r?.text?.trim()) return;
+                const cmd = addComment({
+                  levelId,
+                  position: [Math.round(w[0]), view === '3d' ? 1200 : 0, Math.round(w[1])],
+                  author: useComments.getState().name || t('comments.me'),
+                  text: r.text.trim(),
+                });
+                if (store.getState().exec(cmd)) openPin(cmd.commentId);
+              }}
+            >
+              <p className="hud-panel pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 text-xs">
+                {t('comments.placeHint')}
+              </p>
+            </div>
+          )}
           {presenting && <Presentation onExit={stopPresent} />}
           {menu && (
             <ContextMenu
@@ -527,6 +623,7 @@ function EditorShell() {
       <QuotePanel open={panel === 'quote'} onOpenChange={(v) => setPanel(v ? 'quote' : null)} />
       <GalleryPanel open={panel === 'gallery'} onOpenChange={(v) => setPanel(v ? 'gallery' : null)} />
       <ShareDialog open={panel === 'share'} onOpenChange={(v) => setPanel(v ? 'share' : null)} />
+      <CommentsPanel open={panel === 'comments'} onOpenChange={(v) => setPanel(v ? 'comments' : null)} />
       <VersionsPanel open={panel === 'versions'} onOpenChange={(v) => setPanel(v ? 'versions' : null)} />
       <MoodboardPanel open={panel === 'mood'} onOpenChange={(v) => setPanel(v ? 'mood' : null)} />
       <ExportDialog open={panel === 'export'} onOpenChange={(v) => setPanel(v ? 'export' : null)} />
@@ -555,7 +652,8 @@ type Panel =
   | 'shortcuts'
   | 'palette'
   | 'mood'
-  | 'versions';
+  | 'versions'
+  | 'comments';
 
 function TopBar({
   mode,
@@ -731,6 +829,9 @@ function TopBar({
           </IconButton>
           <IconButton label={t('gallery.title')} onClick={() => setPanel('gallery')} testId="open-gallery">
             <Images size={18} aria-hidden />
+          </IconButton>
+          <IconButton label={t('comments.title')} onClick={() => setPanel('comments')} testId="open-comments">
+            <MessageSquare size={18} aria-hidden />
           </IconButton>
           <IconButton label={t('share.title')} onClick={() => setPanel('share')} testId="open-share">
             <Share2 size={18} aria-hidden />

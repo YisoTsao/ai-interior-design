@@ -89,6 +89,21 @@ export const PARAMETRIC_TYPES = [
   'stairs',
   'platform',
   'railing',
+  // v1.3 水電點位（FE-DOC-05）：param point 決定符號與造型
+  'mep',
+] as const;
+/** 水電點位種類（FE-DOC-05） */
+export const MEP_POINTS = [
+  'outlet',
+  'outlet_counter',
+  'switch',
+  'data',
+  'tv',
+  'water_cold',
+  'water_hot',
+  'drain',
+  'gas',
+  'ac',
 ] as const;
 export type ParametricType = (typeof PARAMETRIC_TYPES)[number];
 
@@ -166,6 +181,7 @@ export const CatalogEntrySchema = z.object({
     'openings',
     'storage',
     'structure',
+    'mep',
   ]),
   tags: z.array(z.string()).default([]),
   styleTags: z.array(z.string()).default([]),

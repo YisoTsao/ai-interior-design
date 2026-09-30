@@ -4,8 +4,10 @@ import { Box, FileCode2, FileImage, Image as ImageIcon, Map as MapIcon, Package 
 import { activeLevel } from '@interiorai/app-state';
 import { plan2dApi } from '@interiorai/editor-2d';
 import { viewer3dApi } from '@interiorai/viewer-3d';
-import { catalog } from '../catalogData';
+import { catalog, useMaterials } from '../catalogData';
 import { planToDxf, planToSvg } from '../export/plan';
+import { drawingSet } from '../export/drawings';
+import { materialMap } from '@interiorai/catalog';
 import { addToGallery, dataUrlToBlob, download } from '../media';
 import { exportProjectFile, PROJECT_EXT } from '../projectFile';
 import { useEditor, useEditorStore } from './context';
@@ -40,6 +42,7 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const [toGallery, setToGallery] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const level = () => activeLevel(store.getState());
+  const materials = useMaterials();
   const nameOf = (id: string) => {
     const e = catalog.get(id);
     return e ? (i18n.language === 'en' ? (e.nameEn ?? e.nameZh) : e.nameZh) : id;
@@ -125,6 +128,31 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             )}
           </div>
           {view !== '2d' && <p className="mt-1 text-[11px] text-muted">{t('exports.needs2d')}</p>}
+          <div className="mt-2">
+            {btn('drawings', <FileCode2 size={14} aria-hidden />, t('exports.drawings'), () => {
+              const mats = materialMap(materials);
+              const html = drawingSet(
+                level(),
+                catalog,
+                mats,
+                {
+                  t: (k, v) => t(k, v),
+                  nameOf,
+                  matName: (id) => {
+                    const m = mats.get(id);
+                    return m ? (i18n.language === 'en' ? (m.nameEn ?? m.nameZh) : m.nameZh) : '—';
+                  },
+                  date: new Date().toLocaleDateString(i18n.language),
+                },
+                name,
+              );
+              const w = window.open('', '_blank');
+              if (!w) return download(new Blob([html], { type: 'text/html' }), `${name}-drawings.html`);
+              w.document.write(html);
+              w.document.close();
+            })}
+            <p className="mt-1 text-[11px] text-muted">{t('exports.drawingsHint')}</p>
+          </div>
         </section>
         <section>
           <h3 className="mb-2 text-xs font-bold text-primary">{t('exports.image')}</h3>

@@ -1179,6 +1179,7 @@ function MultiPanel({ ids, level }: { ids: string[]; level: Level }) {
 /** 列舉參數的顯示名稱來源 */
 const ENUM_LABEL: Record<string, string> = {
   color: 'lightColors',
+  point: 'mep',
   swing: 'inspector.swings',
   style: 'openingStyles',
   shape: 'shapes',
