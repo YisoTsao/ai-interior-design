@@ -644,3 +644,23 @@ export function mergeWalls(levelId: string, aId: string, bId: string): Command {
     },
   };
 }
+
+/** 簡報講者備註（FE-SHR-02）：scene.meta.presentation.notes[cameraId] */
+export const presentationNotesOf = (scene: Scene): Record<string, string> =>
+  (scene.meta as { presentation?: { notes?: Record<string, string> } } | undefined)?.presentation?.notes ??
+  {};
+export function setPresentationNote(cameraId: string, text: string): Command {
+  return {
+    id: cid('note'),
+    label: 'command.presentationNote',
+    do: (d) => {
+      const meta = (d.meta ?? {}) as Record<string, unknown>;
+      const p = (meta.presentation as { notes?: Record<string, string> } | undefined) ?? {};
+      const notes = { ...(p.notes ?? {}) };
+      if (text.trim()) notes[cameraId] = text;
+      else delete notes[cameraId];
+      meta.presentation = { ...p, notes };
+      d.meta = meta as Draft<Scene>['meta'];
+    },
+  };
+}

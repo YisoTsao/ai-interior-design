@@ -104,3 +104,35 @@ export async function modelThumbnail(entry: CatalogEntry): Promise<string | null
 }
 
 export const cachedThumbnail = (id: string) => cache.get(id);
+
+/** 預覽用物件（資產詳情的可旋轉 3D）：參數化家具可指定主材質；上傳模型直接複製 */
+export async function buildPreviewObject(
+  entry: CatalogEntry,
+  materials: ReadonlyMap<string, Material>,
+  materialId?: string,
+): Promise<THREE.Object3D | null> {
+  if (entry.model.kind === 'glb') return (await loadModel(entry.model.url)).root.clone(true);
+  if (entry.model.kind !== 'parametric') return null;
+  const slot = entry.materialSlots[0];
+  const surf = materials.get(materialId ?? slot?.defaultMaterialId ?? '');
+  const g = buildFurnitureGeometry(entry, undefined, {
+    style: 'dollhouse',
+    bodyColor: surf?.color ?? '#cfc6b8',
+  });
+  const mats: THREE.Material[] = [
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: surf?.roughness ?? 0.7,
+      metalness: surf?.metalness ?? 0,
+    }),
+  ];
+  if (hasEmissive(g)) {
+    const p = entry.model.params.color?.default;
+    mats.push(
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(lightColorHex(p ? String(p) : undefined)).multiplyScalar(1.4),
+      }),
+    );
+  }
+  return new THREE.Mesh(g, mats.length > 1 ? mats : mats[0]);
+}

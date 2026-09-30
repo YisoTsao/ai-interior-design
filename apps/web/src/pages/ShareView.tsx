@@ -6,7 +6,7 @@ import { createEditorStore, saveProject } from '@interiorai/app-state';
 import type { Scene } from '@interiorai/scene-schema';
 import { Plan2D } from '@interiorai/editor-2d';
 import { PanoramaViewer, Viewer3D, viewer3dApi } from '@interiorai/viewer-3d';
-import { catalog, materials, useCatalogVersion } from '../catalogData';
+import { catalog, useCatalogVersion, useMaterials } from '../catalogData';
 import { LangToggle } from '../editor/common';
 import { usePrefs } from '../prefs';
 import { decodeShare } from '../share';
@@ -56,6 +56,7 @@ function ShareBody({ name, scene }: { name: string; scene: Scene }) {
   const theme = useCanvasTheme();
   const { lengthUnit, areaUnit, graphics } = usePrefs();
   const catalogVersion = useCatalogVersion();
+  const materials = useMaterials();
   const store = useMemo(() => {
     const s = createEditorStore({ projectName: name, scene });
     s.setState({ exec: () => false });

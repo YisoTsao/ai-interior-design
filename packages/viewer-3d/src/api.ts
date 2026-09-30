@@ -65,6 +65,8 @@ export interface Viewer3DApi {
   }): void;
   /** 各類型（gkind）網格數量（測試用） */
   kinds(): Record<string, number>;
+  /** 目前剖切平面數（測試用） */
+  clipPlanes(): number;
   /** 目前 scene.overrideMaterial 類型（測試用） */
   override(): string | null;
   /** 相機焦距（35mm 等效，FE-V3D-10）；回傳目前焦距 */

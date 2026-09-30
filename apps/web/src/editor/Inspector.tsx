@@ -23,6 +23,8 @@ import { objectDims, resolveParams, type CatalogEntry } from '@interiorai/catalo
 import { detectRooms, wallLength } from '@interiorai/core-geometry';
 import { SunStudy } from './SunStudy';
 import { PlanSettings } from './PlanSettings';
+import { LightingAnalysis } from './LightingAnalysis';
+import { useLuxResult } from './luxResult';
 import { formatArea } from '@interiorai/editor-2d';
 import type {
   Appearance,
@@ -874,6 +876,7 @@ function ScenePanel({ level }: { level: Level }) {
     };
   }, [level]);
   const night = viewStyle === 'dollhouse' && lighting === 'night';
+  const luxResult = useLuxResult((s) => s.result);
   return (
     <div className="space-y-2" data-testid="inspector-scene">
       <p className="text-xs text-muted">{t('inspector.none')}</p>
@@ -966,6 +969,7 @@ function ScenePanel({ level }: { level: Level }) {
         />
       </Section>
       {!night && <SunStudy />}
+      <LightingAnalysis result={luxResult} />
       <Section title={t('lightPreset.title')} testId="section-light-preset">
         <div className="flex flex-wrap gap-1">
           {LIGHT_PRESETS.map((p) => (

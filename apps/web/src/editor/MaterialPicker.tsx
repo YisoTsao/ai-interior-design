@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Material } from '@interiorai/catalog';
-import { materials } from '../catalogData';
+import { useMaterials } from '../catalogData';
+import { swatchCss } from './swatch';
 
 /** 材質面板（FR-303）：以 radio 群組呈現，鍵盤可操作 */
 export function MaterialPicker({
@@ -19,6 +20,7 @@ export function MaterialPicker({
 }) {
   const { t, i18n } = useTranslation();
   const [q, setQ] = useState('');
+  const materials = useMaterials();
   const all = materials.filter((m) => categories.includes(m.category));
   const needle = q.trim().toLowerCase();
   const list = needle
@@ -57,7 +59,7 @@ export function MaterialPicker({
               />
               <span
                 className="h-7 w-7 rounded border-2 border-border peer-checked:border-primary peer-focus-visible:outline-2 peer-focus-visible:outline-primary"
-                style={{ background: m.color }}
+                style={{ background: swatchCss(m) }}
                 aria-hidden
               />
               <span className="line-clamp-1 w-full text-center text-[10px] text-muted">{nm}</span>

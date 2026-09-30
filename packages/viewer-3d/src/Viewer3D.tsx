@@ -54,6 +54,9 @@ import {
   DisplayModeEffect,
   Measure3D,
   OtherLevels,
+  PerfWatch,
+  SectionPlanes,
+  type Section,
   type DisplayMode,
   type LevelsMode,
 } from './extras.js';
@@ -102,6 +105,10 @@ export interface Viewer3DProps {
   levelsMode?: LevelsMode;
   /** 碰撞紅框（FE-V3D-13）；預設開 */
   showCollisions?: boolean;
+  /** 剖切（FE-V3D-07） */
+  section?: Section;
+  /** FPS 過低時回呼一次（FE-V3D-12） */
+  onPerfLow?: () => void;
   onContextMenu?: (e: {
     clientX: number;
     clientY: number;
@@ -176,6 +183,8 @@ function SceneContent({
   displayMode = 'real',
   levelsMode = 'active',
   showCollisions = true,
+  section,
+  onPerfLow,
 }: Viewer3DProps) {
   const dh = viewStyle === 'dollhouse';
   const night = dh && lighting === 'night';
@@ -199,6 +208,13 @@ function SceneContent({
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
   const controls = useRef<OrbitImpl>(null);
+  // 自訂材質的影像貼圖載入完成 → 重畫（frameloop=demand）
+  useEffect(() => {
+    const f = () => invalidate();
+    window.addEventListener('interiorai:texture', f);
+    return () => window.removeEventListener('interiorai:texture', f);
+  }, [invalidate]);
+
   const budget = QUALITY_BUDGET[graphics.quality];
   /** 夜間：光度 → 顯示值（曝光 EV 作用在物理光源上） */
   const k = NIGHT.photometricScale * 2 ** (env?.exposureEv ?? 0);
@@ -909,6 +925,7 @@ function SceneContent({
         });
         return out;
       },
+      clipPlanes: () => gl.clippingPlanes.length,
       override: () => (scene3.userData.displayOverride as THREE.Material | null | undefined)?.type ?? null,
       setLens: (mm) => {
         const pc = camera as THREE.PerspectiveCamera;
@@ -1148,6 +1165,8 @@ function SceneContent({
         />
       )}
       <Measure3D active={tool === 'measure'} />
+      {section && section.kind !== 'none' && <SectionPlanes section={section} />}
+      <PerfWatch onLow={onPerfLow} />
       <OrbitControls
         ref={controls}
         makeDefault

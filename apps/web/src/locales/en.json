@@ -175,7 +175,8 @@
     "special": {
       "fav": "Favourites",
       "recent": "Recent",
-      "used": "In this project"
+      "used": "In this project",
+      "sets": "Sets"
     },
     "styles": {
       "modern": "Modern",
@@ -406,7 +407,10 @@
     "lightPreset": "apply lighting preset",
     "splitWall": "split wall",
     "mergeWalls": "merge walls",
-    "pasteStyle": "paste style"
+    "pasteStyle": "paste style",
+    "placeSet": "place set",
+    "restoreVersion": "restore version",
+    "presentationNote": "edit speaker note"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -1143,5 +1147,160 @@
     "calibrateNeed": "Measure two points with the Measure tool first",
     "calibratePrompt": "Measured {{mm}} mm on the image. What is the real length in mm?",
     "calibrated": "Underlay calibrated (× {{k}})"
+  },
+  "assetDetail": {
+    "open": "Details of “{{name}}”",
+    "place": "Place",
+    "placeWith": "Place with “{{mat}}”",
+    "materials": "Material options (preview)",
+    "dims": "Dimensions",
+    "size": "Size",
+    "category": "Category",
+    "anchor": "Placement",
+    "price": "Reference price",
+    "material": "Main material",
+    "light": "Luminous flux",
+    "license": "License",
+    "source": "Source",
+    "allowed": "Allowed use",
+    "uses": {
+      "commercial": "commercial",
+      "render": "rendering",
+      "redistribute": "redistribution"
+    }
+  },
+  "sets": {
+    "badge": "Set · {{n}}",
+    "place": "Place “{{name}}”",
+    "lounge": "Lounge",
+    "dining4": "Dining for 4",
+    "dining6": "Dining for 6",
+    "bed": "Bed set",
+    "study": "Workstation",
+    "tvwall": "TV wall"
+  },
+  "userAssets": {
+    "title": "My 3D models",
+    "manage": "Manage",
+    "batch": "Batch upload",
+    "working": "Uploading…",
+    "hint": "Batch uploads assume meters, Decor and floor placement; edit them below.",
+    "empty": "No uploaded models yet",
+    "name": "Name",
+    "category": "Category",
+    "anchor": "Placement",
+    "replace": "Replace model file",
+    "dim": {
+      "w": "Width",
+      "d": "Depth",
+      "h": "Height"
+    }
+  },
+  "colors": {
+    "open": "Color cards",
+    "search": "Search code or name (e.g. S 0502-Y, cream)",
+    "recent": "Recent colors",
+    "families": {
+      "white": "White",
+      "neutral": "Neutral",
+      "grey": "Grey",
+      "green": "Green",
+      "blue": "Blue",
+      "earth": "Earth",
+      "dark": "Dark",
+      "accent": "Accent"
+    }
+  },
+  "userMaterial": {
+    "title": "Upload custom material",
+    "pick": "Choose texture",
+    "name": "Name",
+    "category": "Category",
+    "width": "Tile width (mm)",
+    "height": "Tile height (mm)",
+    "roughness": "Roughness",
+    "metalness": "Metalness",
+    "price": "Price (NT$/m², optional)",
+    "hint": "The texture is one repeat unit at real size (e.g. a 60×60 cm tile); it is resized to ≤ 1024 px and stored locally.",
+    "save": "Add to library",
+    "delete": "Delete “{{name}}”",
+    "deleteConfirm": "Delete material “{{name}}”? Surfaces using it fall back to a default color."
+  },
+  "mood": {
+    "title": "Style explorer",
+    "desc": "Drop reference images to extract a palette, detect the style and get furniture suggestions.",
+    "add": "Add images",
+    "remove": "Remove",
+    "palette": "Palette",
+    "paint": "Apply to selected walls",
+    "paintHint": "Click a swatch to paint the selected walls (both sides).",
+    "selectWalls": "Select the walls to paint first",
+    "styles": "Detected styles",
+    "recommend": "Suggested furniture"
+  },
+  "photo": {
+    "edit": "Edit",
+    "edited": "edited",
+    "exposure": "Exposure (EV)",
+    "temperature": "Temperature (cool ↔ warm)",
+    "saturation": "Saturation",
+    "contrast": "Contrast",
+    "crop": "Crop",
+    "original": "Original",
+    "watermark": "Watermark text",
+    "addLabel": "Add text label",
+    "labelClick": "Click the image to place…",
+    "labelPrompt": "Label text",
+    "clearLabels": "Clear labels",
+    "reset": "Reset",
+    "saveNew": "Save to gallery"
+  },
+  "versions": {
+    "title": "Version history",
+    "save": "Save version",
+    "namePlaceholder": "Version name (e.g. Client approved)",
+    "hint": "A version is saved automatically every 10 minutes; compare and restore (undoable).",
+    "empty": "No versions yet",
+    "manual": "Manual version",
+    "auto": "auto",
+    "autoName": "Autosave",
+    "stats": "{{n}} objects",
+    "compare": "Compare",
+    "restore": "Restore",
+    "restored": "Restored “{{name}}” (Ctrl+Z to undo)",
+    "delete": "Delete version",
+    "diff": "Compared with this version: +{{added}} / −{{removed}} / moved {{moved}} / changed {{changed}} objects; {{walls}} wall changes (differences selected)"
+  },
+  "present": {
+    "start": "Present",
+    "prev": "Previous",
+    "next": "Next",
+    "play": "Autoplay",
+    "pause": "Pause",
+    "notes": "Speaker notes",
+    "exit": "Exit",
+    "noCams": "No camera bookmarks (overview)"
+  },
+  "lux": {
+    "title": "Illuminance",
+    "heatmap": "2D lux heatmap",
+    "room": "Room",
+    "avg": "Avg lx",
+    "minmax": "Min–max",
+    "target": "Target",
+    "note": "Estimated floor illuminance from fixture flux (no occlusion or bounce light); targets per CNS 12112. Orange = outside target."
+  },
+  "section": {
+    "title": "Section",
+    "position": "Section position",
+    "kinds": {
+      "none": "No section",
+      "h": "Horizontal",
+      "x": "Vertical (X)",
+      "z": "Vertical (Z)"
+    }
+  },
+  "perf": {
+    "lowered": "Frame rate below 45 FPS — switched to “{{q}}” quality"
   }
 }

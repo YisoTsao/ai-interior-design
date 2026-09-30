@@ -23,13 +23,12 @@ export interface Quote {
   settings: Required<Pick<QuoteSettings, 'taxRate' | 'wastePct'>> & QuoteSettings;
 }
 
-const matById = new Map(materials.map((m) => [m.id, m]));
-
 /**
  * 報價（FE-DOC-01）：BOM（core-geometry computeBOM）＋自訂單價、材質損耗、其他費用、折扣、稅。
  * 自訂單價存於 scene.meta.quote.prices（隨專案保存）。
  */
 export function buildQuote(scene: Scene, lang: string): Quote {
+  const matById = new Map(materials.map((m) => [m.id, m]));
   const st = quoteOf(scene);
   const taxRate = st.taxRate ?? DEFAULT_TAX;
   const wastePct = st.wastePct ?? DEFAULT_WASTE;

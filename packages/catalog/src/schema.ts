@@ -193,7 +193,9 @@ export const MaterialSchema = z.object({
   category: z.enum(['floor', 'wall', 'ceiling', 'fabric', 'wood', 'metal', 'stone']),
   /** sRGB 十六進位 */
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  pattern: z.enum(['plain', 'wood', 'tile', 'stone']),
+  pattern: z.enum(['plain', 'wood', 'tile', 'stone', 'image']),
+  /** pattern=image：底色貼圖（dataURL 或 URL；使用者自訂材質 FE-FIN-06） */
+  textureUrl: z.string().optional(),
   /** 貼圖一個重複單元的真實尺寸（mm），用於 repeat = 面尺寸 / realSize（FR-303） */
   realSizeMm: z.object({ w: z.int().positive(), h: z.int().positive() }),
   roughness: z.number().min(0).max(1),

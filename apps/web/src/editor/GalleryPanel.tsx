@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Camera, Download, Globe2, ImageIcon, Star, Trash2, X } from 'lucide-react';
+import { Camera, Download, Globe2, ImageIcon, SlidersHorizontal, Star, Trash2, X } from 'lucide-react';
+import { PhotoEditor } from './PhotoEditor';
 import { plan2dApi } from '@interiorai/editor-2d';
 import { PanoramaViewer, viewer3dApi } from '@interiorai/viewer-3d';
 import {
@@ -40,6 +41,7 @@ export function GalleryPanel({ open, onOpenChange }: { open: boolean; onOpenChan
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [viewing, setViewing] = useState<GalleryItem | null>(null);
+  const [editing, setEditing] = useState(false);
   const [filter, setFilter] = useState<GalleryItem['kind'] | 'all'>('all');
   const refresh = () => listGallery(projectId).then(setItems);
   useEffect(() => {
@@ -96,10 +98,26 @@ export function GalleryPanel({ open, onOpenChange }: { open: boolean; onOpenChan
       {viewing ? (
         <div className="flex h-[70vh] flex-col gap-2">
           <div className="flex items-center gap-2">
-            <button className="btn" onClick={() => setViewing(null)}>
+            <button
+              className="btn"
+              onClick={() => {
+                setViewing(null);
+                setEditing(false);
+              }}
+            >
               <X size={14} aria-hidden /> {t('gallery.back')}
             </button>
             <span className="flex-1 truncate text-sm">{viewing.name}</span>
+            {viewing.kind !== 'panorama' && (
+              <button
+                className="btn"
+                aria-pressed={editing}
+                onClick={() => setEditing(!editing)}
+                data-testid="photo-edit"
+              >
+                <SlidersHorizontal size={14} aria-hidden /> {t('photo.edit')}
+              </button>
+            )}
             <button
               className="btn"
               onClick={() =>
@@ -117,6 +135,21 @@ export function GalleryPanel({ open, onOpenChange }: { open: boolean; onOpenChan
               />
               <p className="text-xs text-muted">{t('gallery.panoHint')}</p>
             </>
+          ) : editing ? (
+            <PhotoEditor
+              src={urls.get(viewing.id)!}
+              blob={viewing.blob}
+              onSave={async (b) => {
+                const it = await addToGallery(projectId, {
+                  kind: viewing.kind,
+                  name: `${viewing.name} · ${t('photo.edited')}`,
+                  blob: b,
+                });
+                await refresh();
+                setEditing(false);
+                setViewing(it);
+              }}
+            />
           ) : (
             <img
               src={urls.get(viewing.id)}

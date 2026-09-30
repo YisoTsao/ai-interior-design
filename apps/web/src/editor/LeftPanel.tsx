@@ -5,6 +5,7 @@ import {
   AppWindow,
   DoorOpen,
   Hexagon,
+  Info,
   Ruler,
   MoveHorizontal,
   Type,
@@ -24,13 +25,19 @@ import {
 } from 'lucide-react';
 import { activeLevel, updateObject, type Tool } from '@interiorai/app-state';
 import { materialMap, STYLE_TAGS, type CatalogEntry, type Material } from '@interiorai/catalog';
-import { catalog, materials, useCatalogVersion } from '../catalogData';
+import { catalog, materials, useCatalogVersion, useMaterials } from '../catalogData';
+import { deleteUserMaterial } from '../userMaterials';
+import { UploadMaterialDialog } from './UploadMaterialDialog';
 import { recordRecent, toggleFavorite, useAssetPrefs } from './assetPrefs';
 import { deleteUserAsset, isUserAsset } from '../userAssets';
 import { useEditor, useEditorStore } from './context';
 import { mergeLook } from './look';
 import { useThumbnail } from './thumbs';
 import { UploadModelDialog } from './UploadModelDialog';
+import { swatchCss } from './swatch';
+import { AssetDetail } from './AssetDetail';
+import { SetsList } from './SetsList';
+import { UserAssetsDialog } from './UserAssetsDialog';
 
 const TOOLS: { tool: Tool; icon: typeof MousePointer2; key: string; hotkey?: string }[] = [
   { tool: 'select', icon: MousePointer2, key: 'tools.select', hotkey: 'V' },
@@ -163,7 +170,7 @@ export function LeftPanel() {
   );
 }
 
-type Special = 'mine' | 'fav' | 'recent' | 'used';
+type Special = 'mine' | 'fav' | 'recent' | 'used' | 'sets';
 const PRICE_BANDS = [
   { key: 'p1', min: 0, max: 5000 },
   { key: 'p2', min: 5000, max: 20000 },
@@ -288,6 +295,8 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
   const [maxW, setMaxW] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [detail, setDetail] = useState<string | null>(null);
+  const [manageOpen, setManageOpen] = useState(false);
   const used = useMemo(
     () => new Set(scene.levels.flatMap((l) => l.objects.map((o) => o.catalogId))),
     [scene],
@@ -302,7 +311,7 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
             ? prefs.recent.map((id) => catalog.get(id)).filter((e): e is CatalogEntry => !!e)
             : cat === 'used'
               ? catalog.search({ text: q }).filter((e) => used.has(e.id))
-              : catalog.search({ text: q, category: cat ?? undefined });
+              : catalog.search({ text: q, category: cat === 'sets' ? undefined : (cat ?? undefined) });
     const band = PRICE_BANDS.find((b) => b.key === price);
     const filtered = base.filter(
       (e) =>
@@ -445,7 +454,7 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
         <button className="hud-chip" aria-pressed={cat === null} onClick={() => setCat(null)}>
           {t('assets.all')}
         </button>
-        {(['fav', 'recent', 'used'] as const).map((k) => (
+        {(['sets', 'fav', 'recent', 'used'] as const).map((k) => (
           <button
             key={k}
             className="hud-chip inline-flex items-center gap-1"
@@ -478,43 +487,57 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
             {t('assets.mine', { n: mine })}
           </button>
         )}
-      </div>
-      <p className="text-[11px] text-muted">{t('assets.count', { n: list.length })}</p>
-      {list.length === 0 ? (
-        <div className="space-y-2 py-6 text-center text-xs text-muted">
-          <p>{t('assets.empty')}</p>
-          <button
-            className="btn"
-            onClick={() => {
-              setQ('');
-              setCat(null);
-              setStyle(null);
-              setColor(null);
-              setPrice(null);
-              setMaxW(0);
-            }}
-          >
-            {t('assets.clear')}
+        {mine > 0 && (
+          <button className="hud-chip" onClick={() => setManageOpen(true)} data-testid="assets-manage">
+            {t('userAssets.manage')}
           </button>
-        </div>
+        )}
+      </div>
+      {cat === 'sets' ? (
+        <SetsList />
       ) : (
-        <VirtualGrid
-          items={list}
-          cols={2}
-          rowHeight={176}
-          scroller={scroller}
-          testId="asset-list"
-          render={(e) => (
-            <AssetCard
-              entry={e}
-              active={placeId === e.id}
-              fav={prefs.fav.includes(e.id)}
-              onPick={() => pick(e)}
+        <>
+          <p className="text-[11px] text-muted">{t('assets.count', { n: list.length })}</p>
+          {list.length === 0 ? (
+            <div className="space-y-2 py-6 text-center text-xs text-muted">
+              <p>{t('assets.empty')}</p>
+              <button
+                className="btn"
+                onClick={() => {
+                  setQ('');
+                  setCat(null);
+                  setStyle(null);
+                  setColor(null);
+                  setPrice(null);
+                  setMaxW(0);
+                }}
+              >
+                {t('assets.clear')}
+              </button>
+            </div>
+          ) : (
+            <VirtualGrid
+              items={list}
+              cols={2}
+              rowHeight={176}
+              scroller={scroller}
+              testId="asset-list"
+              render={(e) => (
+                <AssetCard
+                  entry={e}
+                  active={placeId === e.id}
+                  fav={prefs.fav.includes(e.id)}
+                  onPick={() => pick(e)}
+                  onInfo={() => setDetail(e.id)}
+                />
+              )}
             />
           )}
-        />
+        </>
       )}
       <UploadModelDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <AssetDetail entryId={detail} onClose={() => setDetail(null)} />
+      <UserAssetsDialog open={manageOpen} onOpenChange={setManageOpen} />
     </div>
   );
 }
@@ -524,11 +547,13 @@ function AssetCard({
   active,
   fav,
   onPick,
+  onInfo,
 }: {
   entry: CatalogEntry;
   active: boolean;
   fav: boolean;
   onPick: () => void;
+  onInfo: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const thumb = useThumbnail(e);
@@ -576,6 +601,15 @@ function AssetCard({
       >
         <Star size={12} fill={fav ? 'currentColor' : 'none'} aria-hidden />
       </button>
+      <button
+        className="absolute right-1 bottom-7 p-1 text-muted hover:text-primary"
+        aria-label={t('assetDetail.open', { name: nm })}
+        title={t('assetDetail.open', { name: nm })}
+        onClick={onInfo}
+        data-testid={`info-${e.id}`}
+      >
+        <Info size={12} aria-hidden />
+      </button>
       {user && (
         <button
           className="absolute top-6 right-1 rounded bg-black/40 p-1 text-muted hover:text-danger"
@@ -600,10 +634,24 @@ function MaterialsTab() {
   const current = useEditor((s) => s.placeCatalogId);
   const [cat, setCat] = useState<Material['category'] | null>(null);
   const cats: Material['category'][] = ['floor', 'wall', 'wood', 'stone', 'fabric', 'metal', 'ceiling'];
-  const list = materials.filter((m) => !cat || m.category === cat);
+  const all = useMaterials();
+  const [upload, setUpload] = useState(false);
+  const list = all.filter((m) => !cat || m.category === cat);
   return (
     <div className="space-y-2" data-testid="materials-tab">
-      <p className="text-[11px] text-muted">{t(tool === 'paint' ? 'paint.active' : 'paint.hint')}</p>
+      <div className="flex items-center gap-2">
+        <p className="flex-1 text-[11px] text-muted">{t(tool === 'paint' ? 'paint.active' : 'paint.hint')}</p>
+        <button
+          className="btn px-2"
+          onClick={() => setUpload(true)}
+          title={t('userMaterial.title')}
+          aria-label={t('userMaterial.title')}
+          data-testid="material-upload-open"
+        >
+          <Upload size={14} aria-hidden />
+        </button>
+      </div>
+      <UploadMaterialDialog open={upload} onOpenChange={setUpload} />
       <div className="flex flex-wrap gap-1">
         <button className="hud-chip" aria-pressed={cat === null} onClick={() => setCat(null)}>
           {t('assets.all')}
@@ -624,7 +672,20 @@ function MaterialsTab() {
           const nm = i18n.language === 'en' ? (m.nameEn ?? m.nameZh) : m.nameZh;
           const on = tool === 'paint' && current === m.id;
           return (
-            <li key={m.id}>
+            <li key={m.id} className="relative">
+              {m.id.startsWith('um_') && (
+                <button
+                  className="absolute top-1 right-1 z-10 rounded bg-black/50 p-0.5 text-muted hover:text-danger"
+                  title={t('userMaterial.delete', { name: nm })}
+                  aria-label={t('userMaterial.delete', { name: nm })}
+                  onClick={() =>
+                    window.confirm(t('userMaterial.deleteConfirm', { name: nm })) &&
+                    void deleteUserMaterial(m.id)
+                  }
+                >
+                  <Trash2 size={10} aria-hidden />
+                </button>
+              )}
               <button
                 className="inv-slot items-center p-1 text-center"
                 data-active={on}
@@ -646,18 +707,6 @@ function MaterialsTab() {
       </ul>
     </div>
   );
-}
-
-/** 材質縮圖的 CSS 紋理（木紋條、磁磚格、石材斑點） */
-function swatchCss(m: Material): string {
-  const c = m.color;
-  if (m.pattern === 'wood')
-    return `repeating-linear-gradient(0deg, ${c} 0 7px, color-mix(in srgb, ${c} 82%, black) 7px 8px)`;
-  if (m.pattern === 'tile')
-    return `linear-gradient(${c}, ${c}) padding-box, repeating-linear-gradient(0deg, transparent 0 13px, color-mix(in srgb, ${c} 65%, black) 13px 14px), repeating-linear-gradient(90deg, ${c} 0 13px, color-mix(in srgb, ${c} 65%, black) 13px 14px)`;
-  if (m.pattern === 'stone')
-    return `radial-gradient(circle at 30% 40%, color-mix(in srgb, ${c} 80%, black) 0 2px, transparent 3px), radial-gradient(circle at 70% 70%, color-mix(in srgb, ${c} 85%, white) 0 3px, transparent 4px), ${c}`;
-  return c;
 }
 
 /** 物件清單：畫布操作的鍵盤/讀屏等價路徑（02 §9）；物件可直接隱藏、鎖定 */

@@ -33,11 +33,25 @@ const hexShade = (hex: string, k: number) => {
   return `rgb(${f((n >> 16) & 255)},${f((n >> 8) & 255)},${f(n & 255)})`;
 };
 
+/** 影像貼圖（自訂材質）：非同步載入，完成後發出 interiorai:texture 事件讓 viewer 重畫 */
+function imageTexture(m: CatalogMaterial): THREE.Texture | null {
+  if (!m.textureUrl || typeof document === 'undefined') return null;
+  const tex = new THREE.TextureLoader().load(m.textureUrl, () =>
+    window.dispatchEvent(new Event('interiorai:texture')),
+  );
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.repeat.set(1 / m.realSizeMm.w, 1 / m.realSizeMm.h);
+  tex.anisotropy = 8;
+  return tex;
+}
+
 /**
  * 剖面模型用的高品質程序化貼圖：木紋為錯縫長條地板（紋理方向一律沿 +X），
  * 磁磚有填縫與逐片色差。一個貼圖單元 = realSizeMm。
  */
-function hqPatternTexture(m: CatalogMaterial): THREE.CanvasTexture | null {
+function hqPatternTexture(m: CatalogMaterial): THREE.Texture | null {
+  if (m.pattern === 'image') return imageTexture(m);
   if (m.pattern === 'plain' || typeof document === 'undefined') return null;
   const S = m.pattern === 'wood' ? 1024 : 512;
   const c = document.createElement('canvas');
@@ -123,7 +137,8 @@ function hqPatternTexture(m: CatalogMaterial): THREE.CanvasTexture | null {
 }
 
 /** 程序化貼圖：UV 以 mm 為單位，repeat = 1 / realSize → 貼圖重複率隨面積自動正確（FR-303） */
-function patternTexture(m: CatalogMaterial): THREE.CanvasTexture | null {
+function patternTexture(m: CatalogMaterial): THREE.Texture | null {
+  if (m.pattern === 'image') return imageTexture(m);
   if (m.pattern === 'plain' || typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
   c.width = 256;

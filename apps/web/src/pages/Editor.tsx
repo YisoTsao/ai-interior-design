@@ -12,15 +12,18 @@ import {
   Download,
   History,
   Info,
+  Palette,
   PanelLeft,
   PanelRight,
   Eye,
   Footprints,
+  GitBranch,
   Globe2,
   Images,
   Leaf,
   Map,
   Maximize,
+  Presentation as Presentation2,
   Receipt,
   Ruler,
   Redo2,
@@ -36,11 +39,20 @@ import { ShareDialog } from '../editor/ShareDialog';
 import { Tour, tourDone } from '../editor/Tour';
 import { CommandPalette, type PaletteCommand } from '../editor/CommandPalette';
 import { ExportDialog } from '../editor/ExportDialog';
+import { MoodboardPanel } from '../editor/MoodboardPanel';
+import { Presentation } from '../editor/Presentation';
+import { captureThumb, VersionsPanel } from '../editor/VersionsPanel';
 import { HistoryPanel } from '../editor/HistoryPanel';
 import { ProjectInfoDialog } from '../editor/ProjectInfoDialog';
 import { ShortcutsDialog } from '../editor/ShortcutsDialog';
-import { setProjectThumb, shrink } from '../media';
+import { addVersion, setProjectThumb, shrink } from '../media';
 import { useUnderlay } from '../editor/underlay';
+import { usePlaceMaterial } from '../editor/placeMaterial';
+import { useLuxOverlay } from '../editor/LightingAnalysis';
+import { illuminance, luxColor } from '../ai/illuminance';
+import { useLuxResult } from '../editor/luxResult';
+import { SectionControl, useSection } from '../editor/SectionControl';
+import { placeSetAt } from '../editor/SetsList';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
   activeLevel,
@@ -52,8 +64,11 @@ import {
   loadProject,
   planDecor,
   saveCameraBookmark,
+  batch,
+  FURNITURE_SETS,
   setMaterial,
   stackElevation,
+  updateObject,
   startAutosave,
 } from '@interiorai/app-state';
 import { defaultElevation, objectDims } from '@interiorai/catalog';
@@ -61,7 +76,7 @@ import { snapToWall } from '@interiorai/core-geometry';
 import { recordRecent } from '../editor/assetPrefs';
 import { Plan2D, plan2dApi } from '@interiorai/editor-2d';
 import { VIEW_PRESETS, Viewer3D, viewer3dApi, type ViewPreset } from '@interiorai/viewer-3d';
-import { catalog, materials, useCatalogVersion } from '../catalogData';
+import { catalog, useCatalogVersion, useMaterials } from '../catalogData';
 import { BottomBar } from '../editor/BottomBar';
 import { IconButton, LangToggle, OfflineBadge } from '../editor/common';
 import { EditorCtx, useEditor, useEditorStore } from '../editor/context';
@@ -162,14 +177,23 @@ function EditorShell() {
   const lighting = usePrefs((s) => s.lighting);
   const graphics = usePrefs((s) => s.graphics);
   const displayMode = usePrefs((s) => s.displayMode);
+  const section = useSection((s) => s.section);
   const levelsMode = usePrefs((s) => s.levelsMode);
   const catalogVersion = useCatalogVersion();
+  const materials = useMaterials();
   const [mode, setMode] = useState<TransformMode>('translate');
   const [uniformScale, setUniformScale] = useState(true);
   const [showCeiling, setShowCeiling] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
   const [tour, setTour] = useState(() => !tourDone());
+  const [presenting, setPresenting] = useState(false);
+  const startPresent = useCallback(() => {
+    store.getState().setView('3d');
+    store.getState().select([]);
+    setPresenting(true);
+  }, [store]);
+  const stopPresent = useCallback(() => setPresenting(false), []);
   // 面板收合（FE-UX-07）：\ 鍵切換兩側面板＝全螢幕畫布
   const [showLeft, setShowLeft] = useState(true);
   const [showRight, setShowRight] = useState(true);
@@ -195,18 +219,61 @@ function EditorShell() {
       p('gallery', 'gallery.title'),
       p('share', 'share.title'),
       p('export', 'exports.title'),
+      p('mood', 'mood.title'),
+      p('versions', 'versions.title'),
       p('info', 'projectInfo.title'),
       p('history', 'history.title'),
       p('shortcuts', 'shortcuts.title'),
       { id: 'tour', label: t('tour.help'), group: g, run: () => setTour(true) },
+      { id: 'present', label: t('present.start'), group: g, run: startPresent },
       { id: 'panels', label: t('shortcuts.panels'), group: g, hint: '\\', run: togglePanels },
     ];
-  }, [t, togglePanels]);
+  }, [t, togglePanels, startPresent]);
   const prompt = usePrompt();
+  // 以資產詳情選的材質放置（FE-AST-05）：新放置的同品項物件套用主材質
+  useEffect(
+    () =>
+      store.subscribe((st, prev) => {
+        const p = usePlaceMaterial.getState().pending;
+        if (!p) return;
+        if (st.tool !== 'place' || st.placeCatalogId !== p.catalogId) {
+          if (prev.tool === 'place' && st.tool !== 'place') usePlaceMaterial.getState().set(null);
+          return;
+        }
+        const before = new Set(activeLevel(prev).objects.map((o) => o.id));
+        const added = activeLevel(st).objects.filter((o) => !before.has(o.id) && o.catalogId === p.catalogId);
+        if (added.length)
+          setTimeout(() =>
+            store.getState().exec(
+              batch(
+                added.map((o) =>
+                  updateObject(st.levelId, o.id, {
+                    materialOverrides: { ...o.materialOverrides, [p.slot]: p.materialId },
+                  }),
+                ),
+                'command.setMaterial',
+              ),
+            ),
+          );
+      }),
+    [store],
+  );
   const projectId = useEditor((s) => s.projectId);
   const snapPrefs = usePrefs((s) => s.snap);
   const planStyle = usePrefs((s) => s.planStyle);
   const underlay = useUnderlay((s) => s.rec);
+  // 照度熱度圖（FE-LGT-03）
+  const luxOn = useLuxOverlay((s) => s.on);
+  const luxLevel = useEditor(activeLevel);
+  const lux = useMemo(() => (luxOn ? illuminance(luxLevel, catalog) : null), [luxOn, luxLevel]);
+  const heatmap = useMemo(
+    () =>
+      lux
+        ? { step: lux.step, cells: lux.cells.map((c) => ({ x: c.x, z: c.z, color: luxColor(c.lux) })) }
+        : null,
+    [lux],
+  );
+  useEffect(() => useLuxResult.getState().set(lux), [lux]);
   useEffect(() => {
     void useUnderlay.getState().load(projectId);
   }, [projectId]);
@@ -221,9 +288,22 @@ function EditorShell() {
       if (!url) return;
       sessionStorage.setItem(`thumbAt:${projectId}`, String(Date.now()));
       void shrink(url, 640).then((u) => setProjectThumb(projectId, u));
+      // 自動版本（FE-SHR-04）：距上一個自動版本 ≥ 10 分鐘
+      const lastV = Number(localStorage.getItem(`autoVersionAt:${projectId}`) ?? 0);
+      if (Date.now() - lastV >= 10 * 60_000) {
+        localStorage.setItem(`autoVersionAt:${projectId}`, String(Date.now()));
+        void captureThumb(view).then((thumb) =>
+          addVersion(projectId, {
+            name: t('versions.autoName'),
+            auto: true,
+            scene: store.getState().scene,
+            ...(thumb ? { thumb } : {}),
+          }),
+        );
+      }
     }, 800);
     return () => window.clearTimeout(h);
-  }, [saveStatus, revision, projectId, view]);
+  }, [saveStatus, revision, projectId, view, store, t]);
   const actions = useMemo(() => editActions(store), [store]);
   const scene = useEditor((s) => s.scene);
   const levelId = useEditor((s) => s.levelId);
@@ -268,6 +348,20 @@ function EditorShell() {
       }
       return;
     }
+    // 家具套組（FE-AST-06）
+    const setId = e.dataTransfer.getData('application/x-interiorai-set');
+    const set = setId ? FURNITURE_SETS.find((x) => x.id === setId) : undefined;
+    if (set) {
+      const at =
+        view === '2d'
+          ? plan2dApi.get()?.clientToWorld([e.clientX, e.clientY])
+          : viewer3dApi.get()?.clientToFloor(e.clientX, e.clientY);
+      if (at) {
+        e.preventDefault();
+        placeSetAt(store, set, [Math.round(at[0]), Math.round(at[1])]);
+      }
+      return;
+    }
     const catId = e.dataTransfer.getData('application/x-interiorai-catalog');
     const entry = catalog.get(catId);
     if (!entry || (entry.model.kind === 'parametric' && ['door', 'window'].includes(entry.model.type)))
@@ -305,15 +399,18 @@ function EditorShell() {
       <a href="#canvas" className="sr-only focus:not-sr-only">
         {t('app.skip')}
       </a>
-      <TopBar
-        mode={mode}
-        setMode={setMode}
-        setPanel={setPanel}
-        onHelp={() => setTour(true)}
-        panels={{ left: showLeft, right: showRight, setLeft: setShowLeft, setRight: setShowRight }}
-      />
+      {!presenting && (
+        <TopBar
+          onPresent={startPresent}
+          mode={mode}
+          setMode={setMode}
+          setPanel={setPanel}
+          onHelp={() => setTour(true)}
+          panels={{ left: showLeft, right: showRight, setLeft: setShowLeft, setRight: setShowRight }}
+        />
+      )}
       <div className="flex min-h-0 flex-1">
-        {showLeft && <LeftPanel />}
+        {showLeft && !presenting && <LeftPanel />}
         <main
           id="canvas"
           className="relative min-w-0 flex-1 bg-bg"
@@ -355,6 +452,7 @@ function EditorShell() {
                 snapSettings={snapPrefs}
                 planStyle={planStyle}
                 underlay={underlay}
+                heatmap={heatmap}
                 onContextMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, world: e.world })}
                 requestText={async (initial) =>
                   (
@@ -379,11 +477,20 @@ function EditorShell() {
                 catalogVersion={catalogVersion}
                 displayMode={displayMode}
                 levelsMode={levelsMode}
+                section={section}
+                onPerfLow={() => {
+                  const g = usePrefs.getState().graphics;
+                  const next =
+                    g.quality === 'ultra' ? 'balanced' : g.quality === 'balanced' ? 'performance' : null;
+                  if (!next) return;
+                  usePrefs.getState().setGraphics({ quality: next });
+                  store.getState().notify('info', t('perf.lowered', { q: t(`gfx.qualities.${next}`) }));
+                }}
                 onContextMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, world: e.world })}
               />
             )}
           </CanvasBoundary>
-          {view === '3d' && (
+          {view === '3d' && !presenting && (
             <ViewportHud
               showCeiling={showCeiling}
               setShowCeiling={setShowCeiling}
@@ -398,7 +505,8 @@ function EditorShell() {
               }}
             />
           )}
-          <LevelBar ask={prompt.ask} />
+          {!presenting && <LevelBar ask={prompt.ask} />}
+          {presenting && <Presentation onExit={stopPresent} />}
           {menu && (
             <ContextMenu
               state={menu}
@@ -409,14 +517,18 @@ function EditorShell() {
           )}
           {prompt.node}
         </main>
-        {showRight && <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />}
+        {showRight && !presenting && (
+          <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
+        )}
       </div>
-      <BottomBar />
+      {!presenting && <BottomBar />}
       <FurnishDialog open={panel === 'furnish'} onOpenChange={(v) => setPanel(v ? 'furnish' : null)} />
       <AssistantPanel open={panel === 'assistant'} onOpenChange={(v) => setPanel(v ? 'assistant' : null)} />
       <QuotePanel open={panel === 'quote'} onOpenChange={(v) => setPanel(v ? 'quote' : null)} />
       <GalleryPanel open={panel === 'gallery'} onOpenChange={(v) => setPanel(v ? 'gallery' : null)} />
       <ShareDialog open={panel === 'share'} onOpenChange={(v) => setPanel(v ? 'share' : null)} />
+      <VersionsPanel open={panel === 'versions'} onOpenChange={(v) => setPanel(v ? 'versions' : null)} />
+      <MoodboardPanel open={panel === 'mood'} onOpenChange={(v) => setPanel(v ? 'mood' : null)} />
       <ExportDialog open={panel === 'export'} onOpenChange={(v) => setPanel(v ? 'export' : null)} />
       <ProjectInfoDialog open={panel === 'info'} onOpenChange={(v) => setPanel(v ? 'info' : null)} />
       <HistoryPanel open={panel === 'history'} onOpenChange={(v) => setPanel(v ? 'history' : null)} />
@@ -441,7 +553,9 @@ type Panel =
   | 'info'
   | 'history'
   | 'shortcuts'
-  | 'palette';
+  | 'palette'
+  | 'mood'
+  | 'versions';
 
 function TopBar({
   mode,
@@ -449,12 +563,14 @@ function TopBar({
   setPanel,
   onHelp,
   panels,
+  onPresent,
 }: {
   mode: TransformMode;
   setMode: (m: TransformMode) => void;
   setPanel: (p: Panel) => void;
   onHelp: () => void;
   panels: { left: boolean; right: boolean; setLeft: (v: boolean) => void; setRight: (v: boolean) => void };
+  onPresent: () => void;
 }) {
   const { t } = useTranslation();
   const store = useEditorStore();
@@ -510,6 +626,9 @@ function TopBar({
         testId="redo"
       >
         <Redo2 size={18} aria-hidden />
+      </IconButton>
+      <IconButton label={t('versions.title')} onClick={() => setPanel('versions')} testId="open-versions">
+        <GitBranch size={18} aria-hidden />
       </IconButton>
       <IconButton label={t('history.title')} onClick={() => setPanel('history')} testId="open-history">
         <History size={18} aria-hidden />
@@ -572,6 +691,9 @@ function TopBar({
         >
           <Bot size={18} aria-hidden />
         </IconButton>
+        <IconButton label={t('mood.title')} onClick={() => setPanel('mood')} testId="open-mood">
+          <Palette size={18} aria-hidden />
+        </IconButton>
       </div>
       <div className="ml-auto flex items-center gap-2">
         <OfflineBadge />
@@ -612,6 +734,9 @@ function TopBar({
           </IconButton>
           <IconButton label={t('share.title')} onClick={() => setPanel('share')} testId="open-share">
             <Share2 size={18} aria-hidden />
+          </IconButton>
+          <IconButton label={t('present.start')} onClick={onPresent} testId="open-present">
+            <Presentation2 size={18} aria-hidden />
           </IconButton>
           <IconButton label={t('exports.title')} onClick={() => setPanel('export')} testId="open-export">
             <Download size={18} aria-hidden />
@@ -802,6 +927,7 @@ function ViewportHud({
           ))}
         </select>
       )}
+      <SectionControl />
       <select
         className="field w-20 font-sans"
         aria-label={t('top.lens')}

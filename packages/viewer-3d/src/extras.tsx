@@ -201,3 +201,66 @@ export function Measure3D({ active }: { active: boolean }) {
     </group>
   );
 }
+
+/** 剖切（FE-V3D-07）：水平剖切高度或垂直剖切（沿 x 或 z 軸的位置），以全域 clippingPlanes 實作 */
+export type Section =
+  { kind: 'none' } | { kind: 'h'; y: number } | { kind: 'x' | 'z'; value: number; flip?: boolean };
+export function SectionPlanes({ section }: { section: Section }) {
+  const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    const p =
+      section.kind === 'h'
+        ? new THREE.Plane(new THREE.Vector3(0, -1, 0), section.y)
+        : section.kind === 'x'
+          ? new THREE.Plane(
+              new THREE.Vector3(section.flip ? 1 : -1, 0, 0),
+              section.flip ? -section.value : section.value,
+            )
+          : section.kind === 'z'
+            ? new THREE.Plane(
+                new THREE.Vector3(0, 0, section.flip ? 1 : -1),
+                section.flip ? -section.value : section.value,
+              )
+            : null;
+    gl.clippingPlanes = p ? [p] : [];
+    invalidate();
+    return () => {
+      gl.clippingPlanes = [];
+      invalidate();
+    };
+  }, [gl, invalidate, section]);
+  return null;
+}
+
+/**
+ * 效能自適應（FE-V3D-12）：互動（有畫格）時量測 FPS，連續 3 秒平均低於 45 → 回呼一次（由宿主降畫質並提示）。
+ */
+export function PerfWatch({ onLow }: { onLow?: () => void }) {
+  const st = useMemo(() => ({ t: 0, n: 0, fired: false, last: 0 }), []);
+  useFrame(() => {
+    // 自動化測試（headless 軟體算圖）不觸發
+    if (!onLow || st.fired || navigator.webdriver) return;
+    const now = performance.now();
+    const dt = st.last ? now - st.last : 0;
+    st.last = now;
+    // 需求式渲染：兩畫格間隔 > 200 ms 視為閒置，重新計時
+    if (!dt || dt > 200) {
+      st.t = 0;
+      st.n = 0;
+      return;
+    }
+    st.t += dt;
+    st.n++;
+    if (st.t >= 3000) {
+      const fps = (st.n / st.t) * 1000;
+      if (fps < 45) {
+        st.fired = true;
+        onLow();
+      }
+      st.t = 0;
+      st.n = 0;
+    }
+  });
+  return null;
+}

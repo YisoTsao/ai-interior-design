@@ -13,3 +13,4 @@ export * from './tiling.js';
 export * from './panorama.js';
 export * from './PanoramaViewer.js';
 export * from './extras.js';
+export * from './ModelPreview.js';

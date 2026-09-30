@@ -8,3 +8,5 @@ export * from './edit-ops.js';
 export * from './furnish.js';
 export * from './light-presets.js';
 export * from './stack.js';
+export * from './sets.js';
+export * from './versions.js';

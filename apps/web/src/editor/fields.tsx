@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, RotateCcw } from 'lucide-react';
+import { ChevronRight, Palette, RotateCcw } from 'lucide-react';
+import { COLOR_FAMILIES, pushRecentColor, recentColors, searchColors } from './colorCards';
 import { formatLength, parseLength, type LengthUnit } from '@interiorai/editor-2d';
 
 /** 長度欄位：依偏好單位顯示；Enter 提交成一個 Command（02 §4） */
@@ -259,6 +260,12 @@ export function ColorField({
           </button>
         )}
         <span className="font-mono text-[10px] text-muted">{v.toUpperCase()}</span>
+        <ColorCardsButton
+          onPick={(hex) => {
+            setV(hex);
+            onCommit(hex);
+          }}
+        />
         <input
           id={id}
           type="color"
@@ -266,8 +273,8 @@ export function ColorField({
           value={v}
           data-testid={testId}
           onChange={(e) => setV(e.target.value)}
-          onBlur={() => v !== (value ?? fallback) && onCommit(v)}
-          onPointerLeave={() => v !== (value ?? fallback) && onCommit(v)}
+          onBlur={() => v !== (value ?? fallback) && (pushRecentColor(v), onCommit(v))}
+          onPointerLeave={() => v !== (value ?? fallback) && (pushRecentColor(v), onCommit(v))}
         />
       </span>
     </div>
@@ -325,5 +332,101 @@ export function Section({
       </summary>
       <div className="hud-section-body">{children}</div>
     </details>
+  );
+}
+
+/** 色卡彈出面板（FE-FIN-05）：搜尋色號／名稱、分色系、最近用色 */
+function ColorCardsButton({ onPick }: { onPick: (hex: string) => void }) {
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [fam, setFam] = useState<(typeof COLOR_FAMILIES)[number] | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: Event) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    window.addEventListener('pointerdown', off, true);
+    return () => window.removeEventListener('pointerdown', off, true);
+  }, [open]);
+  const list = searchColors(q).filter((c) => !fam || c.family === fam);
+  const pick = (hex: string) => {
+    pushRecentColor(hex);
+    onPick(hex);
+    setOpen(false);
+  };
+  const recent = open ? recentColors() : [];
+  return (
+    <span className="relative" ref={ref}>
+      <button
+        type="button"
+        className="text-muted hover:text-primary"
+        aria-label={t('colors.open')}
+        title={t('colors.open')}
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        data-testid="color-cards"
+      >
+        <Palette size={13} aria-hidden />
+      </button>
+      {open && (
+        <div
+          className="hud-popover absolute top-6 right-0 z-50 w-72 space-y-2 p-2"
+          data-testid="color-cards-panel"
+        >
+          <input
+            autoFocus
+            className="field w-full"
+            placeholder={t('colors.search')}
+            aria-label={t('colors.search')}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1">
+            {COLOR_FAMILIES.map((f) => (
+              <button
+                key={f}
+                type="button"
+                className="hud-chip text-[10px]"
+                aria-pressed={fam === f}
+                onClick={() => setFam(fam === f ? null : f)}
+              >
+                {t(`colors.families.${f}`)}
+              </button>
+            ))}
+          </div>
+          {recent.length > 0 && (
+            <div className="flex flex-wrap gap-1" aria-label={t('colors.recent')}>
+              {recent.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  className="h-5 w-5 rounded border border-border"
+                  style={{ background: h }}
+                  title={h}
+                  onClick={() => pick(h)}
+                />
+              ))}
+            </div>
+          )}
+          <div className="grid max-h-56 grid-cols-6 gap-1 overflow-y-auto">
+            {list.map((c) => {
+              const nm = i18n.language === 'en' ? c.en : c.zh;
+              return (
+                <button
+                  key={c.code}
+                  type="button"
+                  className="h-8 rounded border border-border"
+                  style={{ background: c.hex }}
+                  title={`${nm} · NCS ${c.code}`}
+                  aria-label={`${nm} NCS ${c.code}`}
+                  onClick={() => pick(c.hex)}
+                  data-testid={`color-${c.code.replace(/\s/g, '')}`}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </span>
   );
 }

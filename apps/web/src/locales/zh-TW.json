@@ -175,7 +175,8 @@
     "special": {
       "fav": "收藏",
       "recent": "最近使用",
-      "used": "本專案已使用"
+      "used": "本專案已使用",
+      "sets": "套組"
     },
     "styles": {
       "modern": "現代",
@@ -406,7 +407,10 @@
     "lightPreset": "套用燈光方案",
     "splitWall": "分割牆",
     "mergeWalls": "合併牆",
-    "pasteStyle": "貼上樣式"
+    "pasteStyle": "貼上樣式",
+    "placeSet": "放置套組",
+    "restoreVersion": "還原版本",
+    "presentationNote": "編輯講者備註"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -1143,5 +1147,160 @@
     "calibrateNeed": "請先用測量工具量兩點",
     "calibratePrompt": "量到 {{mm}} mm（圖上）。實際長度是多少 mm？",
     "calibrated": "底圖比例已校正（× {{k}}）"
+  },
+  "assetDetail": {
+    "open": "「{{name}}」詳情",
+    "place": "放置",
+    "placeWith": "以「{{mat}}」放置",
+    "materials": "材質選項（預覽）",
+    "dims": "尺寸圖",
+    "size": "尺寸",
+    "category": "分類",
+    "anchor": "放置方式",
+    "price": "參考價",
+    "material": "主材質",
+    "light": "光通量",
+    "license": "授權",
+    "source": "來源",
+    "allowed": "允許用途",
+    "uses": {
+      "commercial": "商用",
+      "render": "渲染",
+      "redistribute": "再散布"
+    }
+  },
+  "sets": {
+    "badge": "套組 {{n}} 件",
+    "place": "放置「{{name}}」",
+    "lounge": "沙發區",
+    "dining4": "四人餐桌組",
+    "dining6": "六人餐桌組",
+    "bed": "床組",
+    "study": "工作區",
+    "tvwall": "電視牆"
+  },
+  "userAssets": {
+    "title": "我的 3D 模型",
+    "manage": "管理",
+    "batch": "批次上傳",
+    "working": "上傳中…",
+    "hint": "批次上傳以公尺為單位、分類為裝飾、落地放置；上傳後可在下方修改。",
+    "empty": "還沒有上傳的模型",
+    "name": "名稱",
+    "category": "分類",
+    "anchor": "放置方式",
+    "replace": "替換模型檔",
+    "dim": {
+      "w": "寬",
+      "d": "深",
+      "h": "高"
+    }
+  },
+  "colors": {
+    "open": "色卡",
+    "search": "搜尋色號或名稱（例如 S 0502-Y、奶油白）",
+    "recent": "最近用色",
+    "families": {
+      "white": "白",
+      "neutral": "米",
+      "grey": "灰",
+      "green": "綠",
+      "blue": "藍",
+      "earth": "大地",
+      "dark": "深色",
+      "accent": "亮色"
+    }
+  },
+  "userMaterial": {
+    "title": "上傳自訂材質",
+    "pick": "選擇貼圖",
+    "name": "名稱",
+    "category": "分類",
+    "width": "單元寬（mm）",
+    "height": "單元高（mm）",
+    "roughness": "粗糙度",
+    "metalness": "金屬度",
+    "price": "單價（NT$／m²，選填）",
+    "hint": "貼圖代表一個重複單元的真實尺寸（例如 60×60 cm 的磁磚）；會縮到 1024 px 以內存在本機。",
+    "save": "加入材質庫",
+    "delete": "刪除「{{name}}」",
+    "deleteConfirm": "確定刪除材質「{{name}}」？已使用的表面會改用預設顏色。"
+  },
+  "mood": {
+    "title": "風格探索",
+    "desc": "拖入或加入參考圖片，自動萃取色盤、判斷風格並推薦家具。",
+    "add": "加入圖片",
+    "remove": "移除",
+    "palette": "色盤",
+    "paint": "套用到選取的牆",
+    "paintHint": "點色塊可套用到選取的牆（兩面）。",
+    "selectWalls": "請先選取要上色的牆",
+    "styles": "風格判斷",
+    "recommend": "推薦家具"
+  },
+  "photo": {
+    "edit": "後製",
+    "edited": "後製",
+    "exposure": "曝光（EV）",
+    "temperature": "色溫（冷 ↔ 暖）",
+    "saturation": "飽和度",
+    "contrast": "對比",
+    "crop": "裁切比例",
+    "original": "原始",
+    "watermark": "浮水印文字",
+    "addLabel": "加文字標籤",
+    "labelClick": "點圖片放置標籤…",
+    "labelPrompt": "標籤文字",
+    "clearLabels": "清除標籤",
+    "reset": "重設",
+    "saveNew": "另存到圖庫"
+  },
+  "versions": {
+    "title": "版本歷史",
+    "save": "儲存版本",
+    "namePlaceholder": "版本名稱（例如：客戶確認版）",
+    "hint": "每 10 分鐘自動保存一版；可比較差異並還原（可復原）。",
+    "empty": "還沒有版本",
+    "manual": "手動版本",
+    "auto": "自動",
+    "autoName": "自動保存",
+    "stats": "{{n}} 件物件",
+    "compare": "與目前比較",
+    "restore": "還原",
+    "restored": "已還原到「{{name}}」（Ctrl+Z 可復原）",
+    "delete": "刪除版本",
+    "diff": "目前相較此版：新增 {{added}}、刪除 {{removed}}、移動 {{moved}}、修改 {{changed}} 件家具；牆變動 {{walls}}（差異項目已選取）"
+  },
+  "present": {
+    "start": "簡報模式",
+    "prev": "上一頁",
+    "next": "下一頁",
+    "play": "自動播放",
+    "pause": "暫停",
+    "notes": "講者備註",
+    "exit": "離開簡報",
+    "noCams": "沒有相機書籤（顯示全景）"
+  },
+  "lux": {
+    "title": "照度分析",
+    "heatmap": "2D 照度熱度圖",
+    "room": "空間",
+    "avg": "平均 lx",
+    "minmax": "最低–最高",
+    "target": "建議",
+    "note": "依燈具光通量估算地面照度（不含遮擋與間接光）；建議值參考 CNS 12112。橘色＝未達建議。"
+  },
+  "section": {
+    "title": "剖切",
+    "position": "剖切位置",
+    "kinds": {
+      "none": "不剖切",
+      "h": "水平剖切",
+      "x": "垂直（X）",
+      "z": "垂直（Z）"
+    }
+  },
+  "perf": {
+    "lowered": "畫面不夠順（< 45 FPS），已自動調為「{{q}}」畫質"
   }
 }

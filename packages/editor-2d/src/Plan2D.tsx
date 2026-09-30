@@ -91,6 +91,8 @@ export interface Plan2DProps {
   planStyle?: PlanStyle;
   /** 描圖底圖（FE-PLAN-11） */
   underlay?: Underlay | null;
+  /** 熱度圖（照度分析 FE-LGT-03）：格心世界座標＋顏色 */
+  heatmap?: { step: number; cells: { x: number; z: number; color: string }[] } | null;
 }
 export type PlanStyle = 'blueprint' | 'color' | 'mono';
 export interface SnapSettings {
@@ -181,6 +183,7 @@ export function Plan2D({
   snapSettings,
   planStyle = 'blueprint',
   underlay,
+  heatmap,
   theme: baseTheme,
 }: Omit<Plan2DProps, 'theme'> & { theme: Plan2DTheme }) {
   const theme = useMemo(
@@ -897,6 +900,20 @@ export function Plan2D({
               areaUnit={areaUnit}
               roomFill={planStyle === 'color' ? (k) => ROOM_KIND_FILL[k ?? 'other'] : undefined}
             />
+            {heatmap && (
+              <Shape
+                listening={false}
+                opacity={0.62}
+                perfectDrawEnabled={false}
+                sceneFunc={(ctx) => {
+                  const h = heatmap.step / 2;
+                  for (const c of heatmap.cells) {
+                    ctx.fillStyle = c.color;
+                    ctx.fillRect(c.x - h, c.z - h, heatmap.step, heatmap.step);
+                  }
+                }}
+              />
+            )}
           </Group>
         </Layer>
         {/* drag/preview layer（ADR-010：拖曳時只重畫這一層） */}
