@@ -16,6 +16,7 @@ import {
 } from '@interiorai/core-geometry';
 import type { Appearance, Level, SceneObject, Wall } from '@interiorai/scene-schema';
 import { viewer3dApi } from './api.js';
+import { renderPanorama } from './panorama.js';
 import { renderGBuffer } from './gbuffer.js';
 import { DollhouseStage, type QualityState } from './DollhouseStage.js';
 import { LightBeams, LightGizmo } from './effects.js';
@@ -788,6 +789,15 @@ function SceneContent({
         if (capture.current) return capture.current();
         gl.render(scene3, camera);
         return gl.domElement.toDataURL('image/png');
+      },
+      panorama: (o) => {
+        const t = controls.current?.target ?? new THREE.Vector3();
+        // 漫遊／人視角：以相機位置；俯瞰：在目標點的人眼高度（1.6 m）
+        const eye =
+          walking || camera.position.y < 2200 ? camera.position.clone() : new THREE.Vector3(t.x, 1600, t.z);
+        const url = renderPanorama(gl, scene3, eye, o);
+        invalidate();
+        return url;
       },
       clientToFloor: (x, y) => floorHit(x, y, 0),
       pickSurface: (x, y) => {

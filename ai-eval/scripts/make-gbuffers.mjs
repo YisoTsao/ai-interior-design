@@ -29,6 +29,7 @@ try {
   await page.goto('http://localhost:4180/');
   await page.evaluate(() => localStorage.setItem('viewStyle', 'dollhouse'));
   await page.getByTestId('new-project').click();
+  await page.getByTestId('wizard-create').click();
   await page.waitForFunction(() => window.__editor);
   const files = readdirSync(new URL('../scenes/', import.meta.url))
     .filter((f) => f.endsWith('.json'))

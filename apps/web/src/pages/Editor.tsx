@@ -5,16 +5,30 @@ import * as Tooltip from '@radix-ui/react-tooltip';
 import {
   ArrowLeft,
   Bookmark,
+  Bot,
   Box,
   Camera,
+  CircleHelp,
   Eye,
   Footprints,
+  Globe2,
+  Images,
   Leaf,
   Map,
   Maximize,
+  Receipt,
   Redo2,
+  Share2,
   Undo2,
+  Wand2,
 } from 'lucide-react';
+import { AssistantPanel } from '../editor/AssistantPanel';
+import { FurnishDialog } from '../editor/FurnishDialog';
+import { capturePanorama, GalleryPanel } from '../editor/GalleryPanel';
+import { QuotePanel } from '../editor/QuotePanel';
+import { ShareDialog } from '../editor/ShareDialog';
+import { Tour, tourDone } from '../editor/Tour';
+import { setProjectThumb, shrink } from '../media';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
   activeLevel,
@@ -139,7 +153,24 @@ function EditorShell() {
   const [uniformScale, setUniformScale] = useState(true);
   const [showCeiling, setShowCeiling] = useState(false);
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(null);
+  const [tour, setTour] = useState(() => !tourDone());
   const prompt = usePrompt();
+  const projectId = useEditor((s) => s.projectId);
+  const saveStatus = useEditor((s) => s.saveStatus);
+  // 專案縮圖（FE-PRJ-01）：存檔完成後擷取目前畫面（最多每 20 秒一次）
+  useEffect(() => {
+    if (saveStatus !== 'saved') return;
+    const last = Number(sessionStorage.getItem(`thumbAt:${projectId}`) ?? 0);
+    if (Date.now() - last < 20_000) return;
+    const h = window.setTimeout(() => {
+      const url = view === '3d' ? viewer3dApi.get()?.screenshot() : plan2dApi.get()?.snapshot(960);
+      if (!url) return;
+      sessionStorage.setItem(`thumbAt:${projectId}`, String(Date.now()));
+      void shrink(url, 640).then((u) => setProjectThumb(projectId, u));
+    }, 800);
+    return () => window.clearTimeout(h);
+  }, [saveStatus, revision, projectId, view]);
   const actions = useMemo(() => editActions(store), [store]);
   const scene = useEditor((s) => s.scene);
   const levelId = useEditor((s) => s.levelId);
@@ -219,7 +250,7 @@ function EditorShell() {
       <a href="#canvas" className="sr-only focus:not-sr-only">
         {t('app.skip')}
       </a>
-      <TopBar mode={mode} setMode={setMode} />
+      <TopBar mode={mode} setMode={setMode} setPanel={setPanel} onHelp={() => setTour(true)} />
       <div className="flex min-h-0 flex-1">
         <LeftPanel />
         <main
@@ -286,7 +317,21 @@ function EditorShell() {
               />
             )}
           </CanvasBoundary>
-          {view === '3d' && <ViewportHud showCeiling={showCeiling} setShowCeiling={setShowCeiling} />}
+          {view === '3d' && (
+            <ViewportHud
+              showCeiling={showCeiling}
+              setShowCeiling={setShowCeiling}
+              onPanorama={async () => {
+                store.getState().notify('info', t('gallery.rendering'));
+                await new Promise((r) => setTimeout(r, 30));
+                const it = await capturePanorama(
+                  projectId,
+                  `${t('gallery.kind.panorama')} ${new Date().toLocaleString()}`,
+                );
+                if (it) setPanel('gallery');
+              }}
+            />
+          )}
           <LevelBar ask={prompt.ask} />
           {menu && (
             <ContextMenu
@@ -301,11 +346,29 @@ function EditorShell() {
         <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
       </div>
       <BottomBar />
+      <FurnishDialog open={panel === 'furnish'} onOpenChange={(v) => setPanel(v ? 'furnish' : null)} />
+      <AssistantPanel open={panel === 'assistant'} onOpenChange={(v) => setPanel(v ? 'assistant' : null)} />
+      <QuotePanel open={panel === 'quote'} onOpenChange={(v) => setPanel(v ? 'quote' : null)} />
+      <GalleryPanel open={panel === 'gallery'} onOpenChange={(v) => setPanel(v ? 'gallery' : null)} />
+      <ShareDialog open={panel === 'share'} onOpenChange={(v) => setPanel(v ? 'share' : null)} />
+      <Tour open={tour} onClose={() => setTour(false)} />
     </div>
   );
 }
 
-function TopBar({ mode, setMode }: { mode: TransformMode; setMode: (m: TransformMode) => void }) {
+type Panel = 'furnish' | 'assistant' | 'quote' | 'gallery' | 'share';
+
+function TopBar({
+  mode,
+  setMode,
+  setPanel,
+  onHelp,
+}: {
+  mode: TransformMode;
+  setMode: (m: TransformMode) => void;
+  setPanel: (p: Panel) => void;
+  onHelp: () => void;
+}) {
   const { t } = useTranslation();
   const store = useEditorStore();
   const name = useEditor((s) => s.projectName);
@@ -359,7 +422,7 @@ function TopBar({ mode, setMode }: { mode: TransformMode; setMode: (m: Transform
         <Redo2 size={18} aria-hidden />
       </IconButton>
       <div className="mx-2 h-6 w-px bg-border" />
-      <div role="radiogroup" aria-label={t('top.view2d')} className="hud-seg">
+      <div role="radiogroup" aria-label={t('top.view2d')} className="hud-seg" data-tour="view">
         <IconButton
           label={t('top.view2d')}
           pressed={view === '2d'}
@@ -388,6 +451,19 @@ function TopBar({ mode, setMode }: { mode: TransformMode; setMode: (m: Transform
           </div>
         </>
       )}
+      <div className="mx-2 h-6 w-px bg-border" />
+      <div className="flex items-center gap-1" data-tour="ai">
+        <IconButton label={t('furnish.title')} onClick={() => setPanel('furnish')} testId="open-furnish">
+          <Wand2 size={18} aria-hidden />
+        </IconButton>
+        <IconButton
+          label={t('assistant.title')}
+          onClick={() => setPanel('assistant')}
+          testId="open-assistant"
+        >
+          <Bot size={18} aria-hidden />
+        </IconButton>
+      </div>
       <div className="ml-auto flex items-center gap-2">
         <OfflineBadge />
         <label className="flex items-center gap-1 text-xs">
@@ -418,7 +494,21 @@ function TopBar({ mode, setMode }: { mode: TransformMode; setMode: (m: Transform
           </select>
         </label>
         <LangToggle />
-        {view === '3d' && <RenderPanel />}
+        <div className="flex items-center gap-1" data-tour="output">
+          <IconButton label={t('quote.title')} onClick={() => setPanel('quote')} testId="open-quote">
+            <Receipt size={18} aria-hidden />
+          </IconButton>
+          <IconButton label={t('gallery.title')} onClick={() => setPanel('gallery')} testId="open-gallery">
+            <Images size={18} aria-hidden />
+          </IconButton>
+          <IconButton label={t('share.title')} onClick={() => setPanel('share')} testId="open-share">
+            <Share2 size={18} aria-hidden />
+          </IconButton>
+          {view === '3d' && <RenderPanel />}
+        </div>
+        <IconButton label={t('tour.help')} onClick={onHelp} testId="open-tour">
+          <CircleHelp size={18} aria-hidden />
+        </IconButton>
       </div>
     </header>
   );
@@ -431,9 +521,11 @@ function TopBar({ mode, setMode }: { mode: TransformMode; setMode: (m: Transform
 function ViewportHud({
   showCeiling,
   setShowCeiling,
+  onPanorama,
 }: {
   showCeiling: boolean;
   setShowCeiling: (v: boolean) => void;
+  onPanorama: () => void;
 }) {
   const { t } = useTranslation();
   const store = useEditorStore();
@@ -488,6 +580,9 @@ function ViewportHud({
         }}
       >
         <Camera size={18} aria-hidden />
+      </IconButton>
+      <IconButton label={t('gallery.pano')} testId="hud-pano" onClick={onPanorama}>
+        <Globe2 size={18} aria-hidden />
       </IconButton>
       <IconButton
         label={t('top.decorate')}

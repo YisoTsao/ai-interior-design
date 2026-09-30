@@ -11,7 +11,7 @@
 - 單 Job 成本上限：見 services/api/models.yaml `budgets`
 - 結構驗證門檻狀態：**未校準**（mock 通過不代表有效，ADR-012）；ai-eval mock 結果見下方 P4 量測
 - 工具鏈：Node 24.14、pnpm 9.15.9（corepack）、TypeScript 6.0.3
-- 最後更新：2026-09-30｜目前 Phase：P6（未開始；P5.5 ADR-023 已完成）
+- 最後更新：2026-10-01｜目前 Phase：P6（前台 11 規格 P0 兩批已完成，接著 P1／P2）
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
@@ -22,7 +22,7 @@
 | P3 | 後端基礎 (Auth/專案/上傳/Job/點數) | ☑ | ☑ | lint/typecheck/test/build/test:integration(39)/test:contract(4)/test:e2e(9)/licenses 全綠；帳本併發/冪等/退款/對帳測試通過；ADR-018 |
 | P4 | AI 渲染 (G-buffer/Provider/Router/驗證) | ☑ | ☑ | 全部 Gate 指令綠（integration 49、contract 4、e2e 11 含真實後端 UI）；break_structure→重試→降級→退款＋JOB_FAILED、遮罩外逐位元不變皆有測試；ADR-019/020 |
 | P5 | 平面圖辨識 (DXF/點陣/校正/合成資料) | ☑ | ☑ | 全部 Gate 綠：pytest 22、eval 無回歸、DXF 誤差 0.000%、integration 54、contract P5、E2E 14（上傳→校正→3D）；ADR-022；牆 IoU 未達〔假設〕目標 |
-| P6 | 助理 + BOM + 匯出 | ☐ | ☐ | |
+| P6 | 助理 + BOM + 匯出 | ◐ | ☐ | 前台：助理面板（FE-AI-03）、自動佈置（FE-AI-02）、報價 CSV/PDF（FE-DOC-01/02）、全景與圖庫、分享檢視、範本與精靈、新手導覽已上線（E2E design-tools 7/7） |
 | P7 | 桌面端 + 硬化 + 上線準備 | ☐ | ☐ | |
 | P8 | 最終驗證與交付 | ☐ | ☐ | |
 

@@ -107,6 +107,7 @@ export function Inspector({
       className="hud-panel hud-panel-right flex shrink-0 flex-col gap-3 overflow-y-auto p-3"
       style={{ width: 320 }}
       aria-label={t('inspector.title')}
+      data-tour="inspector"
     >
       <h2 className="hud-title">{t('inspector.title')}</h2>
       {body}

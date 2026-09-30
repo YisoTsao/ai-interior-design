@@ -13,6 +13,7 @@
   "dependencies": {
     "@interiorai/api-client": "workspace:^",
     "@interiorai/app-state": "workspace:^",
+    "@interiorai/assistant": "workspace:^",
     "@interiorai/catalog": "workspace:^",
     "@interiorai/core-geometry": "workspace:^",
     "@interiorai/editor-2d": "workspace:^",

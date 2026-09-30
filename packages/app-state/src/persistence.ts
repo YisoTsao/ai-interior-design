@@ -1,3 +1,4 @@
+import { detectRooms } from '@interiorai/core-geometry';
 import { createStore as createIdbStore, del, entries, get, set, type UseStore } from 'idb-keyval';
 import { migrate, validateScene, type Scene } from '@interiorai/scene-schema';
 import type { EditorStore } from './store.js';
@@ -14,6 +15,11 @@ export interface ProjectSummary {
   updatedAt: string;
   wallCount: number;
   objectCount: number;
+  /** 房間數（所有樓層） */
+  roomCount: number;
+  /** 室內淨面積 m²（所有樓層、偵測到的房間） */
+  areaM2: number;
+  levelCount: number;
 }
 
 export const AUTOSAVE_DEBOUNCE_MS = 1500;
@@ -48,6 +54,13 @@ export async function listProjects(): Promise<ProjectSummary[]> {
       updatedAt: r.updatedAt,
       wallCount: r.scene.levels.reduce((s, l) => s + l.walls.length, 0),
       objectCount: r.scene.levels.reduce((s, l) => s + l.objects.length, 0),
+      roomCount: r.scene.levels.reduce((s, l) => s + l.rooms.length, 0),
+      areaM2:
+        Math.round(
+          r.scene.levels.reduce((s, l) => s + detectRooms(l).rooms.reduce((a, x) => a + x.netArea, 0), 0) /
+            1e4,
+        ) / 100,
+      levelCount: r.scene.levels.length,
     }))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }

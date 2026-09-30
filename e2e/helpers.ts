@@ -24,6 +24,7 @@ export async function level(page: Page) {
 export async function newBlankProject(page: Page) {
   await page.goto('/');
   await page.getByTestId('new-project').click();
+  await page.getByTestId('wizard-create').click();
   await page.waitForFunction(
     () => (window as any).__editor && document.querySelector('[data-testid=plan2d]'),
     null,
@@ -33,7 +34,10 @@ export async function newBlankProject(page: Page) {
 
 export async function newSampleProject(page: Page) {
   await page.goto('/');
-  await page.getByTestId('new-sample').click();
+  await page.getByTestId('new-project').click();
+  await page.getByTestId('wizard-tab-template').click();
+  await page.getByTestId('tpl-sample').click();
+  await page.getByTestId('wizard-create').click();
   await page.waitForFunction(
     () => (window as any).__editor && document.querySelector('[data-testid=plan2d]'),
     null,

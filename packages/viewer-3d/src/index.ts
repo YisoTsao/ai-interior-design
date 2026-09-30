@@ -10,3 +10,5 @@ export * from './models.js';
 export * from './thumbnails.js';
 export * from './walk.js';
 export * from './tiling.js';
+export * from './panorama.js';
+export * from './PanoramaViewer.js';

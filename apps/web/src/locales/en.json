@@ -21,7 +21,23 @@
       "living": "Living",
       "bed1": "Master bedroom",
       "bed2": "Bedroom"
-    }
+    },
+    "newProject": "New project",
+    "copyName": "{{name}} (copy)",
+    "duplicate": "Duplicate",
+    "grid": "Grid",
+    "list": "List",
+    "layout": "Layout",
+    "noMatch": "No matching projects",
+    "openNamed": "Open “{{name}}”",
+    "search": "Search projects",
+    "sort": "Sort",
+    "sortBy": {
+      "updated": "Last updated",
+      "name": "Name",
+      "area": "Area"
+    },
+    "summary": "{{area}} · {{rooms}} rooms · {{objects}} items"
   },
   "top": {
     "back": "Back to projects",
@@ -750,5 +766,206 @@
     "l": "L-shaped",
     "u": "U-shaped",
     "spiral": "Spiral"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "wizard": {
+    "title": "New project",
+    "tab": {
+      "blank": "Blank",
+      "template": "Templates",
+      "import": "Import plan"
+    },
+    "name": "Project name",
+    "height": "Ceiling height (mm)",
+    "blankHint": "Start from an empty canvas: draw the layout with the Wall or Room tool.",
+    "furnish": "Furnish automatically",
+    "importHint": "Upload a floor plan (PNG/JPG/DXF). Walls, openings and rooms are detected, you review them, then 2D/3D is generated.",
+    "create": "Create"
+  },
+  "templates": {
+    "studio": "Studio",
+    "twoBed": "2-bedroom",
+    "threeBed": "3-bedroom",
+    "sample": "Sample project",
+    "sampleDesc": "Two-bedroom demo with lighting",
+    "desc": "{{area}} · {{rooms}} spaces",
+    "rooms": {
+      "studio": "Studio",
+      "living": "Living & dining",
+      "bed1": "Master bedroom",
+      "bed2": "Bedroom 2",
+      "bed3": "Study",
+      "kitchen": "Kitchen",
+      "bath": "Bathroom"
+    }
+  },
+  "furnish": {
+    "title": "AI auto-furnish",
+    "desc": "Generates a complete layout per room type (living, bedroom, kitchen, bath…): large pieces against walls, doorways and walkways kept clear. Compare three styles, apply one — a single undo reverts it.",
+    "scope": "Scope",
+    "scopeAll": "All rooms",
+    "scopeSelected": "Selected rooms ({{n}})",
+    "scopeHint": "Select a room in 2D first",
+    "budget": "Budget (NT$)",
+    "noBudget": "No limit",
+    "includeFurnished": "Also furnish rooms that already have furniture",
+    "styleLabel": "Styles (up to 3)",
+    "style": {
+      "nordic": "Nordic",
+      "modern": "Modern",
+      "japandi": "Japandi",
+      "industrial": "Industrial",
+      "luxury": "Luxury"
+    },
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "apply": "Apply this proposal",
+    "summary": "{{n}} items · {{cost}}",
+    "nothing": "No rooms to furnish",
+    "applied": "Applied “{{style}}”: {{n}} items (Ctrl+Z to undo)"
+  },
+  "assistant": {
+    "title": "AI design assistant",
+    "intro": "Describe a change in one sentence, e.g. “add a plant to the living room” or “is the walkway in the bedroom wide enough?”. Every change is shown as a diff and only applied after you confirm.",
+    "placeholder": "Type a request…",
+    "send": "Send",
+    "thinking": "Thinking…",
+    "apply": "Apply",
+    "dismiss": "Dismiss",
+    "applied": "Applied the assistant's proposal (Ctrl+Z to undo)",
+    "stateApplied": "Applied",
+    "stateDismissed": "Dismissed",
+    "error": "Something went wrong: {{message}}",
+    "defaultRoom": "客廳",
+    "chip": {
+      "list": "列出{{room}}的家具",
+      "budget": "{{room}}的預算大約多少？",
+      "clearance": "檢查{{room}}的走道",
+      "add": "在{{room}}加一盆植物"
+    },
+    "change": {
+      "move": "Move “{{name}}” to ({{x}}, {{z}}) mm, facing {{deg}}°",
+      "resize": "“{{name}}” length {{from}} → {{to}} mm",
+      "add": "Add “{{name}}” to “{{room}}”",
+      "material": "“{{target}}” material: {{from}} → {{to}}"
+    }
+  },
+  "quote": {
+    "title": "Quote / BOM",
+    "client": "Client",
+    "note": "Notes",
+    "items": "Items",
+    "byRoom": "By room",
+    "col": {
+      "kind": "Type",
+      "name": "Item",
+      "code": "Code",
+      "qty": "Qty",
+      "unit": "Unit",
+      "price": "Unit price",
+      "subtotal": "Subtotal"
+    },
+    "kind": {
+      "object": "Furniture & lighting",
+      "opening": "Doors & windows",
+      "floor_finish": "Flooring",
+      "wall_finish": "Wall finishes",
+      "ceiling_finish": "Ceiling"
+    },
+    "unit": {
+      "pcs": "pcs",
+      "m2": "m²"
+    },
+    "editPrice": "Unit price of “{{name}}”",
+    "resetPrice": "Reset to default price",
+    "waste": "Material waste %",
+    "taxRate": "Tax rate %",
+    "discount": "Discount",
+    "extras": "Other charges",
+    "addExtra": "Add charge",
+    "removeExtra": "Remove",
+    "extraLabel": "Charge name",
+    "extraAmount": "Amount",
+    "designFee": "Design fee",
+    "subtotal": "Subtotal",
+    "tax": "Tax {{pct}}%",
+    "total": "Total",
+    "csv": "Export Excel (CSV)",
+    "pdf": "Print / save PDF",
+    "docTitle": "Interior design quotation"
+  },
+  "gallery": {
+    "title": "Gallery",
+    "snap": "Capture view",
+    "pano": "720° panorama",
+    "pano3dOnly": "Switch to 3D to create a panorama",
+    "rendering": "Rendering panorama…",
+    "panoHint": "Drag to look around, scroll to zoom.",
+    "filter": "Filter",
+    "all": "All",
+    "kind": {
+      "screenshot": "Screenshot",
+      "panorama": "Panorama",
+      "render": "AI render",
+      "plan": "Floor plan"
+    },
+    "empty": "No images yet. Capture the view or create a 720° panorama!",
+    "back": "Back",
+    "download": "Download",
+    "cover": "Set as project cover",
+    "coverSet": "Set as project cover",
+    "delete": "Delete"
+  },
+  "share": {
+    "title": "Share",
+    "desc": "Anyone with the link can view the 2D plan, 3D model and 720° panorama read-only (mobile too) and copy it into their own projects. The scene is compressed into the URL — no server involved.",
+    "link": "Share link",
+    "copy": "Copy",
+    "copied": "Copied",
+    "open": "Open",
+    "note": "Link size ≈ {{kb}} KB; your uploaded 3D models are not included.",
+    "readOnly": "Read-only",
+    "pano": "720°",
+    "copyToMine": "Copy to my projects",
+    "invalid": "The share link is incomplete.",
+    "broken": "Could not read the shared design: {{message}}"
+  },
+  "tour": {
+    "help": "Guided tour",
+    "skip": "Skip",
+    "prev": "Back",
+    "next": "Next",
+    "done": "Start designing",
+    "welcome": {
+      "title": "Welcome to InteriorAI",
+      "body": "A one-minute tour: draw the layout → place furniture → view in 3D → render and quote."
+    },
+    "tools": {
+      "title": "1. Draw the layout",
+      "body": "Pick the Wall or Room tool and click on the canvas to draw your first wall; doors and windows snap onto walls. Number keys switch tools."
+    },
+    "assets": {
+      "title": "2. Place furniture",
+      "body": "Drag furniture from the library into 2D or 3D — it snaps to nearby walls. Drag materials from the Materials tab onto walls and floors."
+    },
+    "view": {
+      "title": "3. Switch 2D / 3D",
+      "body": "Switch to 3D any time to walk through (WASD), change day/night lighting and save camera bookmarks."
+    },
+    "inspector": {
+      "title": "4. Edit properties",
+      "body": "Select any wall, opening, furniture or light to edit its size, material, brightness, color temperature and angle here."
+    },
+    "ai": {
+      "title": "5. Let AI help",
+      "body": "“AI auto-furnish” generates three styled layouts in one click; the “AI design assistant” edits the scene by chat — you confirm every change."
+    },
+    "output": {
+      "title": "6. Quote, gallery and share",
+      "body": "Get a BOM and quote automatically (export to Excel / PDF), keep screenshots and 720° panoramas in the gallery, and share a link with your client."
+    }
   }
 }

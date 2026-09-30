@@ -43,6 +43,8 @@ export interface Viewer3DApi {
   gbuffer(o: { width: number; height: number; clay?: boolean }): GBuffer;
   /** 目前被降為剖面高度的牆 id（測試用） */
   cutWalls(): string[];
+  /** 720° 全景（等距柱狀 JPEG dataURL）；位置預設為目前視點（俯瞰時改在目標點的人眼高度） */
+  panorama(o?: { width?: number }): string | null;
   /** 以目前畫面（含後處理）輸出 PNG dataURL */
   screenshot(): string | null;
   /** 螢幕座標 → 地面（y=0）世界座標 x,z（拖放資產用） */

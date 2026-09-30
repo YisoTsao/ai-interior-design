@@ -80,6 +80,9 @@ importers:
       '@interiorai/app-state':
         specifier: workspace:^
         version: link:../../packages/app-state
+      '@interiorai/assistant':
+        specifier: workspace:^
+        version: link:../../packages/assistant
       '@interiorai/catalog':
         specifier: workspace:^
         version: link:../../packages/catalog

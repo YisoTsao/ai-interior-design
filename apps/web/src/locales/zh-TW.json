@@ -21,7 +21,23 @@
       "living": "客廳",
       "bed1": "主臥",
       "bed2": "次臥"
-    }
+    },
+    "newProject": "新建專案",
+    "copyName": "{{name}}（副本）",
+    "duplicate": "建立副本",
+    "grid": "網格",
+    "list": "清單",
+    "layout": "版面",
+    "noMatch": "沒有符合的專案",
+    "openNamed": "開啟「{{name}}」",
+    "search": "搜尋專案",
+    "sort": "排序",
+    "sortBy": {
+      "updated": "最近更新",
+      "name": "名稱",
+      "area": "面積"
+    },
+    "summary": "{{area}} · {{rooms}} 房 · {{objects}} 件"
   },
   "top": {
     "back": "回專案列表",
@@ -750,5 +766,206 @@
     "l": "L 型",
     "u": "U 型",
     "spiral": "旋轉"
+  },
+  "common": {
+    "cancel": "取消",
+    "close": "關閉"
+  },
+  "wizard": {
+    "title": "新建專案",
+    "tab": {
+      "blank": "空白",
+      "template": "範本",
+      "import": "匯入平面圖"
+    },
+    "name": "專案名稱",
+    "height": "樓高（mm）",
+    "blankHint": "從空白畫布開始：用左側「牆」或「房間」工具畫出格局。",
+    "furnish": "自動佈置家具",
+    "importHint": "上傳平面圖（PNG/JPG/DXF），辨識牆、門窗與房間後可校正，再產生 2D/3D。",
+    "create": "建立"
+  },
+  "templates": {
+    "studio": "套房",
+    "twoBed": "兩房一廳",
+    "threeBed": "三房兩廳",
+    "sample": "範例專案",
+    "sampleDesc": "含燈光氛圍的兩房示範",
+    "desc": "{{area}} · {{rooms}} 個空間",
+    "rooms": {
+      "studio": "開放式套房",
+      "living": "客餐廳",
+      "bed1": "主臥",
+      "bed2": "次臥",
+      "bed3": "書房",
+      "kitchen": "廚房",
+      "bath": "浴室"
+    }
+  },
+  "furnish": {
+    "title": "AI 自動佈置",
+    "desc": "依房間用途（客廳、臥室、廚房、衛浴…）產生完整家具配置：大件靠牆、保留門口與走道。比較三種風格後擇一套用，可一次復原。",
+    "scope": "範圍",
+    "scopeAll": "全部房間",
+    "scopeSelected": "選取的房間（{{n}}）",
+    "scopeHint": "先在 2D 點選房間",
+    "budget": "預算（NT$）",
+    "noBudget": "不限",
+    "includeFurnished": "已有家具的房間也佈置",
+    "styleLabel": "風格（最多 3 種）",
+    "style": {
+      "nordic": "北歐",
+      "modern": "現代",
+      "japandi": "日式侘寂",
+      "industrial": "工業風",
+      "luxury": "輕奢"
+    },
+    "generate": "產生提案",
+    "regenerate": "重新產生",
+    "apply": "套用此提案",
+    "summary": "{{n}} 件 · {{cost}}",
+    "nothing": "沒有可佈置的房間",
+    "applied": "已套用「{{style}}」提案：{{n}} 件（Ctrl+Z 復原）"
+  },
+  "assistant": {
+    "title": "AI 設計助理",
+    "intro": "用一句話描述想怎麼改，例如「在客廳加一盆植物」「主臥的走道夠寬嗎？」。所有變更都會先顯示差異，確認後才套用。",
+    "placeholder": "輸入需求…",
+    "send": "送出",
+    "thinking": "思考中…",
+    "apply": "套用",
+    "dismiss": "略過",
+    "applied": "已套用助理的提案（Ctrl+Z 復原）",
+    "stateApplied": "已套用",
+    "stateDismissed": "已略過",
+    "error": "發生錯誤：{{message}}",
+    "defaultRoom": "客廳",
+    "chip": {
+      "list": "列出{{room}}的家具",
+      "budget": "{{room}}的預算大約多少？",
+      "clearance": "檢查{{room}}的走道",
+      "add": "在{{room}}加一盆植物"
+    },
+    "change": {
+      "move": "移動「{{name}}」到 ({{x}}, {{z}}) mm，方向 {{deg}}°",
+      "resize": "「{{name}}」長度 {{from}} → {{to}} mm",
+      "add": "新增「{{name}}」到「{{room}}」",
+      "material": "「{{target}}」材質：{{from}} → {{to}}"
+    }
+  },
+  "quote": {
+    "title": "報價 / 材料清單",
+    "client": "客戶",
+    "note": "備註",
+    "items": "明細",
+    "byRoom": "分房間小計",
+    "col": {
+      "kind": "類別",
+      "name": "品項",
+      "code": "代碼",
+      "qty": "數量",
+      "unit": "單位",
+      "price": "單價",
+      "subtotal": "小計"
+    },
+    "kind": {
+      "object": "家具與燈具",
+      "opening": "門窗",
+      "floor_finish": "地坪",
+      "wall_finish": "牆面",
+      "ceiling_finish": "天花"
+    },
+    "unit": {
+      "pcs": "件",
+      "m2": "m²"
+    },
+    "editPrice": "「{{name}}」單價",
+    "resetPrice": "恢復預設單價",
+    "waste": "材料損耗 %",
+    "taxRate": "稅率 %",
+    "discount": "折扣",
+    "extras": "其他費用",
+    "addExtra": "新增費用",
+    "removeExtra": "移除",
+    "extraLabel": "費用名稱",
+    "extraAmount": "金額",
+    "designFee": "設計費",
+    "subtotal": "小計",
+    "tax": "營業稅 {{pct}}%",
+    "total": "總計",
+    "csv": "匯出 Excel (CSV)",
+    "pdf": "列印 / 存 PDF",
+    "docTitle": "室內設計報價單"
+  },
+  "gallery": {
+    "title": "圖庫",
+    "snap": "擷取畫面",
+    "pano": "720° 全景",
+    "pano3dOnly": "切到 3D 才能產生全景",
+    "rendering": "產生全景中…",
+    "panoHint": "拖曳轉動視角，滾輪縮放。",
+    "filter": "篩選",
+    "all": "全部",
+    "kind": {
+      "screenshot": "截圖",
+      "panorama": "全景",
+      "render": "AI 渲染",
+      "plan": "平面圖"
+    },
+    "empty": "還沒有圖片。擷取畫面或產生 720° 全景吧！",
+    "back": "返回",
+    "download": "下載",
+    "cover": "設為專案封面",
+    "coverSet": "已設為專案封面",
+    "delete": "刪除"
+  },
+  "share": {
+    "title": "分享",
+    "desc": "任何人開啟連結都能以唯讀方式瀏覽 2D、3D 與 720° 全景（手機也可），並可複製到自己的專案。場景資料壓縮在網址中，不經伺服器。",
+    "link": "分享連結",
+    "copy": "複製",
+    "copied": "已複製",
+    "open": "開啟",
+    "note": "連結長度約 {{kb}} KB；自行上傳的 3D 模型不會包含在連結中。",
+    "readOnly": "唯讀",
+    "pano": "720°",
+    "copyToMine": "複製到我的專案",
+    "invalid": "分享連結不完整。",
+    "broken": "無法讀取分享內容：{{message}}"
+  },
+  "tour": {
+    "help": "新手導覽",
+    "skip": "略過",
+    "prev": "上一步",
+    "next": "下一步",
+    "done": "開始設計",
+    "welcome": {
+      "title": "歡迎使用 InteriorAI",
+      "body": "一分鐘帶你認識：畫格局 → 擺家具 → 看 3D → 出圖與報價。"
+    },
+    "tools": {
+      "title": "1. 畫出格局",
+      "body": "選「牆」或「房間」工具，在畫布上點擊畫出第一面牆；門窗工具可直接放在牆上。數字鍵可快速切換。"
+    },
+    "assets": {
+      "title": "2. 擺放家具",
+      "body": "從資產庫把家具拖到 2D 或 3D 畫面，靠近牆會自動貼齊；材質分頁可把材質拖到牆面或地板。"
+    },
+    "view": {
+      "title": "3. 切換 2D / 3D",
+      "body": "隨時切到 3D 檢視，可漫遊（WASD）、切換日夜光線、存視角書籤。"
+    },
+    "inspector": {
+      "title": "4. 調整屬性",
+      "body": "選取任何牆、門窗、家具或燈具，在這裡調整尺寸、材質、亮度、色溫與角度。"
+    },
+    "ai": {
+      "title": "5. AI 幫你設計",
+      "body": "「AI 自動佈置」一鍵產生三種風格的家具配置；「AI 設計助理」用對話修改場景，變更都要你確認。"
+    },
+    "output": {
+      "title": "6. 報價、圖庫與分享",
+      "body": "自動計算材料清單與報價（可匯出 Excel / PDF），把截圖與 720° 全景收進圖庫，再用連結分享給客戶。"
+    }
   }
 }

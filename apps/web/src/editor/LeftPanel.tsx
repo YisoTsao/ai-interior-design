@@ -92,7 +92,7 @@ export function LeftPanel() {
     >
       <section className="space-y-3 border-b border-border p-3">
         <h2 className="hud-title">{t('tools.title')}</h2>
-        <div className="hotbar" role="toolbar" aria-label={t('tools.title')}>
+        <div className="hotbar" role="toolbar" aria-label={t('tools.title')} data-tour="tools">
           {TOOLS.map(({ tool: tl, icon: Icon, key, hotkey }) => (
             <button
               key={tl}
@@ -133,7 +133,7 @@ export function LeftPanel() {
           </button>
         </div>
       </section>
-      <Tabs.Root defaultValue="assets" className="flex min-h-0 flex-1 flex-col">
+      <Tabs.Root defaultValue="assets" className="flex min-h-0 flex-1 flex-col" data-tour="assets">
         <Tabs.List className="flex border-b border-border" aria-label={t('assets.title')}>
           <Tabs.Trigger value="assets" className="hud-tab">
             {t('assets.title')}

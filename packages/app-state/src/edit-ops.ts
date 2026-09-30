@@ -524,6 +524,8 @@ export interface QuoteSettings {
   prices?: Record<string, number>;
   taxRate?: number;
   discount?: number;
+  /** 材質（m² 項目）損耗率，例如 0.1＝10% */
+  wastePct?: number;
   /** 設計費、施工費等其他費用 */
   extras?: { label: string; amount: number }[];
   note?: string;
