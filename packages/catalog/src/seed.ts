@@ -79,7 +79,7 @@ function lamp(
   );
 }
 
-export const SEED_CATALOG: CatalogEntry[] = [
+const ENTRIES: CatalogEntry[] = [
   // 門窗（依附牆）
   e(
     'door_single_900',
@@ -420,6 +420,66 @@ export const SEED_CATALOG: CatalogEntry[] = [
   ),
 ];
 
+/**
+ * 〔假設〕參考單價（新台幣，P6 估價用）：取整數佔位值，未經市場查價，UI/報表一律標示「參考價」。
+ * 門窗以開口對應的目錄項計價（見 core-geometry computeBOM 的 openingCatalogId）。
+ */
+export const ASSUMED_PRICES_TWD: Readonly<Record<string, number>> = {
+  door_single_900: 8000,
+  door_double_1500: 16000,
+  window_1200: 9000,
+  window_1800: 18000,
+  cabinet_wardrobe_1800: 36000,
+  cabinet_shoe_1200: 12000,
+  cabinet_book_900: 7000,
+  cabinet_sideboard_1600: 15000,
+  sofa_3seat_a: 28000,
+  sofa_2seat_a: 19000,
+  armchair_a: 8500,
+  table_coffee_a: 5500,
+  table_side_a: 2500,
+  tvstand_1800: 9000,
+  rug_2000: 4500,
+  table_dining_4: 12000,
+  table_dining_6: 18000,
+  chair_dining_a: 2800,
+  bed_double_150: 22000,
+  bed_queen_180: 30000,
+  bed_single_90: 12000,
+  nightstand_a: 3500,
+  desk_dresser_a: 8000,
+  desk_office_1400: 9500,
+  chair_office_a: 6000,
+  shelf_open_800: 3500,
+  counter_base_600: 9000,
+  counter_base_900: 12000,
+  fridge_a: 35000,
+  island_1500: 42000,
+  toilet_a: 12000,
+  basin_a: 9000,
+  bathtub_1600: 28000,
+  lamp_floor_a: 3800,
+  lamp_pendant_a: 4200,
+  lamp_table_a: 1600,
+  lamp_wall_a: 1800,
+  lamp_downlight_a: 650,
+  lamp_track_a: 2400,
+  lamp_chandelier_a: 12000,
+  lamp_arc_a: 5200,
+  light_hex_a: 3200,
+  led_strip_1000: 450,
+  led_bar_1200: 1200,
+  monitor_27: 7500,
+  curtain_pair: 6500,
+  plant_a: 1500,
+};
+
+export const SEED_CATALOG: CatalogEntry[] = ENTRIES.map((x) =>
+  x.status === 'published' && x.unitPriceTwd === undefined && ASSUMED_PRICES_TWD[x.id] !== undefined
+    ? { ...x, unitPriceTwd: ASSUMED_PRICES_TWD[x.id] }
+    : x,
+);
+
 const OWN = OWN_LICENSE;
 export const SEED_MATERIALS: Material[] = [
   {
@@ -527,6 +587,7 @@ export const SEED_MATERIALS: Material[] = [
     pattern: 'plain',
     realSizeMm: { w: 1000, h: 1000 },
     roughness: 0.95,
+    pricePerM2Twd: 300,
     license: OWN,
   },
   {

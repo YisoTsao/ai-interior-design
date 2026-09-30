@@ -200,6 +200,24 @@ importers:
         specifier: ^6.2.5
         version: 6.2.5
 
+  packages/assistant:
+    dependencies:
+      '@interiorai/app-state':
+        specifier: workspace:^
+        version: link:../app-state
+      '@interiorai/catalog':
+        specifier: workspace:^
+        version: link:../catalog
+      '@interiorai/core-geometry':
+        specifier: workspace:^
+        version: link:../core-geometry
+      '@interiorai/scene-schema':
+        specifier: workspace:^
+        version: link:../scene-schema
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+
   packages/catalog:
     dependencies:
       zod:
