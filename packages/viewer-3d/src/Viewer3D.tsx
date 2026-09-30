@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import * as THREE from 'three';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, TransformControls } from '@react-three/drei';
@@ -15,8 +23,9 @@ import {
   wallLength,
 } from '@interiorai/core-geometry';
 import type { Appearance, Level, SceneObject, Wall } from '@interiorai/scene-schema';
-import { viewer3dApi } from './api.js';
+import { sunOverride, viewer3dApi } from './api.js';
 import { renderPanorama } from './panorama.js';
+import { exportScene } from './exportModel.js';
 import { renderGBuffer } from './gbuffer.js';
 import { DollhouseStage, type QualityState } from './DollhouseStage.js';
 import { LightBeams, LightGizmo } from './effects.js';
@@ -156,7 +165,11 @@ function SceneContent({
   const [walking, setWalking] = useState(false);
   const layers = useStore(store, (s) => s.layers);
   const level = useMemo(() => activeLevel({ scene, levelId }), [scene, levelId]);
-  const env = scene.environment;
+  const sunOv = useSyncExternalStore(sunOverride.subscribe, sunOverride.get, sunOverride.get);
+  const env = useMemo(
+    () => (sunOv ? { ...scene.environment, ...sunOv } : scene.environment),
+    [scene.environment, sunOv],
+  );
   const gl = useThree((s) => s.gl);
   const scene3 = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
@@ -628,7 +641,7 @@ function SceneContent({
     outline.current = out;
     invalidate();
   });
-  const capture = useRef<(() => string) | null>(null);
+  const capture = useRef<((w?: number, h?: number) => string) | null>(null);
 
   const size = useThree((s) => s.size);
   const preset = useRef<ViewPreset>('iso-se');
@@ -799,6 +812,33 @@ function SceneContent({
         invalidate();
         return url;
       },
+      capture: (o) => captureAt(o),
+      topPlan: (o) => {
+        // 俯視彩色平面圖（FE-RND-08）：暫時改為正上方、窄視角（近似正交）拍一張，再還原相機
+        const pc = camera as THREE.PerspectiveCamera;
+        const prev = { pos: camera.position.clone(), fov: pc.fov, target: controls.current?.target.clone() };
+        const c = bbox.getCenter(new THREE.Vector3());
+        const sz = bbox.getSize(new THREE.Vector3());
+        const aspect = o.width / o.height;
+        const fov = 12;
+        const r = Math.max(sz.x / aspect, sz.z) / 2 + 800;
+        const dist = r / Math.tan(((fov / 2) * Math.PI) / 180);
+        pc.fov = fov;
+        camera.position.set(c.x, dist, c.z + 0.001);
+        camera.up.set(0, 1, 0);
+        camera.lookAt(c.x, 0, c.z);
+        pc.far = dist * 2 + 10_000;
+        const url = captureAt(o);
+        pc.fov = prev.fov;
+        pc.far = 500_000;
+        camera.position.copy(prev.pos);
+        if (prev.target) camera.lookAt(prev.target);
+        pc.updateProjectionMatrix();
+        controls.current?.update();
+        invalidate();
+        return url;
+      },
+      exportModel: (format) => exportScene(scene3, format),
       clientToFloor: (x, y) => floorHit(x, y, 0),
       pickSurface: (x, y) => {
         const r = gl.domElement.getBoundingClientRect();
@@ -839,6 +879,45 @@ function SceneContent({
     });
     return () => viewer3dApi.set(null);
   });
+
+  /** 指定解析度出圖（FE-RND-07）；transparent＝不含背景與底座（直接渲染，無後處理） */
+  const captureAt = (o: { width: number; height: number; transparent?: boolean }) => {
+    const pc = camera as THREE.PerspectiveCamera;
+    const prevSize = gl.getSize(new THREE.Vector2());
+    const prevDpr = gl.getPixelRatio();
+    const prevAspect = pc.aspect;
+    gl.setPixelRatio(1);
+    gl.setSize(o.width, o.height, false);
+    pc.aspect = o.width / o.height;
+    pc.updateProjectionMatrix();
+    let url: string;
+    if (!o.transparent && capture.current) url = capture.current(o.width, o.height);
+    else {
+      const bg = scene3.background;
+      const hidden: THREE.Object3D[] = [];
+      if (o.transparent) {
+        scene3.background = null;
+        scene3.traverse((x) => {
+          if (x.userData.gkind === 'board' && x.visible) {
+            x.visible = false;
+            hidden.push(x);
+          }
+        });
+        gl.setClearColor(0x000000, 0);
+      }
+      gl.render(scene3, camera);
+      url = gl.domElement.toDataURL('image/png');
+      scene3.background = bg;
+      for (const x of hidden) x.visible = true;
+      gl.setClearAlpha(1);
+    }
+    gl.setPixelRatio(prevDpr);
+    gl.setSize(prevSize.x, prevSize.y, false);
+    pc.aspect = prevAspect;
+    pc.updateProjectionMatrix();
+    invalidate();
+    return url;
+  };
 
   /** 游標射線與水平面 y 的交點（世界 x,z） */
   const raycaster = useMemo(() => new THREE.Raycaster(), []);

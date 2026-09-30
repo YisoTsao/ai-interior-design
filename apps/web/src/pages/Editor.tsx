@@ -9,6 +9,11 @@ import {
   Box,
   Camera,
   CircleHelp,
+  Download,
+  History,
+  Info,
+  PanelLeft,
+  PanelRight,
   Eye,
   Footprints,
   Globe2,
@@ -28,6 +33,11 @@ import { capturePanorama, GalleryPanel } from '../editor/GalleryPanel';
 import { QuotePanel } from '../editor/QuotePanel';
 import { ShareDialog } from '../editor/ShareDialog';
 import { Tour, tourDone } from '../editor/Tour';
+import { CommandPalette, type PaletteCommand } from '../editor/CommandPalette';
+import { ExportDialog } from '../editor/ExportDialog';
+import { HistoryPanel } from '../editor/HistoryPanel';
+import { ProjectInfoDialog } from '../editor/ProjectInfoDialog';
+import { ShortcutsDialog } from '../editor/ShortcutsDialog';
 import { setProjectThumb, shrink } from '../media';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
@@ -155,6 +165,38 @@ function EditorShell() {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [panel, setPanel] = useState<Panel | null>(null);
   const [tour, setTour] = useState(() => !tourDone());
+  // 面板收合（FE-UX-07）：\ 鍵切換兩側面板＝全螢幕畫布
+  const [showLeft, setShowLeft] = useState(true);
+  const [showRight, setShowRight] = useState(true);
+  const togglePanels = useCallback(() => {
+    const on = !(showLeft || showRight);
+    setShowLeft(on);
+    setShowRight(on);
+  }, [showLeft, showRight]);
+  const openPalette = useCallback(() => setPanel('palette'), []);
+  const openHelp = useCallback(() => setPanel('shortcuts'), []);
+  const paletteCmds = useMemo<PaletteCommand[]>(() => {
+    const g = t('palette.groups.panels');
+    const p = (id: Panel, key: string): PaletteCommand => ({
+      id: `panel:${id}`,
+      label: t(key),
+      group: g,
+      run: () => setPanel(id),
+    });
+    return [
+      p('furnish', 'furnish.title'),
+      p('assistant', 'assistant.title'),
+      p('quote', 'quote.title'),
+      p('gallery', 'gallery.title'),
+      p('share', 'share.title'),
+      p('export', 'exports.title'),
+      p('info', 'projectInfo.title'),
+      p('history', 'history.title'),
+      p('shortcuts', 'shortcuts.title'),
+      { id: 'tour', label: t('tour.help'), group: g, run: () => setTour(true) },
+      { id: 'panels', label: t('shortcuts.panels'), group: g, hint: '\\', run: togglePanels },
+    ];
+  }, [t, togglePanels]);
   const prompt = usePrompt();
   const projectId = useEditor((s) => s.projectId);
   const saveStatus = useEditor((s) => s.saveStatus);
@@ -191,7 +233,7 @@ function EditorShell() {
     ]);
     if (r) actions.array(Math.round(Number(r.count) || 0), [Number(r.dx) || 0, Number(r.dz) || 0]);
   };
-  useShortcuts(store, setMode);
+  useShortcuts(store, setMode, { palette: openPalette, help: openHelp, togglePanels });
   const tt = useCallback((k: string, v?: Record<string, string | number>) => t(k, v), [t]);
 
   /** 拖放資產：2D 以畫布座標、3D 以地面射線（FE-V3D-02）；壁掛物與靠牆家具自動貼牆 */
@@ -250,9 +292,15 @@ function EditorShell() {
       <a href="#canvas" className="sr-only focus:not-sr-only">
         {t('app.skip')}
       </a>
-      <TopBar mode={mode} setMode={setMode} setPanel={setPanel} onHelp={() => setTour(true)} />
+      <TopBar
+        mode={mode}
+        setMode={setMode}
+        setPanel={setPanel}
+        onHelp={() => setTour(true)}
+        panels={{ left: showLeft, right: showRight, setLeft: setShowLeft, setRight: setShowRight }}
+      />
       <div className="flex min-h-0 flex-1">
-        <LeftPanel />
+        {showLeft && <LeftPanel />}
         <main
           id="canvas"
           className="relative min-w-0 flex-1 bg-bg"
@@ -343,7 +391,7 @@ function EditorShell() {
           )}
           {prompt.node}
         </main>
-        <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
+        {showRight && <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />}
       </div>
       <BottomBar />
       <FurnishDialog open={panel === 'furnish'} onOpenChange={(v) => setPanel(v ? 'furnish' : null)} />
@@ -351,23 +399,44 @@ function EditorShell() {
       <QuotePanel open={panel === 'quote'} onOpenChange={(v) => setPanel(v ? 'quote' : null)} />
       <GalleryPanel open={panel === 'gallery'} onOpenChange={(v) => setPanel(v ? 'gallery' : null)} />
       <ShareDialog open={panel === 'share'} onOpenChange={(v) => setPanel(v ? 'share' : null)} />
+      <ExportDialog open={panel === 'export'} onOpenChange={(v) => setPanel(v ? 'export' : null)} />
+      <ProjectInfoDialog open={panel === 'info'} onOpenChange={(v) => setPanel(v ? 'info' : null)} />
+      <HistoryPanel open={panel === 'history'} onOpenChange={(v) => setPanel(v ? 'history' : null)} />
+      <ShortcutsDialog open={panel === 'shortcuts'} onOpenChange={(v) => setPanel(v ? 'shortcuts' : null)} />
+      <CommandPalette
+        open={panel === 'palette'}
+        onOpenChange={(v) => setPanel(v ? 'palette' : null)}
+        panels={paletteCmds}
+      />
       <Tour open={tour} onClose={() => setTour(false)} />
     </div>
   );
 }
 
-type Panel = 'furnish' | 'assistant' | 'quote' | 'gallery' | 'share';
+type Panel =
+  | 'furnish'
+  | 'assistant'
+  | 'quote'
+  | 'gallery'
+  | 'share'
+  | 'export'
+  | 'info'
+  | 'history'
+  | 'shortcuts'
+  | 'palette';
 
 function TopBar({
   mode,
   setMode,
   setPanel,
   onHelp,
+  panels,
 }: {
   mode: TransformMode;
   setMode: (m: TransformMode) => void;
   setPanel: (p: Panel) => void;
   onHelp: () => void;
+  panels: { left: boolean; right: boolean; setLeft: (v: boolean) => void; setRight: (v: boolean) => void };
 }) {
   const { t } = useTranslation();
   const store = useEditorStore();
@@ -396,6 +465,9 @@ function TopBar({
         onChange={(e) => store.getState().rename(e.target.value)}
         data-testid="project-name"
       />
+      <IconButton label={t('projectInfo.title')} onClick={() => setPanel('info')} testId="open-info">
+        <Info size={18} aria-hidden />
+      </IconButton>
       <span
         role="status"
         className={`whitespace-nowrap text-xs ${saveStatus === 'error' ? 'text-danger' : 'text-muted'}`}
@@ -420,6 +492,25 @@ function TopBar({
         testId="redo"
       >
         <Redo2 size={18} aria-hidden />
+      </IconButton>
+      <IconButton label={t('history.title')} onClick={() => setPanel('history')} testId="open-history">
+        <History size={18} aria-hidden />
+      </IconButton>
+      <IconButton
+        label={t('top.toggleLeft')}
+        pressed={panels.left}
+        onClick={() => panels.setLeft(!panels.left)}
+        testId="toggle-left"
+      >
+        <PanelLeft size={18} aria-hidden />
+      </IconButton>
+      <IconButton
+        label={t('top.toggleRight')}
+        pressed={panels.right}
+        onClick={() => panels.setRight(!panels.right)}
+        testId="toggle-right"
+      >
+        <PanelRight size={18} aria-hidden />
       </IconButton>
       <div className="mx-2 h-6 w-px bg-border" />
       <div role="radiogroup" aria-label={t('top.view2d')} className="hud-seg" data-tour="view">
@@ -466,7 +557,7 @@ function TopBar({
       </div>
       <div className="ml-auto flex items-center gap-2">
         <OfflineBadge />
-        <label className="flex items-center gap-1 text-xs">
+        <label className="hidden items-center gap-1 text-xs 2xl:flex">
           <span className="sr-only">{t('units.length')}</span>
           <select
             className="field w-20 font-sans"
@@ -503,6 +594,9 @@ function TopBar({
           </IconButton>
           <IconButton label={t('share.title')} onClick={() => setPanel('share')} testId="open-share">
             <Share2 size={18} aria-hidden />
+          </IconButton>
+          <IconButton label={t('exports.title')} onClick={() => setPanel('export')} testId="open-export">
+            <Download size={18} aria-hidden />
           </IconButton>
           {view === '3d' && <RenderPanel />}
         </div>

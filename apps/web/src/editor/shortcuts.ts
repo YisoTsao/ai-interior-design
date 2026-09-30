@@ -5,8 +5,49 @@ import { editActions } from './actions';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
+/** 快捷鍵一覽（FE-UX-03）：[按鍵, 說明 i18n key, 分組] */
+export const SHORTCUT_LIST: [string, string, 'general' | 'tools' | 'edit' | 'view'][] = [
+  ['Ctrl/⌘ K', 'shortcuts.palette', 'general'],
+  ['?', 'shortcuts.help', 'general'],
+  ['\\', 'shortcuts.panels', 'general'],
+  ['Ctrl/⌘ Z', 'shortcuts.undo', 'general'],
+  ['Ctrl/⌘ Shift Z · Ctrl Y', 'shortcuts.redo', 'general'],
+  ['V', 'tools.select', 'tools'],
+  ['W', 'tools.wall', 'tools'],
+  ['P', 'tools.polygon', 'tools'],
+  ['D', 'tools.door', 'tools'],
+  ['N', 'tools.window', 'tools'],
+  ['M', 'tools.measure', 'tools'],
+  ['K', 'tools.dimension', 'tools'],
+  ['T', 'tools.text', 'tools'],
+  ['Space', 'tools.pan', 'tools'],
+  ['Esc', 'shortcuts.escape', 'tools'],
+  ['Ctrl/⌘ C · X · V', 'shortcuts.clipboard', 'edit'],
+  ['Ctrl/⌘ D', 'shortcuts.duplicate', 'edit'],
+  ['Ctrl/⌘ A', 'shortcuts.selectAll', 'edit'],
+  ['Ctrl/⌘ G · Shift G', 'shortcuts.group', 'edit'],
+  ['Q · E', 'shortcuts.rotate', 'edit'],
+  ['L', 'shortcuts.lock', 'edit'],
+  ['H', 'shortcuts.hide', 'edit'],
+  ['Delete', 'shortcuts.delete', 'edit'],
+  ['Tab', 'shortcuts.toggleView', 'view'],
+  ['G · R · S', 'shortcuts.gizmo', 'view'],
+  ['F', 'shortcuts.frame', 'view'],
+  ['W A S D · Shift', 'shortcuts.walk', 'view'],
+];
+
+export interface ShortcutExtras {
+  palette?: () => void;
+  help?: () => void;
+  togglePanels?: () => void;
+}
+
 /** 02 §4 快捷鍵。輸入框聚焦或事件已被畫布消費（defaultPrevented）時不處理。 */
-export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => void) {
+export function useShortcuts(
+  store: EditorStore,
+  setMode: (m: TransformMode) => void,
+  extras: ShortcutExtras = {},
+) {
   useEffect(() => {
     let spacePrev: ReturnType<EditorStore['getState']>['tool'] | null = null;
     const act = editActions(store);
@@ -24,6 +65,9 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
       const s = store.getState();
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
+      if (mod && k === 'k') return (e.preventDefault(), extras.palette?.());
+      if (!mod && e.key === '?') return (e.preventDefault(), extras.help?.());
+      if (!mod && e.key === '\\') return (e.preventDefault(), extras.togglePanels?.());
       if (mod && k === 'z') {
         e.preventDefault();
         if (e.shiftKey) s.redo();
@@ -108,5 +152,5 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
     };
-  }, [store, setMode]);
+  }, [store, setMode, extras.palette, extras.help, extras.togglePanels]);
 }

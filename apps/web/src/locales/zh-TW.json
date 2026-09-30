@@ -37,7 +37,20 @@
       "name": "名稱",
       "area": "面積"
     },
-    "summary": "{{area}} · {{rooms}} 房 · {{objects}} 件"
+    "summary": "{{area}} · {{rooms}} 房 · {{objects}} 件",
+    "active": "專案",
+    "trash": "垃圾桶（{{n}}）",
+    "trashHint": "刪除的專案會保留 {{days}} 天，期間可還原。",
+    "restore": "還原",
+    "deleteForever": "永久刪除",
+    "view": "檢視",
+    "tags": "標籤",
+    "tagsHint": "以逗號分隔，例如：客戶 A, 北歐",
+    "allTags": "全部",
+    "exportFile": "匯出專案檔",
+    "openFile": "開啟專案檔",
+    "openFileHint": "選擇或拖放 .interiorai 檔案到此頁",
+    "importFailed": "無法匯入「{{name}}」：{{message}}"
   },
   "top": {
     "back": "回專案列表",
@@ -79,7 +92,9 @@
     "lightingDay": "日光",
     "screenshot": "截圖（PNG）",
     "walk": "第一人稱漫遊（WASD）",
-    "walkHint": "WASD／方向鍵移動、Shift 奔跑、拖曳或雙擊鎖定滑鼠轉頭、Esc 離開"
+    "walkHint": "WASD／方向鍵移動、Shift 奔跑、拖曳或雙擊鎖定滑鼠轉頭、Esc 離開",
+    "toggleLeft": "左側面板",
+    "toggleRight": "右側面板"
   },
   "tools": {
     "title": "工具",
@@ -369,7 +384,11 @@
     "updateCamera": "修改視角",
     "deleteCamera": "刪除視角",
     "quote": "修改報價",
-    "batch": "批次修改"
+    "batch": "批次修改",
+    "assistantProposal": "套用助理提案",
+    "projectInfo": "修改專案屬性",
+    "site": "調整日照",
+    "lightPreset": "套用燈光方案"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -966,6 +985,109 @@
     "output": {
       "title": "6. 報價、圖庫與分享",
       "body": "自動計算材料清單與報價（可匯出 Excel / PDF），把截圖與 720° 全景收進圖庫，再用連結分享給客戶。"
+    }
+  },
+  "exports": {
+    "title": "匯出",
+    "plan": "2D 平面圖",
+    "image": "高解析圖片",
+    "model": "3D 模型與專案檔",
+    "resolution": "解析度",
+    "transparent": "去背（透明背景）",
+    "toGallery": "同時存入圖庫",
+    "screenshot": "3D 截圖",
+    "topPlan": "俯視彩色平面圖",
+    "needs2d": "PNG 平面圖需在 2D 視圖匯出。",
+    "needs3d": "圖片與 3D 模型需在 3D 視圖匯出。",
+    "working": "處理中…",
+    "failed": "匯出失敗：{{message}}"
+  },
+  "history": {
+    "title": "歷史紀錄",
+    "start": "（開始）"
+  },
+  "lightPreset": {
+    "title": "燈光方案",
+    "cozy": "溫馨",
+    "bright": "明亮",
+    "cinema": "劇院",
+    "party": "派對",
+    "reset": "預設",
+    "none": "這個樓層沒有燈具"
+  },
+  "palette": {
+    "title": "指令面板",
+    "placeholder": "搜尋工具、動作、面板、資產…",
+    "none": "找不到符合的項目",
+    "place": "放置",
+    "groups": {
+      "tools": "工具",
+      "edit": "編輯",
+      "view": "檢視",
+      "settings": "設定",
+      "panels": "面板",
+      "assets": "資產"
+    }
+  },
+  "projectInfo": {
+    "title": "專案屬性",
+    "client": "客戶",
+    "address": "地址",
+    "budget": "預算（NT$）",
+    "notes": "備註",
+    "saveAs": "另存新檔",
+    "saveAsHint": "另存為新專案（保留目前這份不變）或匯出專案檔帶到其他電腦。"
+  },
+  "shortcuts": {
+    "title": "快捷鍵",
+    "groups": {
+      "general": "一般",
+      "tools": "工具",
+      "edit": "編輯",
+      "view": "檢視"
+    },
+    "palette": "指令面板",
+    "help": "快捷鍵一覽",
+    "panels": "收合／展開兩側面板",
+    "undo": "復原",
+    "redo": "重做",
+    "escape": "取消／回到選取",
+    "clipboard": "複製、剪下、貼上",
+    "duplicate": "原地複製",
+    "selectAll": "全選",
+    "group": "群組／解散群組",
+    "rotate": "旋轉 90°",
+    "lock": "鎖定／解鎖",
+    "hide": "隱藏／顯示",
+    "delete": "刪除",
+    "toggleView": "切換 2D／3D",
+    "gizmo": "3D 移動／旋轉／縮放",
+    "frame": "全景（3D）",
+    "walk": "漫遊移動／奔跑"
+  },
+  "sun": {
+    "title": "日照模擬",
+    "city": "城市",
+    "custom": "自訂",
+    "lat": "緯度",
+    "lon": "經度",
+    "date": "日期",
+    "time": "時間",
+    "north": "平面圖北向",
+    "play": "播放一天",
+    "stop": "停止",
+    "readout": "方位 {{az}}° · 仰角 {{el}}°",
+    "below": "太陽在地平線以下（無日光）。",
+    "cities": {
+      "taipei": "台北",
+      "taichung": "台中",
+      "kaohsiung": "高雄",
+      "hongkong": "香港",
+      "shanghai": "上海",
+      "tokyo": "東京",
+      "singapore": "新加坡",
+      "london": "倫敦",
+      "newyork": "紐約"
     }
   }
 }

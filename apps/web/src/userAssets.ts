@@ -120,3 +120,67 @@ export async function deleteUserAsset(id: string): Promise<void> {
 }
 
 export const isUserAsset = (e: CatalogEntry | undefined) => !!e?.tags.includes(USER_TAG);
+
+/** 列出已上傳的模型（管理頁用） */
+export async function listUserAssets(): Promise<CatalogEntry[]> {
+  return (await get<CatalogEntry[]>(LIST_KEY, store)) ?? [];
+}
+
+/** 修改名稱、分類、尺寸、放置方式（FE-AST-10）；目錄即時更新 */
+export async function updateUserAsset(
+  id: string,
+  patch: Partial<Pick<CatalogEntry, 'nameZh' | 'category' | 'anchor' | 'dimsMm' | 'elevationMm'>>,
+): Promise<CatalogEntry | null> {
+  const list = await listUserAssets();
+  const cur = list.find((x) => x.id === id);
+  if (!cur) return null;
+  const next = CatalogEntrySchema.parse({
+    ...cur,
+    ...patch,
+    ...(patch.nameZh ? { nameEn: patch.nameZh, tags: [USER_TAG, patch.nameZh] } : {}),
+  });
+  await set(
+    LIST_KEY,
+    list.map((x) => (x.id === id ? next : x)),
+    store,
+  );
+  catalog.remove(id);
+  catalog.add(next);
+  return next;
+}
+
+/** 替換模型檔（保留 id，場景中的引用不變） */
+export async function replaceUserAssetFile(id: string, bytes: ArrayBuffer): Promise<void> {
+  const e = (await listUserAssets()).find((x) => x.id === id);
+  if (e?.model.kind !== 'glb') throw new Error('MODEL_MISSING');
+  await set(e.model.url, bytes, store);
+  // 重新加入目錄 → 版本遞增 → viewer 重新載入
+  catalog.remove(id);
+  catalog.add(e);
+}
+
+/** 匯出（專案檔打包用）：目錄項＋模型位元組 */
+export async function readUserAssets(
+  ids: readonly string[],
+): Promise<{ entry: CatalogEntry; bytes: ArrayBuffer }[]> {
+  const list = await listUserAssets();
+  const out: { entry: CatalogEntry; bytes: ArrayBuffer }[] = [];
+  for (const e of list)
+    if (ids.includes(e.id) && e.model.kind === 'glb') {
+      const bytes = await get<ArrayBuffer>(e.model.url, store);
+      if (bytes) out.push({ entry: e, bytes });
+    }
+  return out;
+}
+
+/** 匯入（專案檔）：保留原 id；已存在則略過 */
+export async function importUserAsset(raw: unknown, bytes: ArrayBuffer): Promise<boolean> {
+  const r = CatalogEntrySchema.safeParse(raw);
+  if (!r.success || r.data.model.kind !== 'glb' || !r.data.model.url.startsWith(PREFIX)) return false;
+  const list = await listUserAssets();
+  if (list.some((x) => x.id === r.data.id)) return false;
+  await set(r.data.model.url, bytes, store);
+  await set(LIST_KEY, [...list, r.data], store);
+  catalog.add(r.data);
+  return true;
+}

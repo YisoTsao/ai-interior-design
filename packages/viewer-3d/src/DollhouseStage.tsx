@@ -78,7 +78,7 @@ export function DollhouseStage({
   outline?: React.RefObject<THREE.Object3D[]>;
   outlineColor?: string;
   /** 截圖：以完整後處理渲染一次並回傳 PNG dataURL */
-  capture?: React.RefObject<(() => string) | null>;
+  capture?: React.RefObject<((w?: number, h?: number) => string) | null>;
 }) {
   const night = lighting === 'night';
   const budget = QUALITY_BUDGET[graphics.quality];
@@ -222,6 +222,10 @@ export function DollhouseStage({
     graphics.grade,
     outlineColor,
   ]);
+  const dprRef = useRef(dpr);
+  dprRef.current = dpr;
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
   useEffect(() => {
     post.composer.setPixelRatio(dpr);
     post.composer.setSize(size.width, size.height);
@@ -239,11 +243,21 @@ export function DollhouseStage({
   );
   useEffect(() => {
     if (!capture) return;
-    capture.current = () => {
+    capture.current = (w, h) => {
       post.ao.enabled = graphics.ao;
       gl.shadowMap.needsUpdate = true;
+      // 指定解析度（2K／4K 出圖）：暫時把後處理鏈調到該尺寸，輸出後還原
+      if (w && h) {
+        post.composer.setPixelRatio(1);
+        post.composer.setSize(w, h);
+      }
       post.composer.render();
-      return gl.domElement.toDataURL('image/png');
+      const url = gl.domElement.toDataURL('image/png');
+      if (w && h) {
+        post.composer.setPixelRatio(dprRef.current);
+        post.composer.setSize(sizeRef.current.width, sizeRef.current.height);
+      }
+      return url;
     };
     return () => {
       capture.current = null;

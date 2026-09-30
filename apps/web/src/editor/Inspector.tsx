@@ -16,9 +16,12 @@ import {
   updateOpening,
   updateRoom,
   updateWall,
+  lightingPreset,
+  LIGHT_PRESETS,
 } from '@interiorai/app-state';
 import { objectDims, resolveParams, type CatalogEntry } from '@interiorai/catalog';
 import { detectRooms, wallLength } from '@interiorai/core-geometry';
+import { SunStudy } from './SunStudy';
 import { formatArea } from '@interiorai/editor-2d';
 import type {
   Appearance,
@@ -959,6 +962,25 @@ function ScenePanel({ level }: { level: Level }) {
           checked={graphics.grade}
           onChange={(grade) => setGraphics({ grade })}
         />
+      </Section>
+      {!night && <SunStudy />}
+      <Section title={t('lightPreset.title')} testId="section-light-preset">
+        <div className="flex flex-wrap gap-1">
+          {LIGHT_PRESETS.map((p) => (
+            <button
+              key={p}
+              className="hud-chip"
+              data-testid={`light-preset-${p}`}
+              onClick={() => {
+                const cmd = lightingPreset(level.id, level, catalog, p);
+                if (cmd) exec(cmd);
+                else store.getState().notify('info', t('lightPreset.none'));
+              }}
+            >
+              {t(`lightPreset.${p}`)}
+            </button>
+          ))}
+        </div>
       </Section>
       <Section title={t('stats.title')}>
         <p className="hud-stat">

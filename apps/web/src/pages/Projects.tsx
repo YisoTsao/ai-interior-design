@@ -1,19 +1,38 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import { Copy, FilePlus2, Home, LayoutGrid, List, Search, Trash2 } from 'lucide-react';
+import {
+  ArchiveRestore,
+  Copy,
+  Download,
+  FilePlus2,
+  FolderOpen,
+  Home,
+  LayoutGrid,
+  List,
+  Search,
+  Tag,
+  Trash2,
+} from 'lucide-react';
 import {
   createEditorStore,
   deleteProject,
   listProjects,
   loadProject,
+  purgeTrash,
+  restoreProject,
   saveProject,
+  setProjectTags,
+  TRASH_DAYS,
+  trashProject,
   type ProjectSummary,
 } from '@interiorai/app-state';
 import { LangToggle, OfflineBadge } from '../editor/common';
 import { ImportPlanButton } from '../features/plan-review/ImportPlanButton';
 import { NewProjectDialog } from './NewProjectDialog';
-import { deleteProjectMedia, getProjectThumb, setProjectThumb } from '../media';
+import { deleteProjectMedia, download, getProjectThumb, setProjectThumb } from '../media';
+import { exportProjectById, importProjectFile, PROJECT_EXT } from '../projectFile';
+import { usePrompt } from '../editor/PromptDialog';
 import { usePrefs } from '../prefs';
 
 type Sort = 'updated' | 'name' | 'area';
@@ -45,6 +64,11 @@ export function ProjectsPage() {
     () => readLS('projects.layout', 'grid') as 'grid' | 'list',
   );
   const [wizard, setWizard] = useState(false);
+  const [bin, setBin] = useState(false);
+  const [tag, setTag] = useState<string | null>(null);
+  const [over, setOver] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const prompt = usePrompt();
   const refresh = async () => {
     const list = await listProjects();
     setItems(list);
@@ -52,7 +76,10 @@ export function ProjectsPage() {
     setThumbs(Object.fromEntries(entries.filter((e): e is [string, string] => !!e[1])));
   };
   useEffect(() => {
-    void refresh();
+    // 超過 30 天的垃圾桶項目永久刪除（連同縮圖與圖庫）
+    void purgeTrash()
+      .then((gone) => Promise.all(gone.map(deleteProjectMedia)))
+      .then(refresh);
   }, []);
   useEffect(() => writeLS('projects.sort', sort), [sort]);
   useEffect(() => writeLS('projects.layout', layout), [layout]);
@@ -60,7 +87,14 @@ export function ProjectsPage() {
   const shown = useMemo(() => {
     if (!items) return null;
     const k = q.trim().toLowerCase();
-    const f = k ? items.filter((p) => (p.name || t('projects.untitled')).toLowerCase().includes(k)) : items;
+    const f = items.filter(
+      (p) =>
+        !!p.deletedAt === bin &&
+        (!tag || p.tags.includes(tag)) &&
+        (!k ||
+          (p.name || t('projects.untitled')).toLowerCase().includes(k) ||
+          p.tags.some((x) => x.toLowerCase().includes(k))),
+    );
     return [...f].sort((a, b) =>
       sort === 'name'
         ? a.name.localeCompare(b.name, i18n.language)
@@ -68,7 +102,12 @@ export function ProjectsPage() {
           ? b.areaM2 - a.areaM2
           : b.updatedAt.localeCompare(a.updatedAt),
     );
-  }, [items, q, sort, t, i18n.language]);
+  }, [items, q, sort, t, i18n.language, bin, tag]);
+  const allTags = useMemo(
+    () => [...new Set((items ?? []).filter((p) => !p.deletedAt).flatMap((p) => p.tags))].sort(),
+    [items],
+  );
+  const trashCount = (items ?? []).filter((p) => p.deletedAt).length;
 
   const area = (m2: number) =>
     areaUnit === 'ping' ? `${(m2 / 3.3058).toFixed(1)} ${t('units.ping')}` : `${m2.toFixed(1)} m²`;
@@ -82,15 +121,62 @@ export function ProjectsPage() {
     if (th) await setProjectThumb(id, th);
     void refresh();
   };
+  /** 刪除＝移到垃圾桶（30 天內可還原）；垃圾桶內才永久刪除 */
   const remove = async (p: ProjectSummary) => {
+    if (!p.deletedAt) {
+      await trashProject(p.id);
+      return void refresh();
+    }
     if (!window.confirm(t('projects.confirmDelete', { name: p.name }))) return;
     await deleteProject(p.id);
     await deleteProjectMedia(p.id);
     void refresh();
   };
+  const editTags = async (p: ProjectSummary) => {
+    const r = await prompt.ask(t('projects.tags'), [
+      { key: 'tags', label: t('projects.tagsHint'), value: p.tags.join(', ') },
+    ]);
+    if (!r) return;
+    await setProjectTags(p.id, r.tags!.split(/[,，]/));
+    void refresh();
+  };
+  const exportFile = async (p: ProjectSummary) => {
+    const f = await exportProjectById(p.id);
+    if (f) download(f.blob, `${f.name || 'project'}${PROJECT_EXT}`);
+  };
+  const importFiles = async (files: FileList | File[]) => {
+    setErr(null);
+    let last: string | null = null;
+    for (const f of Array.from(files)) {
+      if (!f.name.endsWith(PROJECT_EXT)) continue;
+      try {
+        last = await importProjectFile(f);
+      } catch (e) {
+        setErr(
+          t('projects.importFailed', { name: f.name, message: e instanceof Error ? e.message : String(e) }),
+        );
+      }
+    }
+    await refresh();
+    return last;
+  };
 
   return (
-    <main className="game-ui min-h-full bg-bg">
+    <main
+      className={`game-ui min-h-full bg-bg ${over ? 'outline-2 -outline-offset-4 outline-primary outline-dashed' : ''}`}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes('Files')) {
+          e.preventDefault();
+          setOver(true);
+        }
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        void importFiles(e.dataTransfer.files);
+      }}
+    >
       <header className="hud-bar flex h-14 items-center gap-3 px-4">
         <span className="font-[Rajdhani] text-lg font-bold tracking-widest text-primary" aria-hidden>
           INTERIOR<span className="text-accent">AI</span>
@@ -99,6 +185,21 @@ export function ProjectsPage() {
         <OfflineBadge />
         <div className="ml-auto flex items-center gap-2">
           <LangToggle />
+          <label className="btn cursor-pointer" title={t('projects.openFileHint')}>
+            <FolderOpen size={16} aria-hidden /> {t('projects.openFile')}
+            <input
+              type="file"
+              accept={PROJECT_EXT}
+              multiple
+              className="sr-only"
+              data-testid="project-file-input"
+              onChange={(e) => {
+                const fs = e.target.files;
+                if (fs) void importFiles(fs);
+                e.target.value = '';
+              }}
+            />
+          </label>
           <ImportPlanButton />
           <button className="btn btn-primary" onClick={() => setWizard(true)} data-testid="new-project">
             <FilePlus2 size={16} aria-hidden /> {t('projects.newProject')}
@@ -131,6 +232,14 @@ export function ProjectsPage() {
               </option>
             ))}
           </select>
+          <div className="hud-seg" role="radiogroup" aria-label={t('projects.view')}>
+            <button aria-pressed={!bin} onClick={() => setBin(false)}>
+              {t('projects.active')}
+            </button>
+            <button aria-pressed={bin} onClick={() => setBin(true)} data-testid="projects-trash">
+              <Trash2 size={12} aria-hidden /> {t('projects.trash', { n: trashCount })}
+            </button>
+          </div>
           <div className="hud-seg ml-auto" role="radiogroup" aria-label={t('projects.layout')}>
             <button
               aria-pressed={layout === 'grid'}
@@ -149,6 +258,34 @@ export function ProjectsPage() {
             </button>
           </div>
         </div>
+        {allTags.length > 0 && !bin && (
+          <div
+            className="mb-3 flex flex-wrap items-center gap-1"
+            role="radiogroup"
+            aria-label={t('projects.tags')}
+          >
+            <Tag size={12} className="text-muted" aria-hidden />
+            <button className="hud-chip" aria-pressed={tag === null} onClick={() => setTag(null)}>
+              {t('projects.allTags')}
+            </button>
+            {allTags.map((x) => (
+              <button
+                key={x}
+                className="hud-chip"
+                aria-pressed={tag === x}
+                onClick={() => setTag(tag === x ? null : x)}
+              >
+                {x}
+              </button>
+            ))}
+          </div>
+        )}
+        {bin && <p className="mb-3 text-xs text-muted">{t('projects.trashHint', { days: TRASH_DAYS })}</p>}
+        {err && (
+          <p className="mb-3 text-sm text-danger" role="alert">
+            {err}
+          </p>
+        )}
         {shown === null ? (
           <ul className="grid grid-cols-3 gap-4" aria-busy="true">
             {[0, 1, 2].map((i) => (
@@ -211,19 +348,64 @@ export function ProjectsPage() {
                   <p className="text-xs text-muted">
                     {t('projects.updated', { time: new Date(p.updatedAt).toLocaleString(i18n.language) })}
                   </p>
+                  {p.tags.length > 0 && (
+                    <p className="mt-1 flex flex-wrap gap-1" data-testid="project-tags">
+                      {p.tags.map((x) => (
+                        <span key={x} className="inv-badge static">
+                          {x}
+                        </span>
+                      ))}
+                    </p>
+                  )}
                 </div>
                 <div className={`flex gap-1 ${layout === 'grid' ? 'px-3 pb-3' : ''}`}>
-                  <Link to={`/p/${p.id}/edit`} className="btn btn-primary">
-                    {t('projects.open')}
-                  </Link>
+                  {p.deletedAt ? (
+                    <button
+                      className="btn"
+                      onClick={async () => {
+                        await restoreProject(p.id);
+                        void refresh();
+                      }}
+                      data-testid="project-restore"
+                    >
+                      <ArchiveRestore size={14} aria-hidden /> {t('projects.restore')}
+                    </button>
+                  ) : (
+                    <>
+                      <Link to={`/p/${p.id}/edit`} className="btn btn-primary">
+                        {t('projects.open')}
+                      </Link>
+                      <button
+                        className="icon-btn"
+                        title={t('projects.duplicate')}
+                        onClick={() => void duplicate(p)}
+                      >
+                        <Copy size={14} aria-hidden />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title={t('projects.tags')}
+                        onClick={() => void editTags(p)}
+                        data-testid="project-tag-edit"
+                      >
+                        <Tag size={14} aria-hidden />
+                      </button>
+                      <button
+                        className="icon-btn"
+                        title={t('projects.exportFile')}
+                        onClick={() => void exportFile(p)}
+                        data-testid="project-export"
+                      >
+                        <Download size={14} aria-hidden />
+                      </button>
+                    </>
+                  )}
                   <button
                     className="icon-btn"
-                    title={t('projects.duplicate')}
-                    onClick={() => void duplicate(p)}
+                    title={p.deletedAt ? t('projects.deleteForever') : t('projects.delete')}
+                    onClick={() => void remove(p)}
+                    data-testid="project-delete"
                   >
-                    <Copy size={14} aria-hidden />
-                  </button>
-                  <button className="icon-btn" title={t('projects.delete')} onClick={() => void remove(p)}>
                     <Trash2 size={14} aria-hidden />
                   </button>
                 </div>
@@ -240,6 +422,7 @@ export function ProjectsPage() {
         onOpenChange={setWizard}
         onCreated={(id) => void nav(`/p/${id}/edit`)}
       />
+      {prompt.node}
     </main>
   );
 }

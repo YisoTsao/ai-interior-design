@@ -8,7 +8,11 @@ import {
   deleteProject,
   listProjects,
   loadProject,
+  purgeTrash,
+  restoreProject,
   saveProject,
+  setProjectTags,
+  trashProject,
   startAutosave,
 } from '../src/index.js';
 
@@ -94,5 +98,23 @@ describe('persistence（S2.10）', () => {
     b.getState().load({ projectId: 'p1', projectName: 'n', scene: a.getState().scene });
     expect(b.getState()).toMatchObject({ projectId: 'p1', selection: [], saveStatus: 'saved' });
     expect(b.getState().history.past).toEqual([]);
+  });
+
+  it('標籤與垃圾桶：自動存檔保留標籤；可還原；超過 30 天永久刪除', async () => {
+    const st = createEditorStore({ projectId: 'p_tags', projectName: 't' });
+    await saveProject({ id: 'p_tags', name: 't', scene: st.getState().scene });
+    await setProjectTags('p_tags', ['客戶 A', ' 客戶 A ', '北歐']);
+    await saveProject({ id: 'p_tags', name: 't2', scene: st.getState().scene });
+    let row = (await listProjects()).find((p) => p.id === 'p_tags')!;
+    expect(row.tags).toEqual(['客戶 A', '北歐']);
+    await trashProject('p_tags', new Date('2026-01-01'));
+    row = (await listProjects()).find((p) => p.id === 'p_tags')!;
+    expect(row.deletedAt).toBe('2026-01-01T00:00:00.000Z');
+    await restoreProject('p_tags');
+    expect((await listProjects()).find((p) => p.id === 'p_tags')!.deletedAt).toBeUndefined();
+    await trashProject('p_tags', new Date('2026-01-01'));
+    expect(await purgeTrash(new Date('2026-01-20'))).toEqual([]);
+    expect(await purgeTrash(new Date('2026-02-05'))).toEqual(['p_tags']);
+    expect(await loadProject('p_tags')).toBeNull();
   });
 });

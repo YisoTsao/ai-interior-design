@@ -45,6 +45,12 @@ export interface Viewer3DApi {
   cutWalls(): string[];
   /** 720° 全景（等距柱狀 JPEG dataURL）；位置預設為目前視點（俯瞰時改在目標點的人眼高度） */
   panorama(o?: { width?: number }): string | null;
+  /** 指定解析度出圖（2K／4K；transparent＝去背，無後處理）→ PNG dataURL */
+  capture(o: { width: number; height: number; transparent?: boolean }): string;
+  /** 俯視彩色平面圖（正上方、近似正交）→ PNG dataURL */
+  topPlan(o: { width: number; height: number }): string;
+  /** 匯出 3D 模型（公尺為單位） */
+  exportModel(format: 'glb' | 'obj'): Promise<Blob>;
   /** 以目前畫面（含後處理）輸出 PNG dataURL */
   screenshot(): string | null;
   /** 螢幕座標 → 地面（y=0）世界座標 x,z（拖放資產用） */
@@ -67,5 +73,23 @@ export const viewer3dApi = {
   get: () => current,
   set: (a: Viewer3DApi | null) => {
     current = a;
+  },
+};
+
+/**
+ * 暫時的太陽位置（日照模擬播放時用；不進場景、不進 undo 歷史）。null＝使用場景環境設定。
+ */
+export type SunOverride = { sunAzimuthDeg: number; sunElevationDeg: number; sunIntensity: number } | null;
+let sun: SunOverride = null;
+const sunSubs = new Set<() => void>();
+export const sunOverride = {
+  get: () => sun,
+  set: (v: SunOverride) => {
+    sun = v;
+    sunSubs.forEach((f) => f());
+  },
+  subscribe: (f: () => void) => {
+    sunSubs.add(f);
+    return () => void sunSubs.delete(f);
   },
 };

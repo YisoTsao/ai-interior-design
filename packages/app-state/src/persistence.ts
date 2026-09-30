@@ -8,6 +8,10 @@ export interface ProjectRecord {
   name: string;
   scene: Scene;
   updatedAt: string;
+  /** 標籤（FE-PRJ-02；可當資料夾用） */
+  tags?: string[];
+  /** 移到垃圾桶的時間；30 天後永久刪除 */
+  deletedAt?: string;
 }
 export interface ProjectSummary {
   id: string;
@@ -20,7 +24,11 @@ export interface ProjectSummary {
   /** 室內淨面積 m²（所有樓層、偵測到的房間） */
   areaM2: number;
   levelCount: number;
+  tags: string[];
+  deletedAt?: string;
 }
+/** 垃圾桶保留天數 */
+export const TRASH_DAYS = 30;
 
 export const AUTOSAVE_DEBOUNCE_MS = 1500;
 
@@ -31,7 +39,14 @@ const store = () => (db ??= createIdbStore('interiorai', 'projects'));
 export async function saveProject(rec: Omit<ProjectRecord, 'updatedAt'>): Promise<ProjectRecord> {
   const v = validateScene(rec.scene);
   if (!v.ok) throw new Error(`場景驗證失敗：${v.issues[0]?.message}`);
-  const full = { ...rec, updatedAt: new Date().toISOString() };
+  // 自動存檔只帶 id/name/scene：保留既有的標籤與垃圾桶狀態
+  const prev = await get<ProjectRecord>(rec.id, store());
+  const full: ProjectRecord = {
+    ...(prev?.tags ? { tags: prev.tags } : {}),
+    ...(prev?.deletedAt ? { deletedAt: prev.deletedAt } : {}),
+    ...rec,
+    updatedAt: new Date().toISOString(),
+  };
   await set(rec.id, full, store());
   return full;
 }
@@ -61,11 +76,32 @@ export async function listProjects(): Promise<ProjectSummary[]> {
             1e4,
         ) / 100,
       levelCount: r.scene.levels.length,
+      tags: r.tags ?? [],
+      ...(r.deletedAt ? { deletedAt: r.deletedAt } : {}),
     }))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export const deleteProject = (id: string) => del(id, store());
+
+/** 只改中繼資料（不動 updatedAt，避免排序跳動） */
+async function patchRecord(id: string, f: (r: ProjectRecord) => ProjectRecord) {
+  const r = await get<ProjectRecord>(id, store());
+  if (r) await set(id, f(r), store());
+}
+export const setProjectTags = (id: string, tags: string[]) =>
+  patchRecord(id, (r) => ({ ...r, tags: [...new Set(tags.map((t) => t.trim()).filter(Boolean))] }));
+export const trashProject = (id: string, now = new Date()) =>
+  patchRecord(id, (r) => ({ ...r, deletedAt: now.toISOString() }));
+export const restoreProject = (id: string) => patchRecord(id, ({ deletedAt: _d, ...r }) => r);
+/** 永久刪除超過 TRASH_DAYS 的垃圾桶項目；回傳刪除的 id */
+export async function purgeTrash(now = new Date()): Promise<string[]> {
+  const all = await entries<string, ProjectRecord>(store());
+  const limit = now.getTime() - TRASH_DAYS * 86_400_000;
+  const gone = all.filter(([, r]) => r.deletedAt && Date.parse(r.deletedAt) < limit).map(([k]) => k);
+  await Promise.all(gone.map((k) => del(k, store())));
+  return gone;
+}
 
 /**
  * 自動儲存（S2.10）：scene/名稱變動 debounce 1.5s → IndexedDB。

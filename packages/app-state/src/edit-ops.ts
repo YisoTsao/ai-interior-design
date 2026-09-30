@@ -544,3 +544,62 @@ export function setQuote(patch: QuoteSettings): Command {
 }
 export const quoteOf = (scene: Scene): QuoteSettings =>
   (scene.meta as { quote?: QuoteSettings } | undefined)?.quote ?? {};
+
+/** 專案屬性（FE-PRJ-07）：存在 scene.meta.project */
+export interface ProjectInfo {
+  address?: string;
+  client?: string;
+  /** 預算（TWD） */
+  budget?: number;
+  notes?: string;
+}
+export function setProjectInfo(patch: ProjectInfo): Command {
+  return {
+    id: cid('projectInfo'),
+    label: 'command.projectInfo',
+    do: (d) => {
+      const meta = (d.meta ?? {}) as Record<string, unknown>;
+      meta.project = { ...((meta.project as ProjectInfo | undefined) ?? {}), ...patch };
+      d.meta = meta as Draft<Scene>['meta'];
+    },
+  };
+}
+export const projectInfoOf = (scene: Scene): ProjectInfo =>
+  (scene.meta as { project?: ProjectInfo } | undefined)?.project ?? {};
+
+/** 基地（FE-V3D-06 日照模擬）：緯度、經度、時區、平面圖北向、日期時間；存在 scene.meta.site */
+export interface SiteInfo {
+  lat: number;
+  lon: number;
+  /** UTC 偏移（小時） */
+  tz: number;
+  /** 平面圖的北方相對畫面上方順時針角度 */
+  northDeg: number;
+  /** 當地日期 YYYY-MM-DD */
+  date: string;
+  /** 當地時間（小時，可含小數） */
+  hour: number;
+}
+export const DEFAULT_SITE: SiteInfo = {
+  lat: 25.04,
+  lon: 121.56,
+  tz: 8,
+  northDeg: 0,
+  date: '2026-06-21',
+  hour: 15,
+};
+export const siteOf = (scene: Scene): SiteInfo => ({
+  ...DEFAULT_SITE,
+  ...((scene.meta as { site?: Partial<SiteInfo> } | undefined)?.site ?? {}),
+});
+export function setSite(patch: Partial<SiteInfo>): Command {
+  return {
+    id: cid('site'),
+    label: 'command.site',
+    do: (d) => {
+      const meta = (d.meta ?? {}) as Record<string, unknown>;
+      meta.site = { ...((meta.site as Partial<SiteInfo> | undefined) ?? {}), ...patch };
+      d.meta = meta as Draft<Scene>['meta'];
+    },
+  };
+}
