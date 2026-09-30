@@ -184,3 +184,20 @@ export const until = async <T>(fn: () => Promise<T>, ok: (v: T) => boolean, ms =
     await new Promise((r) => setTimeout(r, 100));
   }
 };
+
+/**
+ * 預簽名 PUT（測試用）：MinIO 偶爾關掉閒置的 keep-alive 連線，undici 重用時會 "other side closed"
+ * → 連線層錯誤重試（不重試 HTTP 錯誤狀態）。
+ */
+export async function fetchRetry(url: string, init?: RequestInit) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fetch(url, init);
+    } catch (e) {
+      if (i >= 3) throw e;
+      await new Promise((r) => setTimeout(r, 100 * (i + 1)));
+    }
+  }
+}
+export const putObject = (url: string, headers: Record<string, string>, body: Uint8Array | Buffer) =>
+  fetchRetry(url, { method: 'PUT', headers, body: new Uint8Array(body) });

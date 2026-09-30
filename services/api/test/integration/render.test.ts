@@ -15,7 +15,15 @@ import { createAiRuntime } from '../../src/ai/runtime.js';
 import type { MockMode } from '../../src/ai/providers/mock.js';
 import { decodePng, encodePng, readPngText } from '../../src/ai/png.js';
 import { Storage } from '../../src/infra/storage.js';
-import { createStack, register, sampleScene, until, type Stack } from '../support/stack.js';
+import {
+  createStack,
+  register,
+  sampleScene,
+  until,
+  type Stack,
+  putObject,
+  fetchRetry,
+} from '../support/stack.js';
 
 let s: Stack;
 let mode: MockMode = 'ok';
@@ -84,7 +92,7 @@ async function upload(token: string, buf: Buffer) {
     token,
     body: { kind: 'gbuffer', filename: 'g.png', mime: 'image/png', sizeBytes: buf.length },
   });
-  await fetch(t.body.putUrl, { method: 'PUT', headers: t.body.headers, body: new Uint8Array(buf) });
+  await putObject(t.body.putUrl, t.body.headers, buf);
   const done = await s.api('POST', `/uploads/${t.body.upload.id}/complete`, { token });
   expect(done.body.status).toBe('uploaded');
   return t.body.upload.id as string;
@@ -132,7 +140,7 @@ const finished = (token: string, id: string) =>
     30_000,
   );
 const balance = async (token: string) => (await s.api('GET', '/credits', { token })).body.balance as number;
-const download = async (url: string) => Buffer.from(await (await fetch(url)).arrayBuffer());
+const download = async (url: string) => Buffer.from(await (await fetchRetry(url)).arrayBuffer());
 
 describe('AI 渲染（mock provider，E2E）', () => {
   it('正常路徑：預扣→渲染→結構驗證通過→結算；輸出含 AI 標示與 provenance', async () => {

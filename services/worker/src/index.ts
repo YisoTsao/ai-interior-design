@@ -5,8 +5,10 @@ import {
   JobsService,
   LedgerService,
   QUEUE_NAME,
+  MockVisionProvider,
   Storage,
   createAiRuntime,
+  createPlanImportProcessor,
   createRedis,
   loadConfig,
   log,
@@ -19,7 +21,7 @@ import {
 /**
  * Worker 程序（04 §5）：可水平擴充（多開幾個程序即可，BullMQ 以 Redis 分派），
  * 另跑兩個維運排程：僵屍預扣回收（每分鐘）、帳本對帳（每 10 分鐘）。
- * processors：render / inpaint（AI 渲染，P4）。
+ * processors：render / inpaint（AI 渲染，P4）、plan_import（平面圖辨識，P5）。
  */
 const config = loadConfig();
 const connection = createRedis(config.redisUrl);
@@ -34,6 +36,12 @@ const ai = await createAiRuntime({ db, storage });
 const processors: Record<string, Processor> = {
   render: ai.processors.render,
   inpaint: ai.processors.inpaint,
+  plan_import: createPlanImportProcessor({
+    db,
+    storage,
+    cvServiceUrl: config.cvServiceUrl,
+    vision: new MockVisionProvider(),
+  }),
 };
 const main = startWorker(
   { connection, jobs, events, timeoutMs: config.jobTimeoutMs },

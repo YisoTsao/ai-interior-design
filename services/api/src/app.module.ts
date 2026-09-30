@@ -32,6 +32,7 @@ import { JOB_EVENTS, JOB_QUEUE, JobsService, QUEUE_NAME } from './modules/jobs/j
 import { JobAccessGuard, JobsController } from './modules/jobs/jobs.controller.js';
 import { HealthController } from './modules/health/health.controller.js';
 import { RendersController } from './modules/renders/renders.controller.js';
+import { PlanImportsController } from './modules/plan-imports/plan-imports.controller.js';
 import { loadModels, type ModelsConfig } from './ai/models.js';
 
 /** 關閉時釋放連線（app.close() 觸發） */
@@ -76,6 +77,7 @@ export class AppModule {
         BillingController,
         JobsController,
         RendersController,
+        PlanImportsController,
         ...(extras.controllers ?? []),
       ],
       providers: [

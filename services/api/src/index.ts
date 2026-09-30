@@ -31,3 +31,5 @@ export { createAiProcessors, type AiDeps, type RenderJobInput } from './ai/rende
 export * from './modules/billing/pricing.js';
 export { createAiRuntime } from './ai/runtime.js';
 export { summarizeScene } from './ai/prompts/scene-summary.js';
+export { createPlanImportProcessor } from './ai/plan-import.processor.js';
+export * from './ai/vision.js';

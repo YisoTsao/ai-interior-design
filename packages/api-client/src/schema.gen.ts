@@ -669,7 +669,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 建立平面圖辨識任務 */
+        /** 建立平面圖辨識任務（DXF／PNG／JPG／WEBP；非同步，進度走 /jobs/{id}） */
         post: {
             parameters: {
                 query?: never;
@@ -679,15 +679,23 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlanImportCreate"];
+                };
+            };
             responses: {
                 /** @description accepted */
                 202: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Job"];
+                    };
                 };
+                404: components["responses"]["Err"];
+                422: components["responses"]["Err"];
             };
         };
         delete?: never;
@@ -700,15 +708,19 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
             cookie?: never;
         };
-        /** 取得辨識結果（Scene 草稿+信心度） */
+        /** 取得辨識結果（PlanResult＋信心度；scale.method=unknown 時只有像素草稿，必須先校正尺度） */
         get: {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
                 cookie?: never;
             };
             requestBody?: never;
@@ -718,8 +730,11 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["PlanImport"];
+                    };
                 };
+                404: components["responses"]["Err"];
             };
         };
         put?: never;
@@ -1853,6 +1868,88 @@ export interface components {
             credits: number;
         };
         Scene: components["schemas"]["scene.schema"];
+        PlanImportCreate: {
+            /** Format: uuid */
+            uploadId: string;
+            hints?: {
+                scaleMmPerPx?: number;
+            };
+        };
+        /** @description cv-service 的解析結果（06 §1）；units=px 表示尺度未知，座標為像素 */
+        PlanResult: {
+            /** @enum {string} */
+            source: "vector" | "raster";
+            /** @enum {string} */
+            units: "mm" | "px";
+            scale: {
+                mmPerPx?: number | null;
+                /** @enum {string} */
+                method: "dimension_ocr" | "user" | "dxf_units" | "unknown";
+                confidence?: number;
+                suggestedMmPerPx?: number | null;
+            } & {
+                [key: string]: unknown;
+            };
+            walls: ({
+                id: string;
+                a: number[];
+                b: number[];
+                thickness: number;
+                confidence: number;
+            } & {
+                [key: string]: unknown;
+            })[];
+            openings: ({
+                id: string;
+                wallId: string;
+                /** @enum {string} */
+                type: "door" | "window" | "passage";
+                offset: number;
+                width: number;
+                height?: number;
+                sill?: number;
+                confidence: number;
+            } & {
+                [key: string]: unknown;
+            })[];
+            rooms?: ({
+                polygon: number[][];
+                label?: string | null;
+                /** @description ocr | vlm | heuristic */
+                labelSource?: string;
+                confidence: number;
+            } & {
+                [key: string]: unknown;
+            })[];
+            labels?: {
+                [key: string]: unknown;
+            }[];
+            image?: {
+                [key: string]: unknown;
+            } | null;
+            warnings?: {
+                code: string;
+                message: string;
+            }[];
+        } & {
+            [key: string]: unknown;
+        };
+        PlanImport: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            state: components["schemas"]["JobState"];
+            progress: number;
+            /** @enum {string|null} */
+            source?: "vector" | "raster" | null;
+            fileName?: string | null;
+            /** @description 點陣原圖的預簽名 GET（校正 UI 疊圖用） */
+            sourceUrl?: string | null;
+            result?: components["schemas"]["PlanResult"] | null;
+            errorCode?: string | null;
+            errorMessage?: string | null;
+        };
         RenderRequest: {
             /** Format: uuid */
             projectId: string;

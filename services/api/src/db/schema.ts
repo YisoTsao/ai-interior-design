@@ -184,6 +184,17 @@ export const renders = pgTable('renders', {
   createdAt: ts('created_at').notNull().defaultNow(),
 });
 
+export const planImports = pgTable('plan_imports', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  jobId: uuid('job_id').notNull(),
+  uploadId: uuid('upload_id').notNull(),
+  source: text('source'),
+  scale: jsonb('scale').$type<Record<string, unknown> | null>(),
+  draftScene: jsonb('draft_scene').$type<Record<string, unknown> | null>(),
+  warnings: jsonb('warnings').notNull().default([]).$type<unknown[]>(),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
 export const creditLedger = pgTable('credit_ledger', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   orgId: uuid('org_id').notNull(),
@@ -252,6 +263,7 @@ export const TABLES = {
   materials,
   jobs,
   renders,
+  plan_imports: planImports,
   credit_ledger: creditLedger,
   credit_balances: creditBalances,
   idempotency_keys: idempotencyKeys,

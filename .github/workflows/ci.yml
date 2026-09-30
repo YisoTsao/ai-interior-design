@@ -43,6 +43,13 @@ jobs:
       - run: pnpm build
       - run: pnpm coverage        # core-geometry 分支覆蓋 ≥90%（P1 Gate）
       - run: pip install jsonschema && python3 tools/validate_scene.py fixtures/scenes/sample-scene.json
+      # P5 起：整合/E2E 會啟動真正的 cv-service（services/cv-service/.venv）
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: sudo apt-get update && sudo apt-get install -y tesseract-ocr
+      - working-directory: services/cv-service
+        run: python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
       # P2 起：
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e        # 使用 mock AI
@@ -68,6 +75,7 @@ jobs:
       - if: steps.has.outputs.cv == '1'
         working-directory: services/cv-service
         run: |
-          pip install -r requirements.txt -r requirements-dev.txt
-          ruff check .
+          sudo apt-get update && sudo apt-get install -y tesseract-ocr
+          pip install -r requirements-dev.txt
           pytest -q
+          python -m eval.run --plans 20   # 與 eval/baseline.json 比較，主要指標退步即失敗（B6.5-5）

@@ -271,6 +271,88 @@ components:
         orgId: { type: string, format: uuid }
         credits: { type: integer, minimum: 1 }
     Scene: { $ref: 'scene.schema.json' }
+    PlanImportCreate:
+      type: object
+      additionalProperties: false
+      required: [uploadId]
+      properties:
+        uploadId: { type: string, format: uuid }
+        hints:
+          type: object
+          additionalProperties: false
+          properties: { scaleMmPerPx: { type: number, exclusiveMinimum: 0 } }
+    PlanResult:
+      type: object
+      description: cv-service 的解析結果（06 §1）；units=px 表示尺度未知，座標為像素
+      required: [source, units, scale, walls, openings]
+      additionalProperties: true
+      properties:
+        source: { type: string, enum: [vector, raster] }
+        units: { type: string, enum: [mm, px] }
+        scale:
+          type: object
+          required: [method]
+          additionalProperties: true
+          properties:
+            mmPerPx: { type: [number, 'null'] }
+            method: { type: string, enum: [dimension_ocr, user, dxf_units, unknown] }
+            confidence: { type: number }
+            suggestedMmPerPx: { type: [number, 'null'] }
+        walls:
+          type: array
+          items:
+            type: object
+            required: [id, a, b, thickness, confidence]
+            additionalProperties: true
+            properties:
+              id: { type: string }
+              a: { type: array, items: { type: number }, minItems: 2, maxItems: 2 }
+              b: { type: array, items: { type: number }, minItems: 2, maxItems: 2 }
+              thickness: { type: number }
+              confidence: { type: number }
+        openings:
+          type: array
+          items:
+            type: object
+            required: [id, wallId, type, offset, width, confidence]
+            additionalProperties: true
+            properties:
+              id: { type: string }
+              wallId: { type: string }
+              type: { type: string, enum: [door, window, passage] }
+              offset: { type: number }
+              width: { type: number }
+              height: { type: number }
+              sill: { type: number }
+              confidence: { type: number }
+        rooms:
+          type: array
+          items:
+            type: object
+            required: [polygon, confidence]
+            additionalProperties: true
+            properties:
+              polygon: { type: array, items: { type: array, items: { type: number } } }
+              label: { type: [string, 'null'] }
+              labelSource: { type: string, description: ocr | vlm | heuristic }
+              confidence: { type: number }
+        labels: { type: array, items: { type: object, additionalProperties: true } }
+        image: { type: [object, 'null'], additionalProperties: true }
+        warnings: { type: array, items: { type: object, required: [code, message], properties: { code: { type: string }, message: { type: string } } } }
+    PlanImport:
+      type: object
+      required: [id, jobId, state, progress]
+      properties:
+        id: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/JobState' }
+        progress: { type: integer }
+        source: { type: [string, 'null'], enum: [vector, raster, null] }
+        fileName: { type: [string, 'null'] }
+        sourceUrl: { type: [string, 'null'], description: 點陣原圖的預簽名 GET（校正 UI 疊圖用） }
+        result: { oneOf: [{ $ref: '#/components/schemas/PlanResult' }, { type: 'null' }] }
+        errorCode: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
     RenderRequest:
       type: object
       additionalProperties: false
@@ -453,8 +535,23 @@ paths:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Upload' } } } }
         '422': { $ref: '#/components/responses/Err' }
   /plan-imports:
-    post: { x-phase: P5, summary: 建立平面圖辨識任務, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } }
-  /plan-imports/{id}: { get: { x-phase: P5, summary: 取得辨識結果（Scene 草稿+信心度）, responses: { '200': { description: ok } } } }
+    post:
+      x-phase: P5
+      summary: 建立平面圖辨識任務（DXF／PNG／JPG／WEBP；非同步，進度走 /jobs/{id}）
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PlanImportCreate' } } } }
+      responses:
+        '202': { description: accepted, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '404': { $ref: '#/components/responses/Err' }
+        '422': { $ref: '#/components/responses/Err' }
+  /plan-imports/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P5
+      summary: 取得辨識結果（PlanResult＋信心度；scale.method=unknown 時只有像素草稿，必須先校正尺度）
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/PlanImport' } } } }
+        '404': { $ref: '#/components/responses/Err' }
   /assets:
     get:
       x-phase: P3

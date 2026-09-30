@@ -3,10 +3,10 @@ import { OpenApiContract, phaseNum } from '../../src/common/openapi.js';
 import { signPayload } from '../../src/modules/billing/billing.controller.js';
 import { encodePng } from '../../src/ai/png.js';
 import { rgba } from '@interiorai/image-ops';
-import { createStack, sampleScene, type Stack } from '../support/stack.js';
+import { createStack, sampleScene, type Stack, putObject } from '../support/stack.js';
 
 /** 目前交付到的 Phase：契約中 x-phase ≤ 此值的 operation 必須全部實作 */
-const CURRENT_PHASE = process.env.CONTRACT_PHASE ?? 'P4';
+const CURRENT_PHASE = process.env.CONTRACT_PHASE ?? 'P5';
 
 let s: Stack;
 let contract: OpenApiContract;
@@ -148,7 +148,7 @@ describe(`API 契約（${CURRENT_PHASE}）`, () => {
         ...t,
         body: { kind: 'gbuffer', filename: `${k}.png`, mime: 'image/png', sizeBytes: png.length },
       });
-      await fetch(tk.body.putUrl, { method: 'PUT', headers: tk.body.headers, body: new Uint8Array(png) });
+      await putObject(tk.body.putUrl, tk.body.headers, png);
       await s.api('POST', `/uploads/${tk.body.upload.id}/complete`, t);
       gb[k] = tk.body.upload.id;
     }
@@ -178,6 +178,22 @@ describe(`API 契約（${CURRENT_PHASE}）`, () => {
     });
     expect(acc.status).toBe(409);
     await call('POST', `/renders/${rj.body.id}/cancel`, '/renders/{id}/cancel', t);
+    // P5：平面圖匯入（沒有 worker → 任務停在 queued）
+    const dxf = Buffer.from('  0\nSECTION\n  2\nENTITIES\n  0\nENDSEC\n  0\nEOF\n');
+    const pu = await s.api('POST', '/uploads', {
+      ...t,
+      body: { kind: 'plan', filename: 'a.dxf', mime: 'application/dxf', sizeBytes: dxf.length },
+    });
+    await putObject(pu.body.putUrl, pu.body.headers, dxf);
+    await s.api('POST', `/uploads/${pu.body.upload.id}/complete`, t);
+    const pi = await call('POST', '/plan-imports', '/plan-imports', {
+      ...t,
+      headers: { 'idempotency-key': `contract-pi-${Date.now()}` },
+      body: { uploadId: pu.body.upload.id },
+    });
+    expect(pi.status).toBe(202);
+    const pg = await call('GET', `/plan-imports/${pi.body.id}`, '/plan-imports/{id}', t);
+    expect(pg.body).toMatchObject({ state: 'queued', result: null });
     await call('DELETE', `/projects/${p.body.id}`, '/projects/{id}', t);
     await call('POST', '/auth/logout', '/auth/logout', { body: { refreshToken: ref.body.refreshToken } });
 

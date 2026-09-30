@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createStack, register, type Stack } from '../support/stack.js';
+import { createStack, register, type Stack, putObject } from '../support/stack.js';
 
 let s: Stack;
 beforeAll(async () => {
@@ -22,7 +22,7 @@ async function upload(
 ) {
   const t = await s.api('POST', '/uploads', { token, body: { kind, filename, mime, sizeBytes: declared } });
   if (t.status !== 201) return { ticket: t, put: null, done: null };
-  const put = await fetch(t.body.putUrl, { method: 'PUT', headers: t.body.headers, body: body });
+  const put = await putObject(t.body.putUrl, t.body.headers, body);
   const done = await s.api('POST', `/uploads/${t.body.upload.id}/complete`, { token });
   return { ticket: t, put, done };
 }

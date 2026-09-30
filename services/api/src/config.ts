@@ -28,6 +28,8 @@ export interface AppConfig {
   /** 任務逾時；僵屍預扣 = 未終態且超過 2× 逾時（ADR-014） */
   jobTimeoutMs: number;
   openapiPath: string;
+  /** cv-service（Python，平面圖辨識） */
+  cvServiceUrl: string;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -80,5 +82,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     jobTimeoutMs: Number(env.JOB_TIMEOUT_MS ?? 5 * 60_000),
     openapiPath: env.OPENAPI_PATH ?? path.join(REPO_ROOT, 'docs/specs/openapi.yaml'),
+    cvServiceUrl: env.CV_SERVICE_URL ?? 'http://localhost:8100',
   };
 }
