@@ -9,6 +9,7 @@ import { materialMap, objectDims, type Catalog, type Material } from '@interiora
 import { pointOnWall, wallLength } from '@interiorai/core-geometry';
 import type { Level, SceneObject, Wall } from '@interiorai/scene-schema';
 import { viewer3dApi } from './api.js';
+import { renderGBuffer } from './gbuffer.js';
 import { DollhouseStage, type QualityState } from './DollhouseStage.js';
 import { buildFurnitureGeometry, buildOpeningFill, styledVariantKey, variantKey } from './furniture.js';
 import { MaterialCache, ResourceScope } from './resources.js';
@@ -100,6 +101,7 @@ function SceneContent({
   const layers = useStore(store, (s) => s.layers);
   const level = useMemo(() => activeLevel({ scene, levelId }), [scene, levelId]);
   const gl = useThree((s) => s.gl);
+  const scene3 = useThree((s) => s.scene);
   const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
   const controls = useRef<OrbitImpl>(null);
@@ -400,6 +402,14 @@ function SceneContent({
       },
       frameAll,
       viewPreset,
+      gbuffer: (o) =>
+        renderGBuffer(
+          gl,
+          scene3,
+          camera as THREE.PerspectiveCamera,
+          controls.current?.target.clone() ?? new THREE.Vector3(),
+          o,
+        ),
       style: () => (dh ? 'dollhouse' : 'simple'),
       cutWalls: () => [...cutWallIds].sort(),
       currentCamera: () => {
@@ -460,7 +470,7 @@ function SceneContent({
               selSet.has(w.id) ? selMat : capMat,
             ]}
             onClick={select(w.id)}
-            userData={{ id: w.id }}
+            userData={{ id: w.id, gkind: 'wall' }}
           />
         ))}
       {layers.structure &&
@@ -477,10 +487,11 @@ function SceneContent({
                 }
                 receiveShadow={dh}
                 onClick={select(r.roomId)}
-                userData={{ id: r.roomId }}
+                userData={{ id: r.roomId, gkind: 'floor' }}
               />
               {showCeiling && (
                 <mesh
+                  userData={{ gkind: 'ceiling', id: r.roomId }}
                   geometry={r.ceiling}
                   material={mats.get(room?.ceilingMaterialId ?? 'mat_ceiling_white', '#fafaf7')}
                 />
@@ -495,6 +506,7 @@ function SceneContent({
           .map((f) => (
             <mesh
               key={f.o.id}
+              userData={{ gkind: 'opening', id: f.o.id }}
               castShadow={dh}
               geometry={f.geom}
               material={
@@ -587,6 +599,7 @@ function FurnitureInstances({
     <instancedMesh
       ref={ref}
       args={[geom, material, objs.length]}
+      userData={{ gkind: 'object', ids: objs.map((o) => o.id) }}
       castShadow={shadows}
       receiveShadow={shadows}
       onClick={(e) => {
@@ -667,7 +680,13 @@ function SelectedObject({
         rotation={[0, obj.rotationY, 0]}
         scale={[s[0], s[1], s[2]]}
       >
-        <mesh geometry={geom} material={mat} castShadow={shadows} receiveShadow={shadows} />
+        <mesh
+          geometry={geom}
+          material={mat}
+          castShadow={shadows}
+          receiveShadow={shadows}
+          userData={{ gkind: 'object', id: obj.id }}
+        />
       </group>
       {ready && proxy.current && !obj.locked && (
         <TransformControls

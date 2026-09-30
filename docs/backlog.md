@@ -44,16 +44,16 @@
 - [x] S4.8 限流/審計 — P3
 
 ## E5 AI 渲染（P4）
-- [ ] S5.1 G-buffer 輸出 — FR-501 — P4
-- [ ] S5.2 Provider 介面 + mock — P4
-- [ ] S5.3 OpenAI provider（未驗證）— P4
-- [ ] S5.4 深度/邊緣控制 provider（未驗證）— P4
-- [ ] S5.5 Router — P4
-- [ ] S5.6 結構驗證 — FR-501 — P4
-- [ ] S5.7 遮罩合成 — FR-503 — P4
-- [ ] S5.8 Prompt 模板 — P4
-- [ ] S5.9 評測 harness — P4
-- [ ] S5.10 渲染 UI（草圖→高清）— FR-502/504 — P4
+- [x] S5.1 G-buffer 輸出 — FR-501 — P4
+- [x] S5.2 Provider 介面 + mock — P4
+- [x] S5.3 OpenAI provider（未驗證）— P4
+- [x] S5.4 深度/邊緣控制 provider（未驗證）— P4
+- [x] S5.5 Router — P4
+- [x] S5.6 結構驗證 — FR-501 — P4
+- [x] S5.7 遮罩合成 — FR-503 — P4
+- [x] S5.8 Prompt 模板 — P4
+- [x] S5.9 評測 harness — P4
+- [x] S5.10 渲染 UI（草圖→高清）— FR-502/504 — P4
 
 ## E6 平面圖匯入（P5）
 - [ ] S6.1 DXF 解析 — FR-102 — P5

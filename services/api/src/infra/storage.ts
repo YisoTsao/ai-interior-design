@@ -20,6 +20,8 @@ export class Storage {
   constructor(cfg: AppConfig['s3']) {
     const base = {
       region: cfg.region,
+      // 物件儲存的暫時性錯誤（socket hang up 等）由 SDK 重試；仍失敗才交給 BullMQ 重跑整個任務
+      maxAttempts: 5,
       forcePathStyle: true,
       credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
     };

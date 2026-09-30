@@ -5,6 +5,8 @@ import {
   JobsService,
   LedgerService,
   QUEUE_NAME,
+  Storage,
+  createAiRuntime,
   createRedis,
   loadConfig,
   log,
@@ -17,7 +19,7 @@ import {
 /**
  * Worker 程序（04 §5）：可水平擴充（多開幾個程序即可，BullMQ 以 Redis 分派），
  * 另跑兩個維運排程：僵屍預扣回收（每分鐘）、帳本對帳（每 10 分鐘）。
- * P4 起在 processors 註冊 render / inpaint。
+ * processors：render / inpaint（AI 渲染，P4）。
  */
 const config = loadConfig();
 const connection = createRedis(config.redisUrl);
@@ -27,7 +29,12 @@ const events = new JobEvents(connection, connection.duplicate());
 const queue = new Queue(QUEUE_NAME, { connection });
 const jobs = new JobsService(db, new LedgerService(db), queue, events);
 
-const processors: Record<string, Processor> = {};
+const storage = new Storage(config.s3);
+const ai = await createAiRuntime({ db, storage });
+const processors: Record<string, Processor> = {
+  render: ai.processors.render,
+  inpaint: ai.processors.inpaint,
+};
 const main = startWorker(
   { connection, jobs, events, timeoutMs: config.jobTimeoutMs },
   processors,

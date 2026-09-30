@@ -30,6 +30,8 @@ export class JobFailure extends Error {
     readonly code: string,
     message: string,
     readonly provenance?: Record<string, unknown>,
+    /** 失敗時仍要保存的輸出（例如未通過驗證的浮水印預覽，ADR-012 §4） */
+    readonly output?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -86,13 +88,18 @@ export function startWorker(
         if (e instanceof JobFailure) {
           // 取消：API 端已轉 canceled 並退款，這裡只要停下來（不進死信）
           if (e.code === 'CANCELED') return { canceled: true };
-          await deps.jobs.fail(orgId, jobId, e.code, e.message, e.provenance);
+          await deps.jobs.fail(orgId, jobId, e.code, e.message, e.provenance, e.output);
           throw new UnrecoverableError(e.message);
         }
         if (e instanceof ApiError) {
           await deps.jobs.fail(orgId, jobId, e.code, e.message);
           throw new UnrecoverableError(e.message);
         }
+        log.warn('job.attempt_error', {
+          jobId,
+          attempt: bj.attemptsMade + 1,
+          err: (e as Error)?.stack ?? String(e),
+        });
         throw e; // 交給 BullMQ 重試
       } finally {
         clearTimeout(timer);

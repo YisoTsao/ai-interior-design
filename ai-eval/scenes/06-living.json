@@ -1,0 +1,141 @@
+{
+  "id": "06-living",
+  "kind": "living",
+  "scene": {
+    "schemaVersion": "1.0.0",
+    "units": "mm",
+    "levels": [
+      {
+        "id": "lvl_01M3RD8HH2XYGN03DRG9HDE1FN",
+        "name": "1F",
+        "elevation": 0,
+        "height": 2800,
+        "walls": [
+          {
+            "id": "w_01M3RD8HH220TV1PNCB44ASSHC",
+            "a": [0, 0],
+            "b": [4000, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HH2TNTYH8P05FF3NR6X",
+            "a": [4000, 0],
+            "b": [4000, 4800],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HH2HQZF8A5YR06HKM6R",
+            "a": [4000, 4800],
+            "b": [0, 4800],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HH2723P12DQG7GFW8Z0",
+            "a": [0, 4800],
+            "b": [0, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          }
+        ],
+        "openings": [
+          {
+            "wallId": "w_01M3RD8HH220TV1PNCB44ASSHC",
+            "type": "door",
+            "offset": 200,
+            "width": 900,
+            "height": 2100,
+            "sill": 0,
+            "id": "o_01M3RD8HH25D38Z64VHYTSDTEX"
+          },
+          {
+            "wallId": "w_01M3RD8HH2HQZF8A5YR06HKM6R",
+            "type": "window",
+            "offset": 1300,
+            "width": 1400,
+            "height": 1300,
+            "sill": 900,
+            "id": "o_01M3RD8HH2C011904S4JP77ZV6"
+          }
+        ],
+        "rooms": [
+          {
+            "id": "r_01M3RD8HH2F28NQDJJ020PW9PK",
+            "floorMaterialId": "mat_tile_grey60",
+            "wallIds": [
+              "w_01M3RD8HH220TV1PNCB44ASSHC",
+              "w_01M3RD8HH2723P12DQG7GFW8Z0",
+              "w_01M3RD8HH2HQZF8A5YR06HKM6R",
+              "w_01M3RD8HH2TNTYH8P05FF3NR6X"
+            ],
+            "label": "客廳"
+          }
+        ],
+        "objects": [
+          {
+            "catalogId": "sofa_3seat_a",
+            "position": [2000, 0, 4100],
+            "rotationY": 3.141592653589793,
+            "id": "obj_01M3RD8HH2Q5BRET66SPVYH6TK",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "table_coffee_a",
+            "position": [2000, 0, 3100],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH2CSM82R15Y0JRD3HH",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "rug_2000",
+            "position": [2000, 0, 3100],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH28YCYBCBNCES8A013",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "tvstand_1800",
+            "position": [2000, 0, 350],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH38SB3CRHYX2Q49PPB",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "plant_a",
+            "position": [3600, 0, 4400],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH3APWGC0ACHFKC6HDG",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "armchair_a",
+            "position": [3300, 0, 2900],
+            "rotationY": -1.5707963267948966,
+            "id": "obj_01M3RD8HH3RQN2SZV46J31T2K0",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "lamp_floor_a",
+            "position": [400, 0, 4400],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH30P29QZWY3EKW6PBB",
+            "scale": [1, 1, 1]
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "source": "manual"
+    }
+  }
+}

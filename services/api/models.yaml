@@ -1,18 +1,27 @@
 # AI 模型註冊表（專案內位置：services/api/models.yaml；部署可用環境變數 MODELS_CONFIG 覆寫）。名稱與價格會變動：實作/部署前 MUST 以各供應商官方文件核對，勿信此檔的預設值。
 # verified_at 留空代表尚未核對；`python tools/check_models.py services/api/models.yaml` 對超過 30 天者警告（--strict 時失敗）。
+# 2026-09-30 核對紀錄（P4）：
+# - OpenAI：developers.openai.com API reference「Create image edit」— POST /images/edits；model 可為 gpt-image-2 等；
+#   image[] 最多 16 張（GPT 模型，<50MB，png/webp/jpg）；mask 為 PNG、<4MB、與 image 同尺寸、多張時只套用第一張；
+#   size 可為 WxH（邊長為 16 的倍數、長寬比 1:3–3:1、最大 3840x2160）；回應 data[].b64_json 與 usage（token 計價）。
+#   單價未核對 → cost_usd_per_image 仍為〔假設〕。
+# - BFL（FLUX）：docs.bfl.ai integration guidelines — 認證標頭 x-key；以回應中的 polling_url GET 輪詢；status Ready 時
+#   result.sample 為圖片 URL（10 分鐘後失效）。FLUX.1 depth/canny [pro] 端點未出現在現行指南 → endpoint 未核對（verified_at: null）。
 providers:
   openai:
+    base_url: "https://api.openai.com/v1"
     image:
-      render_edit: { model: "gpt-image-2", endpoint: "/v1/images/edits", max_refs: 16, mask: true, verified_at: null, note: "遮罩需 PNG<4MB 且同尺寸，僅作用於第一張；以官方模型頁核對最新變體" }
+      render_edit: { model: "gpt-image-2", endpoint: "/images/edits", max_refs: 16, mask: true, max_size: 3840, size_multiple: 16, cost_usd_per_image: 0.19, verified_at: "2026-09-30", note: "端點/參數已核對；cost_usd_per_image 為〔假設〕（官方以 token 計價，未核對單價）" }
     chat: { model: "TODO-verify", verified_at: null }
     vision: { model: "TODO-verify", verified_at: null }
   flux:
-    depth_control: { model: "flux-depth (BFL/Replicate/fal)", verified_at: null }
-    canny_control: { model: "flux-canny", verified_at: null }
-    fill: { model: "flux-fill", verified_at: null }
+    base_url: "https://api.bfl.ai"
+    depth_control: { model: "flux-pro-1.0-depth", endpoint: "/v1/flux-pro-1.0-depth", cost_usd_per_image: 0.15, verified_at: null, note: "認證/輪詢格式已核對（2026-09-30）；此端點未列於現行指南，使用前需確認" }
+    canny_control: { model: "flux-pro-1.0-canny", endpoint: "/v1/flux-pro-1.0-canny", cost_usd_per_image: 0.15, verified_at: null }
+    fill: { model: "flux-pro-1.0-fill", endpoint: "/v1/flux-pro-1.0-fill", cost_usd_per_image: 0.15, verified_at: null }
     edit: { model: "flux-kontext / flux-2 edit", verified_at: null }
   mock:
-    image: { model: "mock-deterministic", modes: ["ok", "break_structure", "slow", "fail"] }
+    image: { model: "mock-deterministic", modes: ["ok", "break_structure", "slow", "fail"], cost_usd_per_image: 0 }
 routing:
   balanced: { primary: "openai.image.render_edit", fallback: ["flux.depth_control"] }
   strict:   { primary: "flux.depth_control", fallback: [] }
@@ -28,3 +37,5 @@ structure_validation:
 retries: { provider_call_max: 2, validation_max: 2 }
 # 點數價目：無定價資料前只放佔位，標〔假設〕；成本目標 ≤ 40% 售價。
 pricing_credits: { note: "〔假設〕待商業定價", draft_1k: 1, final_2k: 3, final_4k: 8, inpaint: 1 }
+# 每日 AI 任務上限（依方案，〔假設〕）
+daily_job_limit: { free: 50, pro: 500 }

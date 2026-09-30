@@ -4,3 +4,4 @@ export * from './resources.js';
 export * from './walls3d.js';
 export * from './style.js';
 export * from './furniture.js';
+export * from './gbuffer.js';

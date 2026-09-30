@@ -38,7 +38,7 @@
       "saving": "儲存中…",
       "error": "儲存失敗"
     },
-    "render": "AI 渲染（P4 開放）",
+    "render": "AI 渲染",
     "personView": "人視角",
     "frameAll": "全景",
     "bookmark": "儲存視角",
@@ -243,5 +243,85 @@
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
   },
-  "lang": "English"
+  "lang": "English",
+  "render": {
+    "title": "AI 渲染",
+    "close": "關閉",
+    "loginHint": "AI 渲染在雲端執行，請先登入（新帳號贈送點數）。",
+    "balance": "餘額 {{n}} 點",
+    "style": "風格",
+    "styles": {
+      "modern": "現代簡約",
+      "scandinavian": "北歐",
+      "japandi": "日式侘寂",
+      "industrial": "工業風",
+      "luxury": "輕奢"
+    },
+    "strictness": "結構嚴格度",
+    "strict": {
+      "free": "自由",
+      "balanced": "平衡",
+      "strict": "嚴格"
+    },
+    "strictHint": {
+      "free": "風格變化較大，結構允許小幅偏差",
+      "balanced": "保留牆、門窗與家具位置（預設）",
+      "strict": "以深度圖控制構圖，偏差最小"
+    },
+    "resolution": "解析度",
+    "res": {
+      "1k": "1K 草圖",
+      "2k": "2K",
+      "4k": "4K"
+    },
+    "confirm4k": "確認產生 4K（{{n}} 點）",
+    "extra": "額外要求（選填）",
+    "submit": "產生效果圖（{{n}} 點）",
+    "need3d": "請先切換到 3D 檢視",
+    "state": {
+      "queued": "排隊中",
+      "running": "產生中",
+      "validating": "檢查結構中",
+      "succeeded": "完成",
+      "failed": "失敗",
+      "canceled": "已取消"
+    },
+    "retries": "重試 {{n}} 次",
+    "cancel": "取消",
+    "progress": "進度",
+    "validation": "結構分數 {{score}}（門檻 {{threshold}}）",
+    "uncalibrated": "門檻未校準",
+    "resultAlt": "AI 效果圖",
+    "clayAlt": "白模",
+    "compare": "比較白模與效果圖",
+    "accept": "仍要使用（扣 {{n}} 點，取得無浮水印原圖）",
+    "download": "下載",
+    "inpaintHint": "在 3D 中選取物件後可局部重繪",
+    "inpaintSelected": "已選 {{n}} 個物件",
+    "inpaintPlaceholder": "要改成什麼？例：換成墨綠色絨布沙發",
+    "inpaint": "局部重繪（{{n}} 點）",
+    "err": {
+      "AUTH_REQUIRED": "email 或密碼錯誤，或登入已過期",
+      "CONFLICT": "此 email 已註冊",
+      "INSUFFICIENT_CREDITS": "點數不足",
+      "CREDITS_FROZEN": "點數帳戶暫停使用，請聯絡客服",
+      "RATE_LIMITED": "已達今日上限或請求過於頻繁",
+      "MODERATION_BLOCKED": "內容不符合使用規範",
+      "VALIDATION_FAILED": "輸入不正確",
+      "JOB_FAILED": "結構驗證未通過：AI 可能改動了牆或家具位置。點數已退回。",
+      "PROVIDER_UNAVAILABLE": "AI 服務暫時無法使用，點數已退回，請稍後再試",
+      "NETWORK": "無法連線到伺服器",
+      "CANCELED": "已取消"
+    },
+    "inpaintDone": "已重繪所選物件；遮罩外像素與原圖逐位元相同"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "密碼（至少 8 字元）",
+    "login": "登入",
+    "register": "註冊",
+    "toRegister": "沒有帳號？註冊",
+    "toLogin": "已有帳號？登入",
+    "logout": "登出"
+  }
 }

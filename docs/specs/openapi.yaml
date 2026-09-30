@@ -273,21 +273,65 @@ components:
     Scene: { $ref: 'scene.schema.json' }
     RenderRequest:
       type: object
+      additionalProperties: false
       required: [projectId, versionId, camera, gbufferUploadIds, settings]
       properties:
         projectId: { type: string, format: uuid }
         versionId: { type: string, format: uuid }
-        camera: { type: object }
-        gbufferUploadIds: { type: object, required: [color, depth, edge, objectId], properties: { color: { type: string }, depth: { type: string }, edge: { type: string }, objectId: { type: string }, normal: { type: string } } }
+        camera: { type: object, additionalProperties: true }
+        gbufferUploadIds:
+          type: object
+          additionalProperties: false
+          required: [color, depth, edge, objectId]
+          properties: { color: { type: string, format: uuid }, depth: { type: string, format: uuid }, edge: { type: string, format: uuid }, objectId: { type: string, format: uuid }, normal: { type: string, format: uuid } }
+        idMap:
+          description: G-buffer objectId 顏色編碼（整數字串）→ 場景物件（局部重繪用）
+          type: object
+          maxProperties: 20000
+          additionalProperties: { type: object, required: [id, kind], properties: { id: { type: string }, kind: { type: string } } }
         settings:
           type: object
+          additionalProperties: false
           required: [styleTemplateId, strictness, resolution]
           properties:
-            styleTemplateId: { type: string }
+            styleTemplateId: { type: string, enum: [modern, scandinavian, japandi, industrial, luxury] }
             extra: { type: string, maxLength: 300 }
             strictness: { type: string, enum: [free, balanced, strict] }
             resolution: { type: string, enum: ['1k', '2k', '4k'] }
-            referenceUploadIds: { type: array, items: { type: string } }
+            confirmHighRes: { type: boolean, description: 4K 需使用者確認（B6.2-5） }
+            referenceUploadIds: { type: array, maxItems: 4, items: { type: string, format: uuid } }
+    InpaintRequest:
+      type: object
+      additionalProperties: false
+      required: [objectIds, instruction]
+      properties:
+        objectIds: { type: array, minItems: 1, maxItems: 50, items: { type: string } }
+        instruction: { type: string, minLength: 1, maxLength: 300 }
+    Render:
+      type: object
+      required: [id, jobId, projectId, kind, state, progress, costCredits, accepted]
+      properties:
+        id: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        versionId: { type: [string, 'null'], format: uuid }
+        kind: { type: string, enum: [render, inpaint] }
+        baseRenderId: { type: [string, 'null'], format: uuid }
+        state: { $ref: '#/components/schemas/JobState' }
+        progress: { type: integer }
+        settings: { type: object, additionalProperties: true }
+        width: { type: [integer, 'null'] }
+        height: { type: [integer, 'null'] }
+        validation:
+          type: [object, 'null']
+          properties: { score: { type: [number, 'null'] }, passed: { type: [boolean, 'null'] }, threshold: { type: number }, calibrated: { type: boolean } }
+        outputUrl: { type: [string, 'null'], description: 預簽名 GET（5 分鐘）；未通過驗證者須先 accept }
+        previewUrl: { type: [string, 'null'], description: 未通過驗證時的 1K 浮水印預覽（不可下載原圖） }
+        accepted: { type: boolean, description: 使用者選擇「仍要使用」未通過驗證的結果（ADR-012 §5） }
+        costCredits: { type: integer }
+        errorCode: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
+        provenance: { type: [object, "null"], additionalProperties: true }
   responses:
     Err: { description: Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 paths:
@@ -439,16 +483,75 @@ paths:
       x-phase: P3
       summary: 材質列表（published）
       responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/MaterialList' } } } } }
+  /pricing:
+    get:
+      x-phase: P4
+      security: []
+      summary: 點數價目（〔假設〕待商業定價；前端送出前顯示預估）
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [render, inpaint, styles]
+                properties:
+                  render: { type: object, required: ['1k', '2k', '4k'], properties: { '1k': { type: integer }, '2k': { type: integer }, '4k': { type: integer } } }
+                  inpaint: { type: integer }
+                  styles: { type: array, items: { type: string } }
   /renders:
     post:
       x-phase: P4
-      summary: 建立渲染任務（預扣點數）
+      summary: 建立渲染任務（預扣點數；4K 需 confirmHighRes）
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RenderRequest' } } } }
-      responses: { '202': { description: accepted, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }, '402': { $ref: '#/components/responses/Err' }, '422': { $ref: '#/components/responses/Err' }, '429': { $ref: '#/components/responses/Err' } }
-  /renders/{id}: { get: { x-phase: P4, summary: 取得渲染結果, responses: { '200': { description: ok } } } }
-  /renders/{id}/cancel: { post: { x-phase: P4, summary: 取消, responses: { '200': { description: ok } } } }
-  /renders/{id}/inpaint: { post: { x-phase: P4, summary: 局部重繪, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RenderRequest' } } } }
+      responses:
+        '202': { description: accepted, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '402': { $ref: '#/components/responses/Err' }
+        '404': { $ref: '#/components/responses/Err' }
+        '422': { $ref: '#/components/responses/Err' }
+        '423': { $ref: '#/components/responses/Err' }
+        '429': { $ref: '#/components/responses/Err' }
+  /renders/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P4
+      summary: 取得渲染結果（含預簽名 URL 與 provenance）
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Render' } } } }
+        '404': { $ref: '#/components/responses/Err' }
+  /renders/{id}/cancel:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      x-phase: P4
+      summary: 取消（退回預扣點數）
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '409': { $ref: '#/components/responses/Err' }
+  /renders/{id}/inpaint:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      x-phase: P4
+      summary: 局部重繪（遮罩由所選物件的 objectId 產生；遮罩外像素逐位元還原）
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/InpaintRequest' } } } }
+      responses:
+        '202': { description: accepted, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '402': { $ref: '#/components/responses/Err' }
+        '404': { $ref: '#/components/responses/Err' }
+        '409': { $ref: '#/components/responses/Err' }
+        '422': { $ref: '#/components/responses/Err' }
+  /renders/{id}/accept:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      x-phase: P4
+      summary: 仍要使用未通過驗證的結果（以 adjust 帳本項目扣回實際成本後提供無浮水印下載，ADR-012 §5）
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Render' } } } }
+        '402': { $ref: '#/components/responses/Err' }
+        '409': { $ref: '#/components/responses/Err' }
   /jobs/{id}:
     parameters: [{ $ref: '#/components/parameters/Id' }]
     get:

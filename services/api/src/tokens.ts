@@ -6,3 +6,4 @@ export const SYSTEM_DB = Symbol('SYSTEM_DB');
 export const REDIS = Symbol('REDIS');
 export const STORAGE = Symbol('STORAGE');
 export const AUTH_PROVIDER = Symbol('AUTH_PROVIDER');
+export const MODELS = Symbol('MODELS');

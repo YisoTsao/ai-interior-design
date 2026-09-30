@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ArrowLeft, Bookmark, Box, Eye, Leaf, Map, Maximize, Redo2, Sparkles, Undo2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Box, Eye, Leaf, Map, Maximize, Redo2, Undo2 } from 'lucide-react';
 import {
   activeLevel,
   addObject,
@@ -25,6 +25,7 @@ import { EditorCtx, useEditor, useEditorStore } from '../editor/context';
 import { CanvasBoundary } from '../editor/ErrorBoundary';
 import { Inspector } from '../editor/Inspector';
 import { LeftPanel } from '../editor/LeftPanel';
+import { RenderPanel } from '../editor/RenderPanel';
 import { useShortcuts, type TransformMode } from '../editor/shortcuts';
 import { usePrefs } from '../prefs';
 import { useCanvasTheme } from '../theme';
@@ -391,9 +392,7 @@ function TopBar({
           </select>
         </label>
         <LangToggle />
-        <button className="btn whitespace-nowrap" disabled title={t('top.render')}>
-          <Sparkles size={16} aria-hidden /> {t('top.render')}
-        </button>
+        {view === '3d' && <RenderPanel />}
       </div>
     </header>
   );

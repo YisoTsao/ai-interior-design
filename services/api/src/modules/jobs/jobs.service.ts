@@ -162,13 +162,21 @@ export class JobsService {
       .then((x) => this.emit(x));
   }
 
-  fail(orgId: string, id: string, code: string, message: string, provenance?: Record<string, unknown>) {
+  fail(
+    orgId: string,
+    id: string,
+    code: string,
+    message: string,
+    provenance?: Record<string, unknown>,
+    output?: Record<string, unknown>,
+  ) {
     return this.db
       .tx(orgId, async (tx) => {
         const row = await this.transition(tx, id, 'failed', {
           errorCode: code,
           errorMessage: message.slice(0, 500),
           ...(provenance ? { provenance } : {}),
+          ...(output ? { output } : {}),
         });
         if (row) await this.ledger.refund(tx, orgId, id, { code });
         return row;

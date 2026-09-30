@@ -173,6 +173,7 @@ export function DollhouseStage({
         material={mats.get('style_board_wood', '#a98462')}
         position={[center.x, -DOLLHOUSE.boardThickness / 2 - 2, center.z]}
         receiveShadow
+        userData={{ gkind: 'board', id: 'board' }}
       />
     </>
   );

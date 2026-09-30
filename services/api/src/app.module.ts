@@ -6,7 +6,7 @@ import { Queue } from 'bullmq';
 import type { Redis } from 'ioredis';
 import cookieParser from 'cookie-parser';
 import type { AppConfig } from './config.js';
-import { AUTH_PROVIDER, CONFIG, CONTRACT, DB, REDIS, STORAGE } from './tokens.js';
+import { AUTH_PROVIDER, CONFIG, CONTRACT, DB, MODELS, REDIS, STORAGE } from './tokens.js';
 import { Db } from './db/db.js';
 import { createRedis } from './infra/redis.js';
 import { Storage } from './infra/storage.js';
@@ -31,6 +31,8 @@ import { JobEvents } from './modules/jobs/job-events.js';
 import { JOB_EVENTS, JOB_QUEUE, JobsService, QUEUE_NAME } from './modules/jobs/jobs.service.js';
 import { JobAccessGuard, JobsController } from './modules/jobs/jobs.controller.js';
 import { HealthController } from './modules/health/health.controller.js';
+import { RendersController } from './modules/renders/renders.controller.js';
+import { loadModels, type ModelsConfig } from './ai/models.js';
 
 /** 關閉時釋放連線（app.close() 觸發） */
 @Injectable()
@@ -57,7 +59,12 @@ export interface AppExtras {
 
 @Module({})
 export class AppModule {
-  static forRoot(config: AppConfig, contract: OpenApiContract, extras: AppExtras = {}): DynamicModule {
+  static forRoot(
+    config: AppConfig,
+    contract: OpenApiContract,
+    models: ModelsConfig,
+    extras: AppExtras = {},
+  ): DynamicModule {
     return {
       module: AppModule,
       controllers: [
@@ -68,11 +75,13 @@ export class AppModule {
         AssetsController,
         BillingController,
         JobsController,
+        RendersController,
         ...(extras.controllers ?? []),
       ],
       providers: [
         { provide: CONFIG, useValue: config },
         { provide: CONTRACT, useValue: contract },
+        { provide: MODELS, useValue: models },
         { provide: DB, useFactory: () => new Db(config.databaseUrl) },
         { provide: REDIS, useFactory: () => createRedis(config.redisUrl) },
         { provide: STORAGE, useFactory: () => new Storage(config.s3) },
@@ -105,10 +114,14 @@ export class AppModule {
 
 export async function createApp(config: AppConfig, extras: AppExtras = {}): Promise<NestExpressApplication> {
   const contract = await OpenApiContract.load(config.openapiPath);
-  const app = await NestFactory.create<NestExpressApplication>(AppModule.forRoot(config, contract, extras), {
-    rawBody: true,
-    logger: process.env.LOG_LEVEL === 'silent' ? false : ['error', 'warn'],
-  });
+  const models = await loadModels();
+  const app = await NestFactory.create<NestExpressApplication>(
+    AppModule.forRoot(config, contract, models, extras),
+    {
+      rawBody: true,
+      logger: process.env.LOG_LEVEL === 'silent' ? false : ['error', 'warn'],
+    },
+  );
   app.setGlobalPrefix('v1');
   app.use(requestId);
   app.use(cookieParser());

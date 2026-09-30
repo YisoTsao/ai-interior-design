@@ -872,6 +872,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 點數價目（〔假設〕待商業定價；前端送出前顯示預估） */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ok */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            render: {
+                                "1k": number;
+                                "2k": number;
+                                "4k": number;
+                            };
+                            inpaint: number;
+                            styles: string[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/renders": {
         parameters: {
             query?: never;
@@ -881,7 +925,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 建立渲染任務（預扣點數） */
+        /** 建立渲染任務（預扣點數；4K 需 confirmHighRes） */
         post: {
             parameters: {
                 query?: never;
@@ -891,7 +935,7 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: {
+            requestBody: {
                 content: {
                     "application/json": components["schemas"]["RenderRequest"];
                 };
@@ -907,7 +951,9 @@ export interface paths {
                     };
                 };
                 402: components["responses"]["Err"];
+                404: components["responses"]["Err"];
                 422: components["responses"]["Err"];
+                423: components["responses"]["Err"];
                 429: components["responses"]["Err"];
             };
         };
@@ -921,15 +967,19 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
             cookie?: never;
         };
-        /** 取得渲染結果 */
+        /** 取得渲染結果（含預簽名 URL 與 provenance） */
         get: {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
                 cookie?: never;
             };
             requestBody?: never;
@@ -939,8 +989,11 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Render"];
+                    };
                 };
+                404: components["responses"]["Err"];
             };
         };
         put?: never;
@@ -955,17 +1008,21 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** 取消 */
+        /** 取消（退回預扣點數） */
         post: {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
                 cookie?: never;
             };
             requestBody?: never;
@@ -975,8 +1032,11 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Job"];
+                    };
                 };
+                409: components["responses"]["Err"];
             };
         };
         delete?: never;
@@ -989,30 +1049,88 @@ export interface paths {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** 局部重繪 */
+        /** 局部重繪（遮罩由所選物件的 objectId 產生；遮罩外像素逐位元還原） */
         post: {
             parameters: {
                 query?: never;
                 header: {
                     "Idempotency-Key": components["parameters"]["IdempotencyKey"];
                 };
-                path?: never;
+                path: {
+                    id: components["parameters"]["Id"];
+                };
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InpaintRequest"];
+                };
+            };
             responses: {
                 /** @description accepted */
                 202: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["Job"];
+                    };
                 };
+                402: components["responses"]["Err"];
+                404: components["responses"]["Err"];
+                409: components["responses"]["Err"];
+                422: components["responses"]["Err"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/renders/{id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["Id"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 仍要使用未通過驗證的結果（以 adjust 帳本項目扣回實際成本後提供無浮水印下載，ADR-012 §5） */
+        post: {
+            parameters: {
+                query?: never;
+                header: {
+                    "Idempotency-Key": components["parameters"]["IdempotencyKey"];
+                };
+                path: {
+                    id: components["parameters"]["Id"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ok */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Render"];
+                    };
+                };
+                402: components["responses"]["Err"];
+                409: components["responses"]["Err"];
             };
         };
         delete?: never;
@@ -1740,23 +1858,83 @@ export interface components {
             projectId: string;
             /** Format: uuid */
             versionId: string;
-            camera: Record<string, never>;
+            camera: {
+                [key: string]: unknown;
+            };
             gbufferUploadIds: {
+                /** Format: uuid */
                 color: string;
+                /** Format: uuid */
                 depth: string;
+                /** Format: uuid */
                 edge: string;
+                /** Format: uuid */
                 objectId: string;
+                /** Format: uuid */
                 normal?: string;
             };
+            /** @description G-buffer objectId 顏色編碼（整數字串）→ 場景物件（局部重繪用） */
+            idMap?: {
+                [key: string]: {
+                    id: string;
+                    kind: string;
+                };
+            };
             settings: {
-                styleTemplateId: string;
+                /** @enum {string} */
+                styleTemplateId: "modern" | "scandinavian" | "japandi" | "industrial" | "luxury";
                 extra?: string;
                 /** @enum {string} */
                 strictness: "free" | "balanced" | "strict";
                 /** @enum {string} */
                 resolution: "1k" | "2k" | "4k";
+                /** @description 4K 需使用者確認（B6.2-5） */
+                confirmHighRes?: boolean;
                 referenceUploadIds?: string[];
             };
+        };
+        InpaintRequest: {
+            objectIds: string[];
+            instruction: string;
+        };
+        Render: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            versionId?: string | null;
+            /** @enum {string} */
+            kind: "render" | "inpaint";
+            /** Format: uuid */
+            baseRenderId?: string | null;
+            state: components["schemas"]["JobState"];
+            progress: number;
+            settings?: {
+                [key: string]: unknown;
+            };
+            width?: number | null;
+            height?: number | null;
+            validation?: {
+                score?: number | null;
+                passed?: boolean | null;
+                threshold?: number;
+                calibrated?: boolean;
+            } | null;
+            /** @description 預簽名 GET（5 分鐘）；未通過驗證者須先 accept */
+            outputUrl?: string | null;
+            /** @description 未通過驗證時的 1K 浮水印預覽（不可下載原圖） */
+            previewUrl?: string | null;
+            /** @description 使用者選擇「仍要使用」未通過驗證的結果（ADR-012 §5） */
+            accepted: boolean;
+            costCredits: number;
+            errorCode?: string | null;
+            errorMessage?: string | null;
+            provenance?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** @description 程式產生用『前綴_ULID』；可讀 ID（如 w_01）僅限 fixtures（ADR-013） */
         id: string;

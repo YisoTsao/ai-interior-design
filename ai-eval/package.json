@@ -1,0 +1,17 @@
+{
+  "name": "@interiorai/ai-eval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scenes": "node scripts/make-scenes.mjs",
+    "gbuffers": "node scripts/make-gbuffers.mjs",
+    "run": "node run.mjs"
+  },
+  "dependencies": {
+    "@interiorai/api": "workspace:^",
+    "@interiorai/app-state": "workspace:^",
+    "@interiorai/image-ops": "workspace:^",
+    "@interiorai/scene-schema": "workspace:^"
+  }
+}

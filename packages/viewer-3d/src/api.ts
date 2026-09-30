@@ -1,3 +1,4 @@
+import type { GBuffer } from './gbuffer.js';
 import type { ViewPreset, ViewStyle } from './style.js';
 
 export interface Viewer3DInfo {
@@ -24,6 +25,8 @@ export interface Viewer3DApi {
   /** 剖面模型的視角預設（簡易模式也可用，會套用剖面相機限制） */
   viewPreset(p: ViewPreset): void;
   style(): ViewStyle;
+  /** 以目前相機產生 G-buffer（03 §6；AI 渲染前置） */
+  gbuffer(o: { width: number; height: number; clay?: boolean }): GBuffer;
   /** 目前被降為剖面高度的牆 id（測試用） */
   cutWalls(): string[];
   currentCamera(): { position: [number, number, number]; target: [number, number, number]; fovDeg: number };

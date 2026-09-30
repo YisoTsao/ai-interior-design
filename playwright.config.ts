@@ -21,10 +21,21 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     trace: 'retain-on-failure',
   },
-  webServer: {
-    command: 'pnpm --filter @interiorai/web build && pnpm --filter @interiorai/web preview',
-    url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      // P4：完整後端（Testcontainers＋API＋worker，mock AI）；需要 Docker
+      command: 'pnpm --filter @interiorai/api build && node services/api/scripts/e2e-backend.mjs',
+      url: 'http://localhost:3100/v1/healthz',
+      reuseExistingServer: !process.env.CI,
+      timeout: 300_000,
+      stdout: 'pipe',
+    },
+    {
+      command: 'pnpm --filter @interiorai/web build && pnpm --filter @interiorai/web preview',
+      url: 'http://localhost:4173',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: { VITE_API_URL: 'http://localhost:3100/v1' },
+    },
+  ],
 });

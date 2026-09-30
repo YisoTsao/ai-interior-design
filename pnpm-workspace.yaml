@@ -3,3 +3,4 @@ packages:
   - "packages/*"
   - "services/*"
   - "tools/bench-2d"
+  - "ai-eval"

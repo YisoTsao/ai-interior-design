@@ -1,10 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { OpenApiContract, phaseNum } from '../../src/common/openapi.js';
 import { signPayload } from '../../src/modules/billing/billing.controller.js';
+import { encodePng } from '../../src/ai/png.js';
+import { rgba } from '@interiorai/image-ops';
 import { createStack, sampleScene, type Stack } from '../support/stack.js';
 
 /** 目前交付到的 Phase：契約中 x-phase ≤ 此值的 operation 必須全部實作 */
-const CURRENT_PHASE = process.env.CONTRACT_PHASE ?? 'P3';
+const CURRENT_PHASE = process.env.CONTRACT_PHASE ?? 'P4';
 
 let s: Stack;
 let contract: OpenApiContract;
@@ -137,6 +139,45 @@ describe(`API 契約（${CURRENT_PHASE}）`, () => {
     await call('GET', `/jobs/${job.id}`, '/jobs/{id}', t);
     await call('POST', `/jobs/${job.id}/cancel`, '/jobs/{id}/cancel', t);
     await call('GET', `/jobs/${job.id}/events`, '/jobs/{id}/events', t);
+    // P4：渲染（沒有 worker → 任務停在 queued；用來驗證回應格式）
+    await call('GET', '/pricing', '/pricing');
+    const png = encodePng(rgba(64, 48, new Uint8Array(64 * 48 * 4).fill(128)));
+    const gb: Record<string, string> = {};
+    for (const k of ['color', 'depth', 'edge', 'objectId']) {
+      const tk = await s.api('POST', '/uploads', {
+        ...t,
+        body: { kind: 'gbuffer', filename: `${k}.png`, mime: 'image/png', sizeBytes: png.length },
+      });
+      await fetch(tk.body.putUrl, { method: 'PUT', headers: tk.body.headers, body: new Uint8Array(png) });
+      await s.api('POST', `/uploads/${tk.body.upload.id}/complete`, t);
+      gb[k] = tk.body.upload.id;
+    }
+    const rj = await call('POST', '/renders', '/renders', {
+      ...t,
+      headers: { 'idempotency-key': `contract-render-${Date.now()}` },
+      body: {
+        projectId: p.body.id,
+        versionId: v.body.id,
+        camera: { fovDeg: 22 },
+        gbufferUploadIds: gb,
+        idMap: { '1': { id: 'w_0', kind: 'wall' } },
+        settings: { styleTemplateId: 'modern', strictness: 'balanced', resolution: '1k' },
+      },
+    });
+    expect(rj.status).toBe(202);
+    await call('GET', `/renders/${rj.body.id}`, '/renders/{id}', t);
+    const ip = await call('POST', `/renders/${rj.body.id}/inpaint`, '/renders/{id}/inpaint', {
+      ...t,
+      headers: { 'idempotency-key': `contract-ip-${Date.now()}` },
+      body: { objectIds: ['w_0'], instruction: 'x' },
+    });
+    expect(ip.status).toBe(409); // 基底尚未完成
+    const acc = await call('POST', `/renders/${rj.body.id}/accept`, '/renders/{id}/accept', {
+      ...t,
+      headers: { 'idempotency-key': `contract-acc-${Date.now()}` },
+    });
+    expect(acc.status).toBe(409);
+    await call('POST', `/renders/${rj.body.id}/cancel`, '/renders/{id}/cancel', t);
     await call('DELETE', `/projects/${p.body.id}`, '/projects/{id}', t);
     await call('POST', '/auth/logout', '/auth/logout', { body: { refreshToken: ref.body.refreshToken } });
 

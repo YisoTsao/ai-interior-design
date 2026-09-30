@@ -38,7 +38,7 @@
       "saving": "Saving…",
       "error": "Save failed"
     },
-    "render": "AI render (P4)",
+    "render": "AI render",
     "personView": "Eye level",
     "frameAll": "Frame all",
     "bookmark": "Save view",
@@ -243,5 +243,85 @@
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
   },
-  "lang": "中文"
+  "lang": "中文",
+  "render": {
+    "title": "AI render",
+    "close": "Close",
+    "loginHint": "Rendering runs in the cloud. Please sign in (new accounts get free credits).",
+    "balance": "{{n}} credits",
+    "style": "Style",
+    "styles": {
+      "modern": "Modern minimal",
+      "scandinavian": "Scandinavian",
+      "japandi": "Japandi",
+      "industrial": "Industrial",
+      "luxury": "Luxury"
+    },
+    "strictness": "Structure strictness",
+    "strict": {
+      "free": "Free",
+      "balanced": "Balanced",
+      "strict": "Strict"
+    },
+    "strictHint": {
+      "free": "More stylistic freedom; small structural drift allowed",
+      "balanced": "Keeps walls, openings and furniture in place (default)",
+      "strict": "Depth-controlled composition; minimal drift"
+    },
+    "resolution": "Resolution",
+    "res": {
+      "1k": "1K draft",
+      "2k": "2K",
+      "4k": "4K"
+    },
+    "confirm4k": "Confirm 4K ({{n}} credits)",
+    "extra": "Additional request (optional)",
+    "submit": "Generate ({{n}} credits)",
+    "need3d": "Switch to the 3D view first",
+    "state": {
+      "queued": "Queued",
+      "running": "Generating",
+      "validating": "Checking structure",
+      "succeeded": "Done",
+      "failed": "Failed",
+      "canceled": "Canceled"
+    },
+    "retries": "{{n}} retries",
+    "cancel": "Cancel",
+    "progress": "Progress",
+    "validation": "Structure score {{score}} (threshold {{threshold}})",
+    "uncalibrated": "threshold not calibrated",
+    "resultAlt": "AI render",
+    "clayAlt": "Clay model",
+    "compare": "Compare clay and render",
+    "accept": "Use anyway ({{n}} credits, unwatermarked)",
+    "download": "Download",
+    "inpaintHint": "Select objects in 3D to repaint them",
+    "inpaintSelected": "{{n}} objects selected",
+    "inpaintPlaceholder": "Change to what? e.g. a dark green velvet sofa",
+    "inpaint": "Repaint selection ({{n}} credits)",
+    "err": {
+      "AUTH_REQUIRED": "Wrong email or password, or session expired",
+      "CONFLICT": "This email is already registered",
+      "INSUFFICIENT_CREDITS": "Not enough credits",
+      "CREDITS_FROZEN": "Credits are on hold; please contact support",
+      "RATE_LIMITED": "Daily limit reached or too many requests",
+      "MODERATION_BLOCKED": "Content not allowed",
+      "VALIDATION_FAILED": "Invalid input",
+      "JOB_FAILED": "Structure check failed: the AI may have moved walls or furniture. Credits refunded.",
+      "PROVIDER_UNAVAILABLE": "AI service unavailable; credits refunded, please retry later",
+      "NETWORK": "Cannot reach the server",
+      "CANCELED": "Canceled"
+    },
+    "inpaintDone": "Selection repainted; pixels outside the mask are bit-identical to the original"
+  },
+  "auth": {
+    "email": "Email",
+    "password": "Password (min 8 chars)",
+    "login": "Sign in",
+    "register": "Sign up",
+    "toRegister": "No account? Sign up",
+    "toLogin": "Have an account? Sign in",
+    "logout": "Sign out"
+  }
 }

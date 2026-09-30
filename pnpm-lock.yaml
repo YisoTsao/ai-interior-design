@@ -57,8 +57,26 @@ importers:
         specifier: ^5.0.2
         version: 5.0.2(@types/node@26.6.3)(@vitest/coverage-v8@5.0.2)(jsdom@30.1.1(@noble/hashes@1.8.0))(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1))
 
+  ai-eval:
+    dependencies:
+      '@interiorai/api':
+        specifier: workspace:^
+        version: link:../services/api
+      '@interiorai/app-state':
+        specifier: workspace:^
+        version: link:../packages/app-state
+      '@interiorai/image-ops':
+        specifier: workspace:^
+        version: link:../packages/image-ops
+      '@interiorai/scene-schema':
+        specifier: workspace:^
+        version: link:../packages/scene-schema
+
   apps/web:
     dependencies:
+      '@interiorai/api-client':
+        specifier: workspace:^
+        version: link:../../packages/api-client
       '@interiorai/app-state':
         specifier: workspace:^
         version: link:../../packages/app-state
@@ -71,6 +89,9 @@ importers:
       '@interiorai/editor-2d':
         specifier: workspace:^
         version: link:../../packages/editor-2d
+      '@interiorai/image-ops':
+        specifier: workspace:^
+        version: link:../../packages/image-ops
       '@interiorai/scene-schema':
         specifier: workspace:^
         version: link:../../packages/scene-schema
@@ -256,6 +277,15 @@ importers:
         specifier: ^0.186.0
         version: 0.186.0
 
+  packages/image-ops:
+    devDependencies:
+      fast-check:
+        specifier: ^4.10.2
+        version: 4.10.2
+      vitest:
+        specifier: ^5.0.2
+        version: 5.0.2(@types/node@26.6.3)(@vitest/coverage-v8@5.0.2)(jsdom@30.1.1(@noble/hashes@1.8.0))(vite@8.3.1(@types/node@26.6.3)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/scene-schema:
     dependencies:
       ulid:
@@ -280,6 +310,9 @@ importers:
       '@interiorai/core-geometry':
         specifier: workspace:^
         version: link:../core-geometry
+      '@interiorai/image-ops':
+        specifier: workspace:^
+        version: link:../image-ops
       '@interiorai/scene-schema':
         specifier: workspace:^
         version: link:../scene-schema
@@ -365,6 +398,9 @@ importers:
       pg:
         specifier: ^8.23.0
         version: 8.23.0
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -375,6 +411,9 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
     devDependencies:
+      '@interiorai/image-ops':
+        specifier: workspace:^
+        version: link:../../packages/image-ops
       '@testcontainers/postgresql':
         specifier: ^12
         version: 12.2.0
@@ -393,6 +432,9 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+      '@types/pngjs':
+        specifier: ^6.0.5
+        version: 6.0.5
       '@types/supertest':
         specifier: ^7.2.1
         version: 7.2.1
@@ -1608,6 +1650,9 @@ packages:
 
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
+
+  '@types/pngjs@6.0.5':
+    resolution: {integrity: sha512-0k5eKfrA83JOZPppLtS2C7OUtyNAl2wKNxfyYl9Q5g9lPkgBl/9hNyAu6HuEH2J4XmIv2znEpkDd0SaZVxW6iQ==}
 
   '@types/qs@6.15.1':
     resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
@@ -3303,6 +3348,10 @@ packages:
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
+
+  pngjs@7.0.0:
+    resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
+    engines: {node: '>=14.19.0'}
 
   postcss@8.5.28:
     resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
@@ -5390,6 +5439,10 @@ snapshots:
       pg-protocol: 1.16.0
       pg-types: 2.2.0
 
+  '@types/pngjs@6.0.5':
+    dependencies:
+      '@types/node': 26.6.3
+
   '@types/qs@6.15.1': {}
 
   '@types/range-parser@1.2.7': {}
@@ -6936,6 +6989,8 @@ snapshots:
       playwright-core: 1.63.0
 
   pluralize@8.0.0: {}
+
+  pngjs@7.0.0: {}
 
   postcss@8.5.28:
     dependencies:

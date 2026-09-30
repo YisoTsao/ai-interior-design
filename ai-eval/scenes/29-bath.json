@@ -1,0 +1,97 @@
+{
+  "id": "29-bath",
+  "kind": "bath",
+  "scene": {
+    "schemaVersion": "1.0.0",
+    "units": "mm",
+    "levels": [
+      {
+        "id": "lvl_01M3RD8HJ1GYYEMJK4FNJ7KXA6",
+        "name": "1F",
+        "elevation": 0,
+        "height": 2800,
+        "walls": [
+          {
+            "id": "w_01M3RD8HJ1XR4P2HKY7KS7X0MS",
+            "a": [0, 0],
+            "b": [2000, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HJ1ZFBRSGYV5SPVA5CZ",
+            "a": [2000, 0],
+            "b": [2000, 2800],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HJ1Z2MYCXKZ0YF3VSBJ",
+            "a": [2000, 2800],
+            "b": [0, 2800],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HJ1HXKZCTGY81M4YC0X",
+            "a": [0, 2800],
+            "b": [0, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          }
+        ],
+        "openings": [
+          {
+            "wallId": "w_01M3RD8HJ1XR4P2HKY7KS7X0MS",
+            "type": "door",
+            "offset": 200,
+            "width": 900,
+            "height": 2100,
+            "sill": 0,
+            "id": "o_01M3RD8HJ1MVHSTNSMK05PT2SD"
+          }
+        ],
+        "rooms": [
+          {
+            "id": "r_01M3RD8HJ1BDAG2NTCCVKQ37E0",
+            "floorMaterialId": "mat_tile_grey60",
+            "wallIds": [
+              "w_01M3RD8HJ1HXKZCTGY81M4YC0X",
+              "w_01M3RD8HJ1XR4P2HKY7KS7X0MS",
+              "w_01M3RD8HJ1Z2MYCXKZ0YF3VSBJ",
+              "w_01M3RD8HJ1ZFBRSGYV5SPVA5CZ"
+            ],
+            "label": "衛浴"
+          }
+        ],
+        "objects": [
+          {
+            "catalogId": "toilet_a",
+            "position": [500, 0, 450],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HJ1G12PR3TAG03MEDC2",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "basin_a",
+            "position": [1500, 0, 350],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HJ1DFRSTQF925FV9ECQ",
+            "scale": [1, 1, 1]
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "source": "manual"
+    }
+  }
+}

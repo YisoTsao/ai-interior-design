@@ -1,0 +1,25 @@
+{
+  "width": 512,
+  "height": 384,
+  "depthBits": 8,
+  "near": 9817,
+  "far": 31019,
+  "pixelRatio": 1,
+  "camera": { "position": [17091, 14746, 17441], "target": [2200, 0, 2550], "fovDeg": 22 },
+  "idMap": {
+    "1": { "id": "board", "kind": "board" },
+    "2": { "id": "w_01M3RD8HGEVW148AA1J8TWB259", "kind": "wall" },
+    "3": { "id": "w_01M3RD8HGF61TDJ45GP6C0G6EA", "kind": "wall" },
+    "4": { "id": "w_01M3RD8HGF276QVFBNGWVK6M0G", "kind": "wall" },
+    "5": { "id": "w_01M3RD8HGFGVZEW62N88P27ADK", "kind": "wall" },
+    "6": { "id": "r_01M3RD8HGJ19VEHT1GKE06BQ3N", "kind": "floor" },
+    "7": { "id": "o_01M3RD8HGKA76QZ6GA5JWWRKC4", "kind": "opening" },
+    "8": { "id": "obj_01M3RD8HGM83HEYD9Q4KJ0RHC2", "kind": "object" },
+    "9": { "id": "obj_01M3RD8HGMDB48XNA117EEXZJ0", "kind": "object" },
+    "10": { "id": "obj_01M3RD8HGMGX9M5QG9RMVNE452", "kind": "object" },
+    "11": { "id": "obj_01M3RD8HGMT5BCN4RW2FBCTK04", "kind": "object" },
+    "12": { "id": "obj_01M3RD8HGMJG4JKFFDD2D3DF0H", "kind": "object" },
+    "13": { "id": "obj_01M3RD8HGMGCE9E5W6KH5PJFJD", "kind": "object" },
+    "14": { "id": "obj_01M3RD8HGMAMYJTMJE6955GRS9", "kind": "object" }
+  }
+}
