@@ -2046,6 +2046,9 @@ export interface components {
             opacity?: number;
             castShadow?: boolean;
             hidden?: boolean;
+            uvScale?: number;
+            uvRotation?: number;
+            uvOffset?: components["schemas"]["vec2"];
         };
         /** @description 鋪貼設計（v1.2） */
         tiling: {
@@ -2077,6 +2080,22 @@ export interface components {
             appearanceB?: components["schemas"]["appearance"];
             tilingA?: components["schemas"]["tiling"];
             tilingB?: components["schemas"]["tiling"];
+            wainscot?: {
+                height: number;
+                /** @enum {unknown} */
+                style: "flat" | "panel" | "beadboard";
+                /** @enum {unknown} */
+                sides: "A" | "B" | "both";
+                materialId?: components["schemas"]["id"];
+                color?: components["schemas"]["hex"];
+            };
+            crown?: {
+                height: number;
+                /** @enum {unknown} */
+                profile: "flat" | "cove" | "step";
+            };
+            /** @enum {unknown} */
+            baseboardProfile?: "flat" | "cove" | "step";
         };
         opening: {
             id: components["schemas"]["id"];
@@ -2109,6 +2128,15 @@ export interface components {
             floorTiling?: components["schemas"]["tiling"];
             /** @enum {unknown} */
             kind?: "living" | "dining" | "bedroom" | "kitchen" | "bath" | "study" | "entry" | "balcony" | "storage" | "other";
+            /** @description 天花造型（v1.3，FE-FIN-03） */
+            ceiling?: {
+                /** @enum {unknown} */
+                type: "flat" | "drop" | "tray" | "cove";
+                dropMm: number;
+                borderMm: number;
+                coveKelvin?: number;
+                coveLumensPerM?: number;
+            };
         };
         vec3: number[];
         /** @description 燈具光源覆寫（v1.1，ADR-023） */
@@ -2192,7 +2220,7 @@ export interface components {
             sunIntensity?: number;
         };
         /**
-         * Scene Graph v1.2.0
+         * Scene Graph v1.3.0
          * @description 唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。
          */
         "scene.schema": {
@@ -2238,6 +2266,22 @@ export interface components {
                     appearanceB?: components["schemas"]["appearance"];
                     tilingA?: components["schemas"]["tiling"];
                     tilingB?: components["schemas"]["tiling"];
+                    wainscot?: {
+                        height: number;
+                        /** @enum {unknown} */
+                        style: "flat" | "panel" | "beadboard";
+                        /** @enum {unknown} */
+                        sides: "A" | "B" | "both";
+                        materialId?: components["schemas"]["id"];
+                        color?: components["schemas"]["hex"];
+                    };
+                    crown?: {
+                        height: number;
+                        /** @enum {unknown} */
+                        profile: "flat" | "cove" | "step";
+                    };
+                    /** @enum {unknown} */
+                    baseboardProfile?: "flat" | "cove" | "step";
                 };
                 opening: {
                     id: components["schemas"]["id"];
@@ -2270,6 +2314,15 @@ export interface components {
                     floorTiling?: components["schemas"]["tiling"];
                     /** @enum {unknown} */
                     kind?: "living" | "dining" | "bedroom" | "kitchen" | "bath" | "study" | "entry" | "balcony" | "storage" | "other";
+                    /** @description 天花造型（v1.3，FE-FIN-03） */
+                    ceiling?: {
+                        /** @enum {unknown} */
+                        type: "flat" | "drop" | "tray" | "cove";
+                        dropMm: number;
+                        borderMm: number;
+                        coveKelvin?: number;
+                        coveLumensPerM?: number;
+                    };
                 };
                 object: {
                     id: components["schemas"]["id"];
@@ -2324,6 +2377,9 @@ export interface components {
                     opacity?: number;
                     castShadow?: boolean;
                     hidden?: boolean;
+                    uvScale?: number;
+                    uvRotation?: number;
+                    uvOffset?: components["schemas"]["vec2"];
                 };
                 /** @description 燈具光源覆寫（v1.1，ADR-023） */
                 lightOverride: {

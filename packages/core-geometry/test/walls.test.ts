@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
+  arcPoints,
   areCollinearJoined,
   openingSegment,
   polygonArea,
@@ -172,6 +173,25 @@ describe('其他牆工具', () => {
     expect(openingSegment(wall('a', [0, 0], [0, 1000]), 100, 300)).toEqual([
       [0, 100],
       [0, 400],
+    ]);
+  });
+});
+
+describe('arcPoints（三點弧）', () => {
+  it('半圓：經過 m、端點固定、所有點在圓上', () => {
+    const pts = arcPoints([0, 0], [4000, 0], [2000, 2000], 400);
+    expect(pts[0]).toEqual([0, 0]);
+    expect(pts.at(-1)).toEqual([4000, 0]);
+    expect(pts.length).toBeGreaterThan(10);
+    for (const p of pts) expect(Math.abs(Math.hypot(p[0] - 2000, p[1]) - 2000)).toBeLessThan(2);
+    expect(pts.some((p) => p[1] > 1900)).toBe(true);
+  });
+  it('m 在另一側 → 往另一側彎；共線 → 直線', () => {
+    const pts = arcPoints([0, 0], [4000, 0], [2000, -800]);
+    expect(pts.every((p) => p[1] <= 0)).toBe(true);
+    expect(arcPoints([0, 0], [4000, 0], [2000, 0])).toEqual([
+      [0, 0],
+      [4000, 0],
     ]);
   });
 });

@@ -28,6 +28,18 @@ describe('migrate', () => {
     s.levels[0]!.rooms[0]!.floorTiling = { pattern: 'herringbone', tileW: 5, tileH: 120 };
     expect(validateScene(s).ok).toBe(false);
   });
+  it('1.3.0 貼圖參數、護牆板、頂角線、天花造型通過驗證，超出範圍被拒', () => {
+    const s = structuredClone({ ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION });
+    const w = s.levels[0]!.walls[0]!;
+    w.wainscot = { height: 900, style: 'panel', sides: 'both', color: '#e8e2d6' };
+    w.crown = { height: 80, profile: 'cove' };
+    w.baseboardProfile = 'step';
+    w.appearance = { uvScale: 2, uvRotation: 45, uvOffset: [100, 0] };
+    s.levels[0]!.rooms[0]!.ceiling = { type: 'cove', dropMm: 150, borderMm: 600, coveKelvin: 2700 };
+    expect(validateScene(s).ok).toBe(true);
+    s.levels[0]!.rooms[0]!.ceiling = { type: 'tray', dropMm: 5, borderMm: 600 };
+    expect(validateScene(s).ok).toBe(false);
+  });
   it('1.1.0 外觀／光源／環境欄位通過驗證，超出範圍被拒', () => {
     const s = structuredClone({ ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION });
     s.environment = { sky: 'city', exposureEv: 0.5 };

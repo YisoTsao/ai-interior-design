@@ -130,7 +130,8 @@
     "textPrompt": "Annotation text",
     "measureTotal": "Total",
     "measureArea": "Area",
-    "paint": "Paint"
+    "paint": "Paint",
+    "arc": "Curved wall (3 points)"
   },
   "layers": {
     "title": "Layers",
@@ -293,7 +294,9 @@
     "frameColor": "Frame color",
     "glassOpacity": "Glass opacity",
     "tint": "Tint",
-    "openAngle": "Door open angle"
+    "openAngle": "Door open angle",
+    "slotFrame": "Frame / legs",
+    "slotAccent": "Accent (cushions, handles)"
   },
   "param": {
     "width": "Width",
@@ -329,7 +332,8 @@
     "wallTool": "Click to add points, double-click or Enter to finish, type a length, Esc to cancel",
     "polygonTool": "Click points; click the first point or press Enter to close",
     "measureTool": "Click to measure; click the start to get area; Enter to finish, Esc to clear",
-    "dimensionTool": "Click two points, then move and click to place the line"
+    "dimensionTool": "Click two points, then move and click to place the line",
+    "arcTool": "Click start, end, then a point on the arc; Esc cancels"
   },
   "warn": {
     "title": "Warnings",
@@ -1361,5 +1365,54 @@
     "reopen": "Reopen",
     "delete": "Delete",
     "hint": "Click a red pin on the canvas to open its thread."
+  },
+  "finish": {
+    "title": "Wall trims",
+    "wainscot": "Wainscot / dado",
+    "height": "Height",
+    "style": "Style",
+    "styles": {
+      "flat": "Flat",
+      "panel": "Raised panel",
+      "beadboard": "Beadboard"
+    },
+    "sides": "Sides",
+    "sideOpts": {
+      "both": "Both (interior side only on exterior walls)",
+      "A": "Side A",
+      "B": "Side B"
+    },
+    "color": "Color",
+    "crown": "Crown molding",
+    "crownHeight": "Crown height",
+    "profile": "Profile",
+    "profiles": {
+      "flat": "Flat",
+      "cove": "Cove",
+      "step": "Stepped"
+    },
+    "baseboardProfile": "Baseboard profile"
+  },
+  "uv": {
+    "title": "Texture mapping",
+    "floorTitle": "Floor texture mapping",
+    "scale": "Scale",
+    "rotation": "Rotation",
+    "offsetX": "Offset X",
+    "offsetY": "Offset Y"
+  },
+  "ceiling": {
+    "title": "Ceiling design",
+    "type": "Type",
+    "types": {
+      "flat": "Flat",
+      "drop": "Dropped",
+      "tray": "Tray",
+      "cove": "Cove lighting"
+    },
+    "drop": "Drop",
+    "border": "Border width",
+    "kelvin": "Strip color temperature",
+    "hint": "Turn on “Show ceiling” in 3D to preview."
   }
 }

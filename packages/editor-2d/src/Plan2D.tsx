@@ -26,6 +26,7 @@ import {
 } from '@interiorai/app-state';
 import { defaultElevation, objectDims, resolveParams, type Catalog } from '@interiorai/catalog';
 import {
+  arcPoints,
   closestOnSegment,
   detectRooms,
   findCollisions,
@@ -237,6 +238,7 @@ export function Plan2D({
   });
   /** 尺寸標註工具：a、b 兩點之後移動滑鼠決定偏移 */
   const [dimDraft, setDimDraft] = useState<Vec2[]>([]);
+  const [arcDraft, setArcDraft] = useState<Vec2[]>([]);
   const [guides, setGuides] = useState<Guide[]>([]);
   const lastPointer = useRef<Vec2 | null>(null);
   const measureRef = useRef<Vec2[]>([]);
@@ -296,6 +298,7 @@ export function Plan2D({
     setHover(null);
     setMeasure({ pts: [], closed: false, done: false });
     setDimDraft([]);
+    setArcDraft([]);
   }, [tool]);
   const drafting = tool === 'wall' || tool === 'polygon';
 
@@ -342,6 +345,10 @@ export function Plan2D({
           e.key === 'Escape' ? { pts: [], closed: false, done: false } : { ...m, done: true },
         );
         e.preventDefault();
+        return;
+      }
+      if (tool === 'arc' && e.key === 'Escape') {
+        setArcDraft([]);
         return;
       }
       if (tool === 'dimension' && e.key === 'Escape') {
@@ -495,6 +502,19 @@ export function Plan2D({
             );
         },
       );
+      return;
+    }
+    // 三點弧牆（FE-PLAN-02）：起點 → 終點 → 弧上一點
+    if (tool === 'arc') {
+      const q = doSnap(p);
+      if (arcDraft.length < 2) {
+        if (!arcDraft.length || arcDraft[0]![0] !== q[0] || arcDraft[0]![1] !== q[1])
+          setArcDraft([...arcDraft, q]);
+      } else {
+        const pts = arcPoints(arcDraft[0]!, arcDraft[1]!, q);
+        exec(addWalls(levelId, pts));
+        setArcDraft([]);
+      }
       return;
     }
     if (drafting) {
@@ -1133,6 +1153,21 @@ export function Plan2D({
                     ))
                   : [];
               })}
+            {tool === 'arc' && arcDraft.length > 0 && hover && (
+              <Line
+                points={flat(
+                  arcDraft.length === 1
+                    ? [arcDraft[0]!, hover]
+                    : arcPoints(arcDraft[0]!, arcDraft[1]!, hover),
+                )}
+                stroke={theme.primary}
+                strokeWidth={DEFAULTS.wallThickness}
+                opacity={0.4}
+                lineCap="round"
+                lineJoin="round"
+                listening={false}
+              />
+            )}
             {drafting && draft.length > 0 && (
               <>
                 <Line
@@ -1367,6 +1402,7 @@ export function Plan2D({
       >
         {t(`snap.${snapEnabled && !altDown ? (snapInfo?.kind ?? 'none') : 'off'}`)}
         {drafting && ` · ${t(tool === 'polygon' ? 'hint.polygonTool' : 'hint.wallTool')}`}
+        {tool === 'arc' && ` · ${t('hint.arcTool')}`}
         {tool === 'measure' && ` · ${t('hint.measureTool')}`}
         {tool === 'dimension' && ` · ${t('hint.dimensionTool')}`}
       </div>

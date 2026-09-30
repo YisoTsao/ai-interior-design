@@ -130,7 +130,8 @@
     "textPrompt": "輸入標註文字",
     "measureTotal": "總長",
     "measureArea": "面積",
-    "paint": "油漆"
+    "paint": "油漆",
+    "arc": "弧形牆（三點）"
   },
   "layers": {
     "title": "圖層",
@@ -293,7 +294,9 @@
     "frameColor": "窗框顏色",
     "glassOpacity": "玻璃不透明度",
     "tint": "染色",
-    "openAngle": "門扇開啟角度"
+    "openAngle": "門扇開啟角度",
+    "slotFrame": "框架／腳",
+    "slotAccent": "點綴（抱枕、把手）"
   },
   "param": {
     "width": "寬",
@@ -329,7 +332,8 @@
     "wallTool": "點擊加點、雙擊或 Enter 完成、可直接輸入長度、Esc 取消",
     "polygonTool": "逐點點擊繪製房間，點回起點或 Enter 封閉",
     "measureTool": "點擊量測，點回起點量面積，Enter 完成、Esc 清除",
-    "dimensionTool": "點兩點，再移動滑鼠決定尺寸線位置後點擊"
+    "dimensionTool": "點兩點，再移動滑鼠決定尺寸線位置後點擊",
+    "arcTool": "點起點、終點，再點弧上一點；Esc 取消"
   },
   "warn": {
     "title": "警示",
@@ -1361,5 +1365,54 @@
     "reopen": "重新開啟",
     "delete": "刪除",
     "hint": "點畫面上的紅色釘選可開啟對應的討論串。"
+  },
+  "finish": {
+    "title": "牆面造型與線板",
+    "wainscot": "護牆板／腰牆",
+    "height": "高度",
+    "style": "樣式",
+    "styles": {
+      "flat": "平板",
+      "panel": "框板",
+      "beadboard": "直條紋"
+    },
+    "sides": "面",
+    "sideOpts": {
+      "both": "兩面（外牆只做室內側）",
+      "A": "A 面",
+      "B": "B 面"
+    },
+    "color": "顏色",
+    "crown": "頂角線",
+    "crownHeight": "頂角線高度",
+    "profile": "斷面",
+    "profiles": {
+      "flat": "平直",
+      "cove": "弧形",
+      "step": "階梯"
+    },
+    "baseboardProfile": "踢腳板斷面"
+  },
+  "uv": {
+    "title": "貼圖參數",
+    "floorTitle": "地板貼圖參數",
+    "scale": "縮放",
+    "rotation": "旋轉",
+    "offsetX": "偏移 X",
+    "offsetY": "偏移 Y"
+  },
+  "ceiling": {
+    "title": "天花造型",
+    "type": "型式",
+    "types": {
+      "flat": "平頂",
+      "drop": "整體降板",
+      "tray": "跌級",
+      "cove": "間接燈槽"
+    },
+    "drop": "降板深度",
+    "border": "周邊寬度",
+    "kelvin": "燈條色溫",
+    "hint": "在 3D 開啟「顯示天花板」可預覽。"
   }
 }

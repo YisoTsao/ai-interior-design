@@ -43,6 +43,7 @@ import {
   effectiveLight,
   fixtureLights,
   indirectEstimate,
+  kelvinToHex,
   pickActive,
   windowLights,
   type LightingMode,
@@ -80,7 +81,7 @@ import {
   type ViewPreset,
   type ViewStyle,
 } from './style.js';
-import { buildBaseboard, buildRoomSurfaces, buildWallGeometry } from './walls3d.js';
+import { buildBaseboard, buildRoomSurfaces, buildWallGeometry, buildWallStrip } from './walls3d.js';
 
 export interface Viewer3DProps {
   store: EditorStore;
@@ -260,6 +261,20 @@ function SceneContent({
       ),
     [scope, dh],
   );
+  // 間接燈槽發光條（v1.3，FE-FIN-03）：依色溫的自發光材質，夜間配合 bloom 呈現光暈
+  const coveCache = useMemo(() => new Map<number, THREE.MeshBasicMaterial>(), []);
+  const coveMat = (kelvin: number) => {
+    let m = coveCache.get(kelvin);
+    if (!m) {
+      m = scope.track(
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color(kelvinToHex(kelvin)).multiplyScalar(night ? 3 : 1.4),
+        }),
+      );
+      coveCache.set(kelvin, m);
+    }
+    return m;
+  };
   const baseboardMat = useMemo(
     () => scope.track(new THREE.MeshStandardMaterial({ color: '#f1eee8', roughness: 0.55 })),
     [scope],
@@ -413,12 +428,55 @@ function SceneContent({
         const nA: [number, number] = [-(w.b[1] - w.a[1]) / L, (w.b[0] - w.a[0]) / L];
         which = nA[0] * side.outward[0] + nA[1] * side.outward[1] > 0 ? 'B' : 'A';
       }
-      const g = buildBaseboard(structure, w, w.baseboard, which);
+      const g =
+        w.baseboardProfile && w.baseboardProfile !== 'flat'
+          ? buildWallStrip(structure, w, 0, w.baseboard, which, 16, w.baseboardProfile)
+          : buildBaseboard(structure, w, w.baseboard, which);
       if (g) out.push({ id: w.id, g: scope.track(g) });
     }
     return out;
   }, [structure, sides, scope]);
   useEffect(() => () => baseboards.forEach((b) => scope.release(b.g)), [baseboards, scope]);
+  /** 室內側（外牆只做朝室內的一面） */
+  const interiorSides = (w: Wall, want: 'A' | 'B' | 'both'): 'A' | 'B' | 'both' => {
+    const side = sides.get(w.id);
+    if (!(side?.exterior && side.outward)) return want;
+    const L = wallLength(w) || 1;
+    const nA: [number, number] = [-(w.b[1] - w.a[1]) / L, (w.b[0] - w.a[0]) / L];
+    const inner = nA[0] * side.outward[0] + nA[1] * side.outward[1] > 0 ? 'B' : 'A';
+    return want === 'both' || want === inner ? inner : want;
+  };
+  // 護牆板＋腰線、頂角線（v1.3）
+  const trims = useMemo(() => {
+    const out: { id: string; g: THREE.BufferGeometry; kind: 'wainscot' | 'rail' | 'crown'; w: Wall }[] = [];
+    for (const w of structure.walls) {
+      if (w.appearance?.hidden) continue;
+      const H = w.height ?? structure.height;
+      if (w.wainscot) {
+        const sd = interiorSides(w, w.wainscot.sides);
+        const top = Math.min(w.wainscot.height, H);
+        const panel = buildWallStrip(structure, w, 0, top - 40, sd, w.wainscot.style === 'flat' ? 10 : 16);
+        if (panel) out.push({ id: `${w.id}-wa`, g: scope.track(panel), kind: 'wainscot', w });
+        const rail = buildWallStrip(structure, w, top - 40, top, sd, 28, 'step');
+        if (rail) out.push({ id: `${w.id}-wr`, g: scope.track(rail), kind: 'rail', w });
+      }
+      if (w.crown) {
+        const g = buildWallStrip(
+          structure,
+          w,
+          H - w.crown.height,
+          H,
+          interiorSides(w, 'both'),
+          Math.max(20, w.crown.height * 0.7),
+          w.crown.profile,
+          true,
+        );
+        if (g) out.push({ id: `${w.id}-cr`, g: scope.track(g), kind: 'crown', w });
+      }
+    }
+    return out;
+  }, [structure, sides, scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => trims.forEach((b) => scope.release(b.g)), [trims, scope]);
   const rooms = useMemo(
     () =>
       buildRoomSurfaces(structure).map((r) => ({
@@ -519,12 +577,21 @@ function SceneContent({
   const geomFor = (o: SceneObject) => {
     const e = catalog.get(o.catalogId);
     // 使用者明確指定的顏色直接使用；材質色在剖面模型中轉為莫蘭迪色調
+    const frame = o.materialOverrides?.frame;
+    const accent = o.materialOverrides?.accent;
+    const extra = {
+      ...(frame ? { frameColor: `#${mats.colorOf(frame, '#2e2c2a').getHexString()}` } : {}),
+      ...(accent ? { accentColor: `#${mats.colorOf(accent, '#5a5650').getHexString()}` } : {}),
+    };
     const opts = dh
       ? {
           style: viewStyle,
           bodyColor: o.appearance?.color ?? mutedColor(`#${slotColor(o).getHexString()}`),
+          ...extra,
         }
-      : undefined;
+      : frame || accent
+        ? extra
+        : undefined;
     const key = styledVariantKey(variantKey(e, o.catalogId, o.params), opts);
     let g = furnGeoms.current.get(key);
     if (!g) {
@@ -1243,6 +1310,25 @@ function SceneContent({
           />
         ))}
       {layers.structure &&
+        trims.map((b) => (
+          <mesh
+            key={b.id}
+            {...shadow}
+            geometry={b.g}
+            material={
+              b.kind === 'wainscot'
+                ? mats.styled(
+                    b.w.wainscot?.materialId,
+                    b.w.wainscot?.color ?? '#efe9df',
+                    b.w.wainscot?.color ? { color: b.w.wainscot.color } : undefined,
+                  )
+                : baseboardMat
+            }
+            onClick={select(b.w.id)}
+            userData={{ id: b.w.id, gkind: 'wall' }}
+          />
+        ))}
+      {layers.structure &&
         baseboards.map((b) => (
           <mesh
             key={`bb-${b.id}`}
@@ -1281,6 +1367,13 @@ function SceneContent({
                     '#fafaf7',
                     room?.ceilingAppearance,
                   )}
+                />
+              )}
+              {showCeiling && r.cove && (
+                <mesh
+                  geometry={r.cove}
+                  material={coveMat(room?.ceiling?.coveKelvin ?? 2700)}
+                  userData={{ gkind: 'ceiling', id: r.roomId }}
                 />
               )}
             </group>

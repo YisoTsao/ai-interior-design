@@ -23,6 +23,7 @@ import { objectDims, resolveParams, type CatalogEntry } from '@interiorai/catalo
 import { detectRooms, wallLength } from '@interiorai/core-geometry';
 import { SunStudy } from './SunStudy';
 import { PlanSettings } from './PlanSettings';
+import { CeilingSection, UvSection, WallFinishSection } from './finishes';
 import { LightingAnalysis } from './LightingAnalysis';
 import { useLuxResult } from './luxResult';
 import { formatArea } from '@interiorai/editor-2d';
@@ -315,6 +316,24 @@ function ObjectPanel({
             onPick={(m) => exec(setMaterial(levelId, { kind: 'object', id, slot: slot.name }, m))}
           />
         ))}
+        {e?.model.kind === 'parametric' && !NO_EXTRA_SLOTS.has(e.model.type) && e.category !== 'lighting' && (
+          <>
+            <MaterialPicker
+              name="slot-frame"
+              label={t('inspector.slotFrame')}
+              value={obj.materialOverrides?.frame}
+              categories={['wood', 'metal', 'stone']}
+              onPick={(m) => exec(setMaterial(levelId, { kind: 'object', id, slot: 'frame' }, m))}
+            />
+            <MaterialPicker
+              name="slot-accent"
+              label={t('inspector.slotAccent')}
+              value={obj.materialOverrides?.accent}
+              categories={['fabric', 'wood', 'metal']}
+              onPick={(m) => exec(setMaterial(levelId, { kind: 'object', id, slot: 'accent' }, m))}
+            />
+          </>
+        )}
       </Section>
 
       <div className="flex flex-wrap gap-2 pt-1">
@@ -623,6 +642,18 @@ function WallPanel({ w, level }: { w: Wall; level: Level }) {
         onChange={(tl) => exec(updateWall(levelId, w.id, { tilingA: tl, tilingB: tl }))}
         defaults={{ pattern: 'straight', tileW: 300, tileH: 600, grout: 2 }}
       />
+      <WallFinishSection w={w} levelId={levelId} />
+      <UvSection
+        look={w.appearance}
+        onChange={(p) =>
+          exec(
+            updateWall(levelId, w.id, {
+              appearance: mergeLook(w.appearance, p),
+              appearanceB: mergeLook(w.appearanceB, p),
+            }),
+          )
+        }
+      />
       <Section title={t('inspector.materials')} defaultOpen={false}>
         <MaterialPicker
           name="wallA"
@@ -852,6 +883,8 @@ function RoomPanel({ room, area, levelId }: { room: Level['rooms'][number]; area
           }
         />
       </Section>
+      <UvSection look={room.floorAppearance} onChange={floorLook} title={t('uv.floorTitle')} />
+      <CeilingSection room={room} levelId={levelId} />
     </div>
   );
 }
@@ -1177,6 +1210,21 @@ function MultiPanel({ ids, level }: { ids: string[]; level: Level }) {
 }
 
 /** 列舉參數的顯示名稱來源 */
+/** 沒有框架／點綴部件的類型（不顯示額外材質槽） */
+const NO_EXTRA_SLOTS = new Set([
+  'door',
+  'window',
+  'mep',
+  'rug',
+  'rug_round',
+  'column',
+  'beam',
+  'stairs',
+  'platform',
+  'curtain',
+  'wall_art',
+  'plant',
+]);
 const ENUM_LABEL: Record<string, string> = {
   color: 'lightColors',
   point: 'mep',

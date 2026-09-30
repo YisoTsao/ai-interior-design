@@ -233,10 +233,13 @@ export class MaterialCache {
       (a.color === undefined &&
         a.roughness === undefined &&
         a.metalness === undefined &&
-        a.opacity === undefined)
+        a.opacity === undefined &&
+        a.uvScale === undefined &&
+        a.uvRotation === undefined &&
+        a.uvOffset === undefined)
     )
       return base;
-    const key = `${id ?? `__${fallback}`}|${a.color ?? ''}|${a.roughness ?? ''}|${a.metalness ?? ''}|${a.opacity ?? ''}`;
+    const key = `${id ?? `__${fallback}`}|${a.color ?? ''}|${a.roughness ?? ''}|${a.metalness ?? ''}|${a.opacity ?? ''}|${a.uvScale ?? ''}|${a.uvRotation ?? ''}|${a.uvOffset?.join(',') ?? ''}`;
     let m = this.cache.get(key);
     if (m) return m;
     m = this.scope.track(base.clone());
@@ -248,6 +251,16 @@ export class MaterialCache {
       m.transparent = true;
       m.opacity = a.opacity;
       m.depthWrite = false;
+    }
+    // 貼圖參數（v1.3，FE-PROP-04）：各自複製貼圖物件（影像共用），調整重複率、旋轉、偏移
+    if (base.map && (a.uvScale !== undefined || a.uvRotation !== undefined || a.uvOffset !== undefined)) {
+      const t = this.scope.track(base.map.clone());
+      const k = a.uvScale ?? 1;
+      t.repeat.set(base.map.repeat.x / k, base.map.repeat.y / k);
+      t.rotation = ((a.uvRotation ?? 0) * Math.PI) / 180;
+      if (a.uvOffset) t.offset.set(a.uvOffset[0] * t.repeat.x, a.uvOffset[1] * t.repeat.y);
+      t.needsUpdate = true;
+      m.map = t;
     }
     this.cache.set(key, m);
     return m;

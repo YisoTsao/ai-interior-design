@@ -97,17 +97,25 @@ export function SelectField<T extends string>({
   value,
   options,
   onChange,
+  testId,
 }: {
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
+  testId?: string;
 }) {
   const id = useId();
   return (
     <label htmlFor={id} className="grid grid-cols-[1fr_7rem] items-center gap-2 text-xs">
       <span>{label}</span>
-      <select id={id} className="field w-full" value={value} onChange={(e) => onChange(e.target.value as T)}>
+      <select
+        id={id}
+        className="field w-full"
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        data-testid={testId}
+      >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

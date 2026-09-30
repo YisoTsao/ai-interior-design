@@ -22,6 +22,7 @@ const TOOL_KEYS: [Tool, string, string?][] = [
   ['wall', 'tools.wall', 'W'],
   ['rect', 'tools.rect'],
   ['polygon', 'tools.polygon', 'P'],
+  ['arc', 'tools.arc', 'C'],
   ['door', 'tools.door', 'D'],
   ['window', 'tools.window', 'N'],
   ['measure', 'tools.measure', 'M'],

@@ -219,6 +219,9 @@ export function updateWall(
       | 'appearanceB'
       | 'tilingA'
       | 'tilingB'
+      | 'wainscot'
+      | 'crown'
+      | 'baseboardProfile'
     >
   >,
 ): Command {
@@ -381,7 +384,7 @@ export function updateObject(
 export function updateRoom(
   levelId: string,
   roomId: string,
-  patch: Partial<Pick<Room, 'floorAppearance' | 'ceilingAppearance' | 'floorTiling' | 'kind'>>,
+  patch: Partial<Pick<Room, 'floorAppearance' | 'ceilingAppearance' | 'floorTiling' | 'kind' | 'ceiling'>>,
 ): Command {
   return {
     id: cid('updateRoom'),

@@ -14,6 +14,7 @@ export type Tool =
   | 'wall'
   | 'rect'
   | 'polygon'
+  | 'arc'
   | 'door'
   | 'window'
   | 'place'

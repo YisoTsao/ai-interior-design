@@ -15,6 +15,7 @@ export const SHORTCUT_LIST: [string, string, 'general' | 'tools' | 'edit' | 'vie
   ['V', 'tools.select', 'tools'],
   ['W', 'tools.wall', 'tools'],
   ['P', 'tools.polygon', 'tools'],
+  ['C', 'tools.arc', 'tools'],
   ['D', 'tools.door', 'tools'],
   ['N', 'tools.window', 'tools'],
   ['M', 'tools.measure', 'tools'],
@@ -113,6 +114,8 @@ export function useShortcuts(
           return act.rotate(-90);
         case 'p':
           return s.view === '2d' && s.setTool('polygon');
+        case 'c':
+          return s.view === '2d' && s.setTool('arc');
         case 'm':
           return s.view === '2d' && s.setTool('measure');
         case 'k':

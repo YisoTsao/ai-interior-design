@@ -823,6 +823,9 @@ export interface FurnitureStyleOpts {
   style?: ViewStyle;
   /** 剖面模型：body 顏色直接烘進頂點色（instance color 維持白色） */
   bodyColor?: string;
+  /** 多材質槽（v1.3，FE-PROP-05）：框架／腳（深色部件）與點綴（抱枕、把手等）的顏色 */
+  frameColor?: string;
+  accentColor?: string;
 }
 
 export function variantKey(
@@ -835,7 +838,8 @@ export function variantKey(
 
 /** 剖面模型的變體鍵（含 body 顏色，因為顏色烘在幾何裡） */
 export const styledVariantKey = (base: string, opts?: FurnitureStyleOpts) =>
-  opts?.style === 'dollhouse' ? `${base}|dh|${opts.bodyColor ?? ''}` : base;
+  (opts?.style === 'dollhouse' ? `${base}|dh|${opts.bodyColor ?? ''}` : base) +
+  (opts?.frameColor || opts?.accentColor ? `|f${opts.frameColor ?? ''}|a${opts.accentColor ?? ''}` : '');
 
 /** 建立（未縮放的）家具幾何。scale 由 instance matrix 套用。 */
 export function buildFurnitureGeometry(
@@ -859,7 +863,17 @@ export function buildFurnitureGeometry(
     const g = (pt.g.index ? pt.g.toNonIndexed() : pt.g) as THREE.BufferGeometry;
     if (g !== pt.g) pt.g.dispose();
     g.translate(pt.x, pt.y, pt.z);
-    color.set(dh && pt.color === BODY ? (opts?.bodyColor ?? BODY) : pt.color).convertSRGBToLinear();
+    color
+      .set(
+        dh && pt.color === BODY
+          ? (opts?.bodyColor ?? BODY)
+          : pt.color === DARK && opts?.frameColor
+            ? opts.frameColor
+            : pt.color === ACCENT && opts?.accentColor
+              ? opts.accentColor
+              : pt.color,
+      )
+      .convertSRGBToLinear();
     const n = g.getAttribute('position').count;
     if (pt.color !== EMIT) opaque += n;
     const cols = new Float32Array(n * 3);

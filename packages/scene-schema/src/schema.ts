@@ -11,7 +11,7 @@ export const LIMITS = {
   minWallLength: 100,
 } as const;
 
-export const CURRENT_SCHEMA_VERSION = '1.2.0';
+export const CURRENT_SCHEMA_VERSION = '1.3.0';
 
 const id = z
   .string()
@@ -35,6 +35,10 @@ export const AppearanceSchema = z.strictObject({
   opacity: z.number().min(0.05).max(1).optional(),
   castShadow: z.boolean().optional(),
   hidden: z.boolean().optional(),
+  /** 貼圖參數（v1.3，FE-PROP-04）：縮放倍率、旋轉（度）、偏移（mm） */
+  uvScale: z.number().min(0.1).max(20).optional(),
+  uvRotation: z.number().min(-180).max(180).optional(),
+  uvOffset: vec2.optional(),
 });
 
 /**
@@ -106,6 +110,21 @@ export const EnvironmentSchema = z.strictObject({
   sunIntensity: z.number().min(0).max(10).optional(),
 });
 
+/** 護牆板樣式、線板斷面（v1.3） */
+export const WAINSCOT_STYLES = ['flat', 'panel', 'beadboard'] as const;
+export const MOLDING_PROFILES = ['flat', 'cove', 'step'] as const;
+/** 天花型式（v1.3，FE-FIN-03）：平頂、降板（整體）、跌級（周邊降、中央高）、間接燈槽（跌級＋燈條） */
+export const CEILING_TYPES = ['flat', 'drop', 'tray', 'cove'] as const;
+export const CeilingSchema = z.strictObject({
+  type: z.enum(CEILING_TYPES),
+  /** 降板深度 mm */
+  dropMm: z.int().min(30).max(800),
+  /** 跌級周邊寬度 mm */
+  borderMm: z.int().min(150).max(2000),
+  coveKelvin: z.int().min(1800).max(6500).optional(),
+  coveLumensPerM: z.int().min(0).max(3000).optional(),
+});
+
 export const WallSchema = z.strictObject({
   id,
   a: vec2,
@@ -124,6 +143,20 @@ export const WallSchema = z.strictObject({
   /** 牆面鋪貼（v1.2；A／B 面，例：浴室壁磚） */
   tilingA: TilingSchema.optional(),
   tilingB: TilingSchema.optional(),
+  /** 護牆板／腰牆（v1.3，FE-FIN-02）：從地面到 height，含腰線 */
+  wainscot: z
+    .strictObject({
+      height: z.int().min(300).max(2000),
+      style: z.enum(WAINSCOT_STYLES),
+      sides: z.enum(['A', 'B', 'both']),
+      materialId: id.optional(),
+      color: hex.optional(),
+    })
+    .optional(),
+  /** 頂角線（v1.3，FE-FIN-04） */
+  crown: z.strictObject({ height: z.int().min(20).max(300), profile: z.enum(MOLDING_PROFILES) }).optional(),
+  /** 踢腳板斷面（v1.3，FE-FIN-04） */
+  baseboardProfile: z.enum(MOLDING_PROFILES).optional(),
 });
 
 export const OpeningSchema = z.strictObject({
@@ -153,6 +186,8 @@ export const RoomSchema = z.strictObject({
   floorAppearance: AppearanceSchema.optional(),
   ceilingAppearance: AppearanceSchema.optional(),
   floorTiling: TilingSchema.optional(),
+  /** 天花造型（v1.3，FE-FIN-03） */
+  ceiling: CeilingSchema.optional(),
   /** 房間用途（v1.2；影響自動佈置、照度建議與房名） */
   kind: z
     .enum(['living', 'dining', 'bedroom', 'kitchen', 'bath', 'study', 'entry', 'balcony', 'storage', 'other'])
