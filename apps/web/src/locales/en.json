@@ -18,7 +18,11 @@
     "loadError": "Couldn't read project: {{message}}",
     "importSoon": "Upload floor plan (P5)",
     "sampleName": "Sample: 2-bedroom flat",
-    "sampleRooms": { "living": "Living", "bed1": "Master bedroom", "bed2": "Bedroom" }
+    "sampleRooms": {
+      "living": "Living",
+      "bed1": "Master bedroom",
+      "bed2": "Bedroom"
+    }
   },
   "top": {
     "back": "Back to projects",
@@ -28,14 +32,33 @@
     "view2d": "2D plan",
     "view3d": "3D view",
     "name": "Project name",
-    "save": { "saved": "Saved", "dirty": "Unsaved", "saving": "Saving…", "error": "Save failed" },
+    "save": {
+      "saved": "Saved",
+      "dirty": "Unsaved",
+      "saving": "Saving…",
+      "error": "Save failed"
+    },
     "render": "AI render (P4)",
     "personView": "Eye level",
     "frameAll": "Frame all",
     "bookmark": "Save view",
     "ceiling": "Show ceiling",
     "settings": "Units",
-    "bookmarkName": "View {{n}}"
+    "bookmarkName": "View {{n}}",
+    "style": "3D style",
+    "styleSimple": "Simple",
+    "styleDollhouse": "Cutaway model",
+    "viewPreset": "View preset",
+    "preset": {
+      "iso-se": "Isometric SE",
+      "iso-sw": "Isometric SW",
+      "iso-nw": "Isometric NW",
+      "iso-ne": "Isometric NE",
+      "top": "Top"
+    },
+    "decorate": "Auto-decorate",
+    "decorateNone": "No free spots for decor",
+    "decorateDone": "Added {{n}} decor items"
   },
   "tools": {
     "title": "Tools",
@@ -113,7 +136,13 @@
     "height": "Height",
     "sill": "Sill height",
     "swing": "Swing",
-    "swings": { "left": "Left", "right": "Right", "double": "Double", "sliding": "Sliding", "none": "None" },
+    "swings": {
+      "left": "Left",
+      "right": "Right",
+      "double": "Double",
+      "sliding": "Sliding",
+      "none": "None"
+    },
     "posX": "X",
     "posZ": "Z",
     "posY": "Elevation",
@@ -146,7 +175,9 @@
     "sill": "Sill",
     "panes": "Panes"
   },
-  "room": { "unnamed": "Unnamed room" },
+  "room": {
+    "unnamed": "Unnamed room"
+  },
   "snap": {
     "endpoint": "Snap: endpoint",
     "wall": "Snap: wall",
@@ -206,8 +237,11 @@
     "duplicate": "duplicate",
     "setMaterial": "apply material",
     "renameRoom": "rename room",
-    "saveCamera": "save view"
+    "saveCamera": "save view",
+    "autoDecorate": "auto-decorate"
   },
-  "saved": { "camera": "Saved view “{{name}}” (usable for renders)" },
+  "saved": {
+    "camera": "Saved view “{{name}}” (usable for renders)"
+  },
   "lang": "中文"
 }

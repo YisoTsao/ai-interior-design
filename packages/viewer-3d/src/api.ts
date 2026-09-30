@@ -1,3 +1,5 @@
+import type { ViewPreset, ViewStyle } from './style.js';
+
 export interface Viewer3DInfo {
   geometries: number;
   textures: number;
@@ -19,6 +21,11 @@ export interface Viewer3DApi {
   bench(ms: number): Promise<BenchResult>;
   personView(): void;
   frameAll(): void;
+  /** 剖面模型的視角預設（簡易模式也可用，會套用剖面相機限制） */
+  viewPreset(p: ViewPreset): void;
+  style(): ViewStyle;
+  /** 目前被降為剖面高度的牆 id（測試用） */
+  cutWalls(): string[];
   currentCamera(): { position: [number, number, number]; target: [number, number, number]; fovDeg: number };
 }
 let current: Viewer3DApi | null = null;

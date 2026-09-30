@@ -70,9 +70,10 @@ const cross3 = (a: V3, b: V3): V3 => [
 /**
  * 單面牆的 3D 幾何（ADR-016）：平面輪廓由 core-geometry 的 wallQuad 提供（B3.1：viewer 不自行拼牆），
  * 矩形開口以解析方式切成四邊形（側面分帶＋開口內側面），不使用 CSG，時間 O(開口數)。
+ * height：牆頂高度（剖面模型的矮牆用）；預設為樓層高。高於牆頂的開口直接略過。
  */
-export function buildWallGeometry(level: Level, w: Wall): THREE.BufferGeometry {
-  const H = level.height;
+export function buildWallGeometry(level: Level, w: Wall, height = level.height): THREE.BufferGeometry {
+  const H = height;
   const L = wallLength(w) || 1;
   const a = w.a as Vec2;
   const d: Vec2 = [(w.b[0] - a[0]) / L, (w.b[1] - a[1]) / L];
@@ -98,6 +99,7 @@ export function buildWallGeometry(level: Level, w: Wall): THREE.BufferGeometry {
       y0: o.sill ?? 0,
       y1: Math.min(H, (o.sill ?? 0) + o.height),
     }))
+    .filter((o) => o.y0 < H)
     .sort((x, y) => x.u0 - y.u0);
 
   const b = new Builder();

@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import type { AreaUnit, LengthUnit } from '@interiorai/editor-2d';
+import type { ViewStyle } from '@interiorai/viewer-3d';
 
 interface Prefs {
   lengthUnit: LengthUnit;
   areaUnit: AreaUnit;
   setLength(u: LengthUnit): void;
   setArea(u: AreaUnit): void;
+  viewStyle: ViewStyle;
+  setViewStyle(s: ViewStyle): void;
 }
 const read = <T extends string>(k: string, fb: T): T => {
   try {
@@ -27,4 +30,6 @@ export const usePrefs = create<Prefs>((set) => ({
   areaUnit: read<AreaUnit>('areaUnit', 'ping'),
   setLength: (lengthUnit) => (write('lengthUnit', lengthUnit), set({ lengthUnit })),
   setArea: (areaUnit) => (write('areaUnit', areaUnit), set({ areaUnit })),
+  viewStyle: read<ViewStyle>('viewStyle', 'dollhouse'),
+  setViewStyle: (viewStyle) => (write('viewStyle', viewStyle), set({ viewStyle })),
 }));

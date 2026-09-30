@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { resolveParams, type CatalogEntry } from '@interiorai/catalog';
+import type { ViewStyle } from './style.js';
 
 /**
  * 參數化家具幾何（07 §3：自產參數化模組）。原點＝底部中心、正面朝 +Z、單位 mm（B5）。
@@ -13,6 +15,8 @@ const ACCENT = '#5a5650';
 const DARK = '#2e2c2a';
 const LIGHT = '#f4f2ee';
 const GLASS = '#cfe3ea';
+/** 剖面模型的莫蘭迪軟裝色（低飽和） */
+const MORANDI = { sage: '#a3b09a', blue: '#9aa8b5', beige: '#d9cdb8', grey: '#b3aea7', linen: '#efebe3' };
 
 const box = (w: number, h: number, d: number, x: number, y: number, z: number, color = BODY): Part => ({
   g: new THREE.BoxGeometry(Math.max(1, w), Math.max(1, h), Math.max(1, d)),
@@ -37,6 +41,17 @@ const cyl = (
   z,
   color,
 });
+
+/** 圓角方塊（剖面模型用）；soft＝坐墊/枕頭等較大圓角 */
+const rbox =
+  (soft: boolean) =>
+  (w: number, h: number, d: number, x: number, y: number, z: number, color = BODY): Part => {
+    const W = Math.max(1, w);
+    const H = Math.max(1, h);
+    const D = Math.max(1, d);
+    const r = Math.min(soft ? 45 : 10, Math.min(W, H, D) * (soft ? 0.3 : 0.2));
+    return { g: new RoundedBoxGeometry(W, H, D, soft ? 2 : 1, r), x, y: y + H / 2, z, color };
+  };
 
 function parts(type: string, w: number, d: number, h: number, p: Record<string, number | string>): Part[] {
   const legs = (top: number, inset = 40, s = 40, color = ACCENT) =>
@@ -149,6 +164,110 @@ function parts(type: string, w: number, d: number, h: number, p: Record<string, 
   }
 }
 
+/** 剖面模型：分件組合＋倒角＋軟裝；未列出的類型用簡易分件並把方塊換成圓角 */
+function dollhouseParts(
+  type: string,
+  w: number,
+  d: number,
+  h: number,
+  p: Record<string, number | string>,
+): Part[] {
+  const bx = rbox(false);
+  const soft = rbox(true);
+  const legs = (top: number, inset = 40, s = 40, color = ACCENT) =>
+    [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1],
+    ].map(([sx, sz]) => bx(s, top, s, sx! * (w / 2 - inset), 0, sz! * (d / 2 - inset), color));
+  switch (type) {
+    case 'sofa': {
+      // 沙發＝底座＋靠背＋扶手＋坐墊＋靠墊＋抱枕
+      const arm = Math.min(180, w * 0.1);
+      const seatY = 260;
+      const backD = Math.min(200, d * 0.22);
+      const n = w - arm * 2 > 1500 ? 3 : 2;
+      const cw = (w - arm * 2) / n;
+      const out: Part[] = [
+        bx(w, seatY - 80, d, 0, 80, 0),
+        bx(w, h - 80, backD, 0, 80, -d / 2 + backD / 2),
+        soft(arm, h * 0.62 - 80, d, -w / 2 + arm / 2, 80, 0),
+        soft(arm, h * 0.62 - 80, d, w / 2 - arm / 2, 80, 0),
+        ...legs(80, 60, 50, DARK),
+      ];
+      const seatD = d - backD - 20;
+      const backH = Math.max(120, h - seatY - 150 - 60);
+      for (let i = 0; i < n; i++) {
+        const cx = -w / 2 + arm + cw * (i + 0.5);
+        out.push(soft(cw - 16, 150, seatD, cx, seatY, -d / 2 + backD + seatD / 2 + 10));
+        out.push(soft(cw - 16, backH, 170, cx, seatY + 150, -d / 2 + backD + 85));
+      }
+      const px = w / 2 - arm - 230;
+      const pz = -d / 2 + backD + 170 + 70;
+      out.push(soft(360, 340, 120, -px, seatY + 150, pz, MORANDI.sage));
+      out.push(soft(360, 340, 120, px, seatY + 150, pz, MORANDI.blue));
+      return out;
+    }
+    case 'bed': {
+      const mY = 300;
+      const out: Part[] = [
+        bx(w, mY, d, 0, 0, 0),
+        soft(w - 40, 200, d - 80, 0, mY, 20, MORANDI.linen),
+        // 被子（蓋住床墊下 2/3）＋床尾毯
+        soft(w - 10, 50, d * 0.62, 0, mY + 180, d / 2 - d * 0.31 - 15, MORANDI.beige),
+        soft(w + 10, 30, 420, 0, mY + 215, d / 2 - 250, MORANDI.sage),
+        bx(w, h, 70, 0, 0, -d / 2 + 35),
+      ];
+      const pillows = w >= 1200 ? 2 : 1;
+      const pw = pillows === 2 ? w * 0.4 : w * 0.7;
+      for (let i = 0; i < pillows; i++) {
+        const x = pillows === 2 ? (i ? 1 : -1) * w * 0.22 : 0;
+        out.push(soft(pw, 140, 380, x, mY + 200, -d / 2 + 290, MORANDI.linen));
+      }
+      out.push(soft(Math.min(420, w * 0.35), 300, 110, 0, mY + 210, -d / 2 + 520, MORANDI.blue));
+      return out;
+    }
+    case 'chair':
+      return [soft(w, 50, d, 0, 430, 0), ...legs(430, 30, 30), bx(w, h - 480, 30, 0, 480, -d / 2 + 15)];
+    case 'rug':
+      return [soft(w, Math.max(8, h), d, 0, 0, 0)];
+    case 'plant': {
+      // 盆栽：陶盆＋土＋三團葉叢
+      const r = Math.min(w, d);
+      const potH = h * 0.28;
+      const leaf = (s: number, x: number, y: number, z: number, color: string): Part => {
+        const g = new THREE.IcosahedronGeometry(r * s, 1);
+        g.scale(1, 1.25, 1);
+        return { g, x, y, z, color };
+      };
+      return [
+        cyl(r * 0.3, r * 0.22, potH, 0, 0, 0, '#b9794f'),
+        cyl(r * 0.28, r * 0.28, 10, 0, potH - 20, 0, '#4a3b2e'),
+        cyl(10, 14, h * 0.3, 0, potH, 0, '#5a4a36', 8),
+        leaf(0.42, 0, potH + h * 0.36, 0, '#6f8f5f'),
+        leaf(0.3, r * 0.2, potH + h * 0.5, r * 0.12, '#7d9c69'),
+        leaf(0.28, -r * 0.18, potH + h * 0.55, -r * 0.1, '#5f7f52'),
+      ];
+    }
+    default: {
+      // 其餘類型：沿用簡易分件，但全部改為圓角方塊
+      return parts(type, w, d, h, p).map((pt) => {
+        if (pt.g.type !== 'BoxGeometry') return pt;
+        const { width, height, depth } = (pt.g as THREE.BoxGeometry).parameters;
+        pt.g.dispose();
+        return bx(width, height, depth, pt.x, pt.y - height / 2, pt.z, pt.color);
+      });
+    }
+  }
+}
+
+export interface FurnitureStyleOpts {
+  style?: ViewStyle;
+  /** 剖面模型：body 顏色直接烘進頂點色（instance color 維持白色） */
+  bodyColor?: string;
+}
+
 export function variantKey(
   entry: CatalogEntry | undefined,
   catalogId: string,
@@ -157,10 +276,15 @@ export function variantKey(
   return entry ? `${catalogId}|${JSON.stringify(resolveParams(entry, params))}` : `${catalogId}|missing`;
 }
 
+/** 剖面模型的變體鍵（含 body 顏色，因為顏色烘在幾何裡） */
+export const styledVariantKey = (base: string, opts?: FurnitureStyleOpts) =>
+  opts?.style === 'dollhouse' ? `${base}|dh|${opts.bodyColor ?? ''}` : base;
+
 /** 建立（未縮放的）家具幾何。scale 由 instance matrix 套用。 */
 export function buildFurnitureGeometry(
   entry: CatalogEntry | undefined,
   params?: Record<string, unknown>,
+  opts?: FurnitureStyleOpts,
 ): THREE.BufferGeometry {
   const r = entry ? resolveParams(entry, params) : {};
   const num = (k: 'w' | 'd' | 'h', fb: number) => (typeof r[k] === 'number' ? (r[k] as number) : fb);
@@ -168,13 +292,14 @@ export function buildFurnitureGeometry(
   const d = num('d', entry?.dimsMm.d ?? 500);
   const h = num('h', entry?.dimsMm.h ?? 500);
   const type = entry?.model.kind === 'parametric' ? entry.model.type : 'box';
-  const ps = parts(type, w, d, h, r);
+  const dh = opts?.style === 'dollhouse';
+  const ps = dh ? dollhouseParts(type, w, d, h, r) : parts(type, w, d, h, r);
   const color = new THREE.Color();
   const geoms = ps.map((pt) => {
     const g = (pt.g.index ? pt.g.toNonIndexed() : pt.g) as THREE.BufferGeometry;
     if (g !== pt.g) pt.g.dispose();
     g.translate(pt.x, pt.y, pt.z);
-    color.set(pt.color).convertSRGBToLinear();
+    color.set(dh && pt.color === BODY ? (opts?.bodyColor ?? BODY) : pt.color).convertSRGBToLinear();
     const n = g.getAttribute('position').count;
     const cols = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) cols.set([color.r, color.g, color.b], i * 3);
@@ -211,13 +336,17 @@ export function buildOpeningFill(
           box(50, height, thickness, width / 2 - 25, 0, 0, LIGHT),
           box(width - 100, height - 100, 10, 0, 50, 0, GLASS),
         ];
+  // 玻璃排在最後並自成 group 1（剖面模型用半透明材質；單一材質時 group 會被忽略）
+  ps.sort((x, y) => Number(x.color === GLASS) - Number(y.color === GLASS));
   const color = new THREE.Color();
+  let opaque = 0;
   const geoms = ps.map((pt) => {
     const g = pt.g.toNonIndexed();
     pt.g.dispose();
     g.translate(pt.x, pt.y, pt.z);
     color.set(pt.color).convertSRGBToLinear();
     const n = g.getAttribute('position').count;
+    if (pt.color !== GLASS) opaque += n;
     const cols = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) cols.set([color.r, color.g, color.b], i * 3);
     g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
@@ -225,5 +354,8 @@ export function buildOpeningFill(
   });
   const merged = mergeGeometries(geoms, false)!;
   geoms.forEach((g) => g.dispose());
+  const total = merged.getAttribute('position').count;
+  merged.addGroup(0, opaque, 0);
+  if (total > opaque) merged.addGroup(opaque, total - opaque, 1);
   return merged;
 }

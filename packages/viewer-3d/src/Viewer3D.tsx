@@ -4,13 +4,28 @@ import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, TransformControls } from '@react-three/drei';
 import type { OrbitControls as OrbitImpl } from 'three-stdlib';
 import { useStore } from 'zustand';
-import { activeLevel, transformObject, type EditorStore } from '@interiorai/app-state';
+import { DEFAULTS, activeLevel, transformObject, type EditorStore } from '@interiorai/app-state';
 import { materialMap, objectDims, type Catalog, type Material } from '@interiorai/catalog';
 import { pointOnWall, wallLength } from '@interiorai/core-geometry';
-import type { Level, SceneObject } from '@interiorai/scene-schema';
+import type { Level, SceneObject, Wall } from '@interiorai/scene-schema';
 import { viewer3dApi } from './api.js';
-import { buildFurnitureGeometry, buildOpeningFill, variantKey } from './furniture.js';
+import { DollhouseStage, type QualityState } from './DollhouseStage.js';
+import { buildFurnitureGeometry, buildOpeningFill, styledVariantKey, variantKey } from './furniture.js';
 import { MaterialCache, ResourceScope } from './resources.js';
+import {
+  DOLLHOUSE,
+  STYLE_MATERIALS,
+  VIEW_PRESETS,
+  classifyWalls,
+  dollhouseFloorMaterial,
+  fitDistance,
+  fullHeightWalls,
+  mutedColor,
+  presetDirection,
+  sameSet,
+  type ViewPreset,
+  type ViewStyle,
+} from './style.js';
 import { buildRoomSurfaces, buildWallGeometry } from './walls3d.js';
 
 export interface Viewer3DProps {
@@ -21,17 +36,37 @@ export interface Viewer3DProps {
   transformMode: 'translate' | 'rotate' | 'scale';
   uniformScale: boolean;
   showCeiling?: boolean;
+  /** 視覺風格；預設 simple（P2 原行為）。切換時重建 Canvas，確保兩種模式互不殘留狀態 */
+  viewStyle?: ViewStyle;
 }
+
+const DH_CAMERA = {
+  fov: DOLLHOUSE.fovDeg,
+  near: 100,
+  far: 500_000,
+  position: [20000, 16000, 20000] as const,
+};
 
 export function Viewer3D(props: Viewer3DProps) {
   const [ctxKey, setCtxKey] = useState(0);
+  const dh = props.viewStyle === 'dollhouse';
   return (
-    <div className="h-full w-full" data-testid="viewer3d" style={{ background: props.theme.bg }}>
+    <div
+      className="h-full w-full"
+      data-testid="viewer3d"
+      data-style={dh ? 'dollhouse' : 'simple'}
+      style={{ background: dh ? '#ddd5ca' : props.theme.bg }}
+    >
       <Canvas
-        key={ctxKey}
+        key={`${ctxKey}-${dh ? 'dh' : 'simple'}`}
         frameloop="demand"
         dpr={[1, 2]}
-        camera={{ fov: 50, near: 10, far: 1_000_000, position: [6000, 9000, 12000] }}
+        shadows={dh ? { enabled: true, type: THREE.PCFShadowMap } : false}
+        camera={
+          dh
+            ? { ...DH_CAMERA, position: [...DH_CAMERA.position] }
+            : { fov: 50, near: 10, far: 1_000_000, position: [6000, 9000, 12000] }
+        }
         gl={{ antialias: true, preserveDrawingBuffer: false }}
         onCreated={({ gl }) => {
           // 03 §8：WebGL context lost → 等待 restored 後重建
@@ -56,7 +91,9 @@ function SceneContent({
   transformMode,
   uniformScale,
   showCeiling,
+  viewStyle,
 }: Viewer3DProps) {
+  const dh = viewStyle === 'dollhouse';
   const scene = useStore(store, (s) => s.scene);
   const levelId = useStore(store, (s) => s.levelId);
   const selection = useStore(store, (s) => s.selection);
@@ -68,12 +105,37 @@ function SceneContent({
   const controls = useRef<OrbitImpl>(null);
 
   const scope = useMemo(() => new ResourceScope(), []);
-  const lib = useMemo(() => materialMap(materials), [materials]);
-  const mats = useMemo(() => new MaterialCache(scope, lib), [scope, lib]);
+  const lib = useMemo(
+    () => materialMap(dh ? [...materials, ...STYLE_MATERIALS] : materials),
+    [materials, dh],
+  );
+  const mats = useMemo(
+    () => new MaterialCache(scope, lib, dh ? { hq: true, wallRoughness: DOLLHOUSE.wallRoughness } : {}),
+    [scope, lib, dh],
+  );
   const capMat = useMemo(
-    () => scope.track(new THREE.MeshStandardMaterial({ color: '#8f8b84', roughness: 1 })),
+    () =>
+      scope.track(
+        dh
+          ? new THREE.MeshStandardMaterial({ color: DOLLHOUSE.capColor, roughness: 0.9 })
+          : new THREE.MeshStandardMaterial({ color: '#8f8b84', roughness: 1 }),
+      ),
+    [scope, dh],
+  );
+  const glassMat = useMemo(
+    () =>
+      scope.track(
+        new THREE.MeshStandardMaterial({
+          color: DOLLHOUSE.glassColor,
+          transparent: true,
+          opacity: DOLLHOUSE.glassOpacity,
+          roughness: 0.05,
+          depthWrite: false,
+        }),
+      ),
     [scope],
   );
+  const quality = useRef<QualityState>({ orbiting: false, dragging: false });
   const vcMat = useMemo(
     () => scope.track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })),
     [scope],
@@ -98,11 +160,34 @@ function SceneContent({
     () => ({ id: lid, elevation: lel, height: lh, walls: lw, openings: lo, rooms: lr, objects: [] }),
     [lid, lel, lh, lw, lo, lr],
   );
-  const walls = useMemo(
-    () => structure.walls.map((w) => ({ w, geom: scope.track(buildWallGeometry(structure, w)) })),
-    [structure, scope],
-  );
-  useEffect(() => () => walls.forEach((x) => scope.release(x.geom)), [walls, scope]);
+  // 剖面模型：依相機方向決定哪些外牆保持全高，其餘降為剖面高度
+  const sides = useMemo(() => (dh ? classifyWalls(structure) : null), [dh, structure]);
+  const [fullWalls, setFullWalls] = useState<ReadonlySet<string>>(() => new Set());
+  const updateCut = () => {
+    if (!sides) return;
+    const t = controls.current?.target ?? new THREE.Vector3();
+    const dir: [number, number] = [camera.position.x - t.x, camera.position.z - t.z];
+    setFullWalls((prev) => {
+      const next = fullHeightWalls(sides, dir, prev);
+      return sameSet(prev, next) ? prev : next;
+    });
+  };
+  // 牆幾何依（牆, 高度）快取；結構改變時整批釋放
+  const wallCache = useMemo(() => new Map<string, THREE.BufferGeometry>(), [structure]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => wallCache.forEach((g) => scope.release(g)), [wallCache, scope]);
+  const wallHeight = (w: Wall) =>
+    dh && !fullWalls.has(w.id) ? Math.min(DOLLHOUSE.cutHeight, structure.height) : structure.height;
+  const walls = structure.walls.map((w) => {
+    const H = wallHeight(w);
+    const k = `${w.id}|${H}`;
+    let geom = wallCache.get(k);
+    if (!geom) {
+      geom = scope.track(buildWallGeometry(structure, w, H));
+      wallCache.set(k, geom);
+    }
+    return { w, geom, cut: H < structure.height };
+  });
+  const cutWallIds = new Set(walls.filter((x) => x.cut).map((x) => x.w.id));
   const rooms = useMemo(
     () =>
       buildRoomSurfaces(structure).map((r) => ({
@@ -141,10 +226,13 @@ function SceneContent({
   const furnGeoms = useRef(new Map<string, THREE.BufferGeometry>());
   const geomFor = (o: SceneObject) => {
     const e = catalog.get(o.catalogId);
-    const k = variantKey(e, o.catalogId, o.params);
+    const opts = dh
+      ? { style: viewStyle, bodyColor: mutedColor(`#${slotColor(o).getHexString()}`) }
+      : undefined;
+    const k = styledVariantKey(variantKey(e, o.catalogId, o.params), opts);
     let g = furnGeoms.current.get(k);
     if (!g) {
-      g = scope.track(buildFurnitureGeometry(e, o.params));
+      g = scope.track(buildFurnitureGeometry(e, o.params, opts));
       furnGeoms.current.set(k, g);
     }
     return { key: k, g };
@@ -169,11 +257,13 @@ function SceneContent({
     return [...map.entries()];
   }, [level.objects, single, layers.furniture, catalog]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const bodyColor = (o: SceneObject) => {
+  function slotColor(o: SceneObject) {
     const e = catalog.get(o.catalogId);
     const slot = e?.materialSlots[0];
     return mats.colorOf(o.materialOverrides?.[slot?.name ?? 'body'] ?? slot?.defaultMaterialId, '#cfc6b8');
-  };
+  }
+  // 剖面模型的顏色已烘進幾何 → instance color 用白色
+  const bodyColor = (o: SceneObject) => (dh ? new THREE.Color('#ffffff') : slotColor(o));
 
   const bbox = useMemo(() => {
     const b = new THREE.Box3();
@@ -187,7 +277,41 @@ function SceneContent({
     return b;
   }, [level]);
 
+  const size = useThree((s) => s.size);
+  const preset = useRef<ViewPreset>('iso-se');
+  /** 剖面模型下的人視角：放寬仰角限制（OrbitControls 每次 render 都會套用 props，所以要放 state） */
+  const [eyeLevel, setEyeLevel] = useState(false);
+  const limited = dh && !eyeLevel;
+  /** 剖面模型的相機限制：仰角 20°~70°，fov 22° */
+  const dollhouseCamera = () => {
+    const pc = camera as THREE.PerspectiveCamera;
+    if (pc.fov !== DOLLHOUSE.fovDeg) {
+      pc.fov = DOLLHOUSE.fovDeg;
+      pc.updateProjectionMatrix();
+    }
+    if (controls.current) {
+      controls.current.minPolarAngle = ((90 - DOLLHOUSE.maxElevationDeg) * Math.PI) / 180;
+      controls.current.maxPolarAngle = ((90 - DOLLHOUSE.minElevationDeg) * Math.PI) / 180;
+    }
+  };
+  const viewPreset = (p: ViewPreset) => {
+    preset.current = p;
+    setEyeLevel(false);
+    dollhouseCamera();
+    const c = bbox.getCenter(new THREE.Vector3());
+    const s = bbox.getSize(new THREE.Vector3());
+    const r = Math.max(3000, Math.hypot(s.x, s.z) / 2 + 600);
+    const { azimuthDeg, elevationDeg } = VIEW_PRESETS[p];
+    const dir = presetDirection(azimuthDeg, elevationDeg);
+    const dist = fitDistance(r, DOLLHOUSE.fovDeg, size.width / Math.max(1, size.height));
+    camera.position.set(c.x + dir[0] * dist, dir[1] * dist, c.z + dir[2] * dist);
+    controls.current?.target.set(c.x, 0, c.z);
+    controls.current?.update();
+    updateCut();
+    invalidate();
+  };
   const frameAll = () => {
+    if (dh) return viewPreset(preset.current);
     const c = bbox.getCenter(new THREE.Vector3());
     const r = Math.max(4000, bbox.getSize(new THREE.Vector3()).length());
     camera.position.set(c.x + r * 0.55, r * 0.8, c.z + r * 0.75);
@@ -195,6 +319,8 @@ function SceneContent({
     controls.current?.update();
     invalidate();
   };
+  // 結構改變 → 重新判斷剖面牆
+  useEffect(updateCut, [sides]); // eslint-disable-line react-hooks/exhaustive-deps
   const framed = useRef(false);
   useEffect(() => {
     if (!framed.current) {
@@ -214,6 +340,7 @@ function SceneContent({
       }),
       bench: (ms) =>
         new Promise((resolve) => {
+          quality.current.orbiting = true;
           const target = controls.current?.target.clone() ?? new THREE.Vector3();
           const r0 = camera.position.clone().sub(target);
           const frames: number[] = [];
@@ -232,12 +359,15 @@ function SceneContent({
               target.z + r0.x * Math.sin(a) + r0.z * Math.cos(a),
             );
             camera.lookAt(target);
+            updateCut();
             gl.info.autoReset = true;
             invalidate();
             calls = Math.max(calls, gl.info.render.calls);
             tris = Math.max(tris, gl.info.render.triangles);
             if (now - t0 < ms) requestAnimationFrame(step);
             else {
+              quality.current.orbiting = false;
+              invalidate();
               const sorted = frames.slice(1).sort((x, y) => x - y);
               resolve({
                 fps: (sorted.length / (now - t0)) * 1000,
@@ -251,6 +381,17 @@ function SceneContent({
           requestAnimationFrame(step);
         }),
       personView: () => {
+        if (dh) {
+          // 人視角需要平視：暫時放寬仰角限制與 fov；選任一視角預設即恢復
+          setEyeLevel(true);
+          const pc = camera as THREE.PerspectiveCamera;
+          pc.fov = 50;
+          pc.updateProjectionMatrix();
+          if (controls.current) {
+            controls.current.minPolarAngle = 0;
+            controls.current.maxPolarAngle = Math.PI * 0.495;
+          }
+        }
         const c = bbox.getCenter(new THREE.Vector3());
         camera.position.set(bbox.min.x + 600, 1600, c.z);
         controls.current?.target.set(c.x, 1400, c.z);
@@ -258,6 +399,9 @@ function SceneContent({
         invalidate();
       },
       frameAll,
+      viewPreset,
+      style: () => (dh ? 'dollhouse' : 'simple'),
+      cutWalls: () => [...cutWallIds].sort(),
       currentCamera: () => {
         const t = controls.current?.target ?? new THREE.Vector3();
         return {
@@ -279,16 +423,36 @@ function SceneContent({
     if (id) store.getState().select([id], e.nativeEvent.shiftKey);
   };
 
+  const shadow = dh ? { castShadow: true, receiveShadow: true } : {};
   return (
     <>
-      <color attach="background" args={[theme.bg]} />
-      <hemisphereLight args={['#ffffff', '#b9b2a6', 1.6]} />
-      <directionalLight position={[8000, 12000, 6000]} intensity={1.4} />
-      <OrbitControls ref={controls} makeDefault enableDamping={false} maxPolarAngle={Math.PI * 0.495} />
+      {dh ? (
+        <DollhouseStage bbox={bbox} mats={mats} quality={quality} />
+      ) : (
+        <>
+          <color attach="background" args={[theme.bg]} />
+          <hemisphereLight args={['#ffffff', '#b9b2a6', 1.6]} />
+          <directionalLight position={[8000, 12000, 6000]} intensity={1.4} />
+        </>
+      )}
+      <OrbitControls
+        ref={controls}
+        makeDefault
+        enableDamping={false}
+        maxPolarAngle={limited ? ((90 - DOLLHOUSE.minElevationDeg) * Math.PI) / 180 : Math.PI * 0.495}
+        minPolarAngle={limited ? ((90 - DOLLHOUSE.maxElevationDeg) * Math.PI) / 180 : 0}
+        onStart={() => (quality.current.orbiting = true)}
+        onEnd={() => {
+          quality.current.orbiting = false;
+          invalidate();
+        }}
+        onChange={dh ? updateCut : undefined}
+      />
       {layers.structure &&
         walls.map(({ w, geom }) => (
           <mesh
             key={w.id}
+            {...shadow}
             geometry={geom}
             material={[
               mats.get(w.materialId, '#efece6'),
@@ -306,7 +470,12 @@ function SceneContent({
             <group key={r.key}>
               <mesh
                 geometry={r.floor}
-                material={mats.get(room?.floorMaterialId, '#d8d2c6')}
+                material={
+                  dh
+                    ? mats.get(dollhouseFloorMaterial(room, DEFAULTS.floorMaterialId), '#d8d2c6')
+                    : mats.get(room?.floorMaterialId, '#d8d2c6')
+                }
+                receiveShadow={dh}
                 onClick={select(r.roomId)}
                 userData={{ id: r.roomId }}
               />
@@ -320,16 +489,22 @@ function SceneContent({
           );
         })}
       {layers.structure &&
-        fills.map((f) => (
-          <mesh
-            key={f.o.id}
-            geometry={f.geom}
-            material={selSet.has(f.o.id) ? selMat : vcMat}
-            position={f.pos as unknown as [number, number, number]}
-            rotation={[0, f.rotY, 0]}
-            onClick={select(f.o.id)}
-          />
-        ))}
+        fills
+          // 剖面牆上的門窗扇會突出矮牆 → 不畫，只留開口
+          .filter((f) => !cutWallIds.has(f.o.wallId))
+          .map((f) => (
+            <mesh
+              key={f.o.id}
+              castShadow={dh}
+              geometry={f.geom}
+              material={
+                dh ? [selSet.has(f.o.id) ? selMat : vcMat, glassMat] : selSet.has(f.o.id) ? selMat : vcMat
+              }
+              position={f.pos as unknown as [number, number, number]}
+              rotation={[0, f.rotY, 0]}
+              onClick={select(f.o.id)}
+            />
+          ))}
       {groups.map(([key, grp]) => (
         <FurnitureInstances
           key={key}
@@ -339,6 +514,7 @@ function SceneContent({
           colorOf={bodyColor}
           selected={selSet}
           highlight={theme.primary}
+          shadows={dh}
           onPick={(id, additive) => store.getState().select([id], additive)}
         />
       ))}
@@ -353,6 +529,8 @@ function SceneContent({
           mode={transformMode}
           uniform={uniformScale}
           catalog={catalog}
+          shadows={dh}
+          onDragging={(v) => (quality.current.dragging = v)}
           onCommit={(t) => store.getState().exec(transformObject(level.id, single.id, t))}
         />
       )}
@@ -367,6 +545,7 @@ function FurnitureInstances({
   colorOf,
   selected,
   highlight,
+  shadows,
   onPick,
 }: {
   geom: THREE.BufferGeometry;
@@ -375,6 +554,7 @@ function FurnitureInstances({
   colorOf: (o: SceneObject) => THREE.Color;
   selected: Set<string>;
   highlight: string;
+  shadows?: boolean;
   onPick: (id: string, additive: boolean) => void;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
@@ -407,6 +587,8 @@ function FurnitureInstances({
     <instancedMesh
       ref={ref}
       args={[geom, material, objs.length]}
+      castShadow={shadows}
+      receiveShadow={shadows}
       onClick={(e) => {
         e.stopPropagation();
         const o = e.instanceId !== undefined ? objs[e.instanceId] : undefined;
@@ -425,6 +607,8 @@ function SelectedObject({
   mode,
   uniform,
   catalog,
+  shadows,
+  onDragging,
   onCommit,
 }: {
   obj: SceneObject;
@@ -435,6 +619,8 @@ function SelectedObject({
   mode: Viewer3DProps['transformMode'];
   uniform: boolean;
   catalog: Catalog;
+  shadows?: boolean;
+  onDragging?: (v: boolean) => void;
   onCommit: (t: {
     position?: [number, number, number];
     rotationY?: number;
@@ -481,7 +667,7 @@ function SelectedObject({
         rotation={[0, obj.rotationY, 0]}
         scale={[s[0], s[1], s[2]]}
       >
-        <mesh geometry={geom} material={mat} />
+        <mesh geometry={geom} material={mat} castShadow={shadows} receiveShadow={shadows} />
       </group>
       {ready && proxy.current && !obj.locked && (
         <TransformControls
@@ -506,7 +692,11 @@ function SelectedObject({
             if (p.scale.x < 0.05 || p.scale.y < 0.05 || p.scale.z < 0.05)
               p.scale.set(Math.max(0.05, p.scale.x), Math.max(0.05, p.scale.y), Math.max(0.05, p.scale.z));
           }}
-          onMouseUp={commit}
+          onMouseDown={() => onDragging?.(true)}
+          onMouseUp={() => {
+            onDragging?.(false);
+            commit();
+          }}
         />
       )}
     </>

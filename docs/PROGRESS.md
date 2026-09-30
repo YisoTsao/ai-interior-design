@@ -11,7 +11,7 @@
 - 單 Job 成本上限：見 services/api/models.yaml `budgets`
 - 結構驗證門檻狀態：**未校準**（mock 通過不代表有效，ADR-012）
 - 工具鏈：Node 24.14、pnpm 9.15.9（corepack）、TypeScript 6.0.3
-- 最後更新：2026-09-30｜目前 Phase：P3（未開始）
+- 最後更新：2026-09-30｜目前 Phase：P3（未開始；已完成 P3 前的 3D 風格改版 ADR-017）
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
@@ -51,6 +51,10 @@
 - P2：catalog-tools 的 ingest 只做檢查段（validator、尺寸 ±2%、原點、面數、授權→draft/review）；轉檔、Draco/Meshopt、KTX2、LOD1、縮圖需原生工具（toktx 等），尚未實作，列 P7。
 - P2：自動儲存只到 IndexedDB（本機）；雲端版本在 P3 接上。
 - P2：WebGL context lost → 以 key 重建 Canvas；未做實機測試（無法在 CI 可靠觸發）。
+- P2.5（使用者要求，P3 前）：3D 改為「等角建築剖面模型」風格（isometric-dollhouse-style），ADR-017。
+  `viewStyle` 開關（預設 dollhouse，可切回 simple；simple 行為與 FPS 不變）。AO 用 three 內建 GTAOPass（無新依賴）；
+  PCFSoftShadowMap 在 r186 已移除，改 PCFShadowMap＋radius；無 GLB 資產 → 圓角分件家具；「自動點綴軟裝」為可 undo 的 Command。
+  E2E 新增 e2e/style.spec.ts（截圖存 e2e/results/style-*.png）；perf.spec 兩種風格都量。
 
 ## 阻礙與待人決策（⚠ 項須寫「解除條件」）
 | Phase | 項目 | 已用什麼替代 | 解除條件 |
@@ -70,6 +74,8 @@
 | 2D 拖曳（ADR-010，5000 圖元） | — | 60 FPS（Konva＋drag layer） | |
 | 首次切到 3D（範例 2 房 1 廳） | — | 2.2 s | Rosetta 下為 36 s |
 | 首次載入可互動、存檔時間、記憶體 | ≤3 s / ≤1 s / ≤1.5 GB | 未量測 | P7 效能硬化時補 |
+| 3D 編輯 FPS — 剖面模型（ADR-017，M2） | ≥ 50（skill：60） | 60.1（p95 18.2 ms）／63 draw calls／186k 三角形 | 旋轉中跳過 AO、不重算陰影 |
+| 3D 編輯 FPS — 簡易模式（ADR-017，M2） | ≥ 50 | 60.0（p95 18.4 ms）／61／20k | 與 P2 一致 |
 
 ## 假設數值定案紀錄（規則書「〔假設〕」→ 實測值）
 | 項目 | 假設 | 實測 | 日期 |

@@ -1,5 +1,9 @@
 {
-  "app": { "name": "InteriorAI", "offline": "離線中：編輯照常，雲端功能暫停", "skip": "跳到畫布" },
+  "app": {
+    "name": "InteriorAI",
+    "offline": "離線中：編輯照常，雲端功能暫停",
+    "skip": "跳到畫布"
+  },
   "projects": {
     "title": "我的專案",
     "new": "建立空白專案",
@@ -14,7 +18,11 @@
     "loadError": "專案資料無法讀取：{{message}}",
     "importSoon": "上傳平面圖（P5 開放）",
     "sampleName": "範例：兩房一廳",
-    "sampleRooms": { "living": "客廳", "bed1": "主臥", "bed2": "次臥" }
+    "sampleRooms": {
+      "living": "客廳",
+      "bed1": "主臥",
+      "bed2": "次臥"
+    }
   },
   "top": {
     "back": "回專案列表",
@@ -24,14 +32,33 @@
     "view2d": "2D 平面",
     "view3d": "3D 檢視",
     "name": "專案名稱",
-    "save": { "saved": "已儲存", "dirty": "尚未儲存", "saving": "儲存中…", "error": "儲存失敗" },
+    "save": {
+      "saved": "已儲存",
+      "dirty": "尚未儲存",
+      "saving": "儲存中…",
+      "error": "儲存失敗"
+    },
     "render": "AI 渲染（P4 開放）",
     "personView": "人視角",
     "frameAll": "全景",
     "bookmark": "儲存視角",
     "ceiling": "顯示天花板",
     "settings": "單位",
-    "bookmarkName": "視角 {{n}}"
+    "bookmarkName": "視角 {{n}}",
+    "style": "3D 風格",
+    "styleSimple": "簡易",
+    "styleDollhouse": "剖面模型",
+    "viewPreset": "視角預設",
+    "preset": {
+      "iso-se": "等角 東南",
+      "iso-sw": "等角 西南",
+      "iso-nw": "等角 西北",
+      "iso-ne": "等角 東北",
+      "top": "俯視"
+    },
+    "decorate": "自動點綴軟裝",
+    "decorateNone": "沒有可以再放軟裝的位置",
+    "decorateDone": "已加入 {{n}} 件軟裝"
   },
   "tools": {
     "title": "工具",
@@ -92,7 +119,12 @@
     "length": "長度",
     "thickness": "厚度",
     "type": "類型",
-    "wallTypes": { "structural": "結構牆", "exterior": "外牆", "partition": "隔間牆", "curtain": "帷幕牆" },
+    "wallTypes": {
+      "structural": "結構牆",
+      "exterior": "外牆",
+      "partition": "隔間牆",
+      "curtain": "帷幕牆"
+    },
     "sideA": "A 面（畫牆方向左側）",
     "sideB": "B 面（右側）",
     "keep": "改長度時固定",
@@ -104,7 +136,13 @@
     "height": "高度",
     "sill": "窗台高",
     "swing": "開向",
-    "swings": { "left": "左開", "right": "右開", "double": "雙開", "sliding": "橫拉", "none": "無" },
+    "swings": {
+      "left": "左開",
+      "right": "右開",
+      "double": "雙開",
+      "sliding": "橫拉",
+      "none": "無"
+    },
     "posX": "X",
     "posZ": "Z",
     "posY": "離地",
@@ -137,7 +175,9 @@
     "sill": "窗台高",
     "panes": "分割數"
   },
-  "room": { "unnamed": "未命名房間" },
+  "room": {
+    "unnamed": "未命名房間"
+  },
   "snap": {
     "endpoint": "吸附：端點",
     "wall": "吸附：牆線",
@@ -197,8 +237,11 @@
     "duplicate": "複製",
     "setMaterial": "套用材質",
     "renameRoom": "重新命名房間",
-    "saveCamera": "儲存視角"
+    "saveCamera": "儲存視角",
+    "autoDecorate": "自動點綴軟裝"
   },
-  "saved": { "camera": "已儲存視角「{{name}}」（渲染時可用）" },
+  "saved": {
+    "camera": "已儲存視角「{{name}}」（渲染時可用）"
+  },
   "lang": "English"
 }

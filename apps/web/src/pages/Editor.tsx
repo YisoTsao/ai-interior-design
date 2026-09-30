@@ -2,20 +2,22 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ArrowLeft, Bookmark, Box, Eye, Map, Maximize, Redo2, Sparkles, Undo2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Box, Eye, Leaf, Map, Maximize, Redo2, Sparkles, Undo2 } from 'lucide-react';
 import {
   activeLevel,
   addObject,
+  autoDecorate,
   canRedo,
   canUndo,
   createEditorStore,
   loadProject,
+  planDecor,
   saveCameraBookmark,
   startAutosave,
 } from '@interiorai/app-state';
 import { objectDims } from '@interiorai/catalog';
 import { Plan2D, plan2dApi } from '@interiorai/editor-2d';
-import { Viewer3D, viewer3dApi } from '@interiorai/viewer-3d';
+import { VIEW_PRESETS, Viewer3D, viewer3dApi, type ViewPreset } from '@interiorai/viewer-3d';
 import { catalog, materials } from '../catalogData';
 import { BottomBar } from '../editor/BottomBar';
 import { IconButton, LangToggle, OfflineBadge } from '../editor/common';
@@ -106,6 +108,7 @@ function EditorShell() {
   const theme = useCanvasTheme();
   const lengthUnit = usePrefs((s) => s.lengthUnit);
   const areaUnit = usePrefs((s) => s.areaUnit);
+  const viewStyle = usePrefs((s) => s.viewStyle);
   const [mode, setMode] = useState<TransformMode>('translate');
   const [uniformScale, setUniformScale] = useState(true);
   const [showCeiling, setShowCeiling] = useState(false);
@@ -186,6 +189,7 @@ function EditorShell() {
                 transformMode={mode}
                 uniformScale={uniformScale}
                 showCeiling={showCeiling}
+                viewStyle={viewStyle}
               />
             )}
           </CanvasBoundary>
@@ -217,7 +221,7 @@ function TopBar({
   const redoable = useEditor(canRedo);
   const lastLabel = useEditor((s) => s.history.past.at(-1)?.label);
   const cams = useEditor((s) => s.scene.cameras?.length ?? 0);
-  const { lengthUnit, areaUnit, setLength, setArea } = usePrefs();
+  const { lengthUnit, areaUnit, setLength, setArea, viewStyle, setViewStyle } = usePrefs();
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2">
       <Link to="/" className="icon-btn" aria-label={t('top.back')} title={t('top.back')}>
@@ -306,6 +310,51 @@ function TopBar({
           >
             <Bookmark size={18} aria-hidden />
           </IconButton>
+          <IconButton
+            label={t('top.decorate')}
+            testId="auto-decorate"
+            onClick={() => {
+              const s = store.getState();
+              const plan = planDecor(activeLevel(s), catalog);
+              if (plan.length && s.exec(autoDecorate(s.levelId, plan)))
+                s.notify('info', t('top.decorateDone', { n: plan.length }));
+              else s.notify('info', t('top.decorateNone'));
+            }}
+          >
+            <Leaf size={18} aria-hidden />
+          </IconButton>
+          <label className="flex items-center gap-1 text-xs">
+            <span className="sr-only">{t('top.style')}</span>
+            <select
+              className="field w-28 font-sans"
+              value={viewStyle}
+              onChange={(e) => setViewStyle(e.target.value as typeof viewStyle)}
+              data-testid="view-style"
+            >
+              <option value="dollhouse">{t('top.styleDollhouse')}</option>
+              <option value="simple">{t('top.styleSimple')}</option>
+            </select>
+          </label>
+          {viewStyle === 'dollhouse' && (
+            <label className="flex items-center gap-1 text-xs">
+              <span className="sr-only">{t('top.viewPreset')}</span>
+              <select
+                className="field w-28 font-sans"
+                value=""
+                onChange={(e) =>
+                  e.target.value && viewer3dApi.get()?.viewPreset(e.target.value as ViewPreset)
+                }
+                data-testid="view-preset"
+              >
+                <option value="">{t('top.viewPreset')}</option>
+                {(Object.keys(VIEW_PRESETS) as ViewPreset[]).map((p) => (
+                  <option key={p} value={p}>
+                    {t(`top.preset.${p}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="flex items-center gap-1 text-xs">
             <input type="checkbox" checked={showCeiling} onChange={(e) => setShowCeiling(e.target.checked)} />{' '}
             {t('top.ceiling')}
