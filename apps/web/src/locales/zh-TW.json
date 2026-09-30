@@ -16,7 +16,6 @@
     "stats": "{{walls}} 面牆 · {{objects}} 件家具",
     "updated": "更新於 {{time}}",
     "loadError": "專案資料無法讀取：{{message}}",
-    "importSoon": "上傳平面圖（P5 開放）",
     "sampleName": "範例：兩房一廳",
     "sampleRooms": {
       "living": "客廳",
@@ -243,7 +242,8 @@
     "setMaterial": "套用材質",
     "renameRoom": "重新命名房間",
     "saveCamera": "儲存視角",
-    "autoDecorate": "自動點綴軟裝"
+    "autoDecorate": "自動點綴軟裝",
+    "importPlan": "匯入平面圖"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -343,5 +343,47 @@
     "blue": "藍",
     "cyan": "青",
     "green": "綠"
+  },
+  "planImport": {
+    "button": "匯入平面圖",
+    "title": "匯入平面圖",
+    "loginHint": "平面圖辨識在雲端執行，請先登入。",
+    "formats": "支援 DXF（向量，最準）與 PNG／JPG／WEBP（點陣）。DWG 請先轉存為 DXF。",
+    "choose": "選擇平面圖檔案",
+    "uploading": "上傳中…",
+    "badType": "不支援的檔案格式",
+    "reviewTitle": "平面圖校正",
+    "analyzing": "辨識中…",
+    "canvas": "平面圖與辨識結果",
+    "panel": "校正",
+    "scale": "尺度（必須確認）",
+    "scaleMethod": {
+      "dxf_units": "來源：DXF 單位",
+      "dimension_ocr": "來源：尺寸標註辨識",
+      "user": "來源：使用者輸入",
+      "unknown": "尺度未知：請以兩點校正"
+    },
+    "mmPerUnit": "每{{u}} = {{v}} mm",
+    "calibStart": "兩點校正",
+    "calibClick": "點選第 {{n}} 點",
+    "realLength": "兩點實際距離（mm）",
+    "apply": "套用",
+    "confirmScale": "確認尺度正確",
+    "scaleConfirmed": "尺度已確認",
+    "pending": "待確認（{{n}}）",
+    "noPending": "沒有低信心的元素",
+    "kind": {
+      "wall": "牆",
+      "door": "門",
+      "window": "窗",
+      "passage": "開口"
+    },
+    "accept": "確認",
+    "delete": "刪除",
+    "counts": "牆 {{w}}、門窗 {{o}}、房間 {{r}}",
+    "orthogonal": "直角吸附（接近水平/垂直的牆拉正）",
+    "build": "建立 3D 專案",
+    "needScale": "確認尺度後才能建立專案",
+    "skipped": "有 {{n}} 個元素不合法已略過"
   }
 }

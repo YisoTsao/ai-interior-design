@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import { FilePlus2, LayoutTemplate, Trash2, Upload } from 'lucide-react';
+import { FilePlus2, LayoutTemplate, Trash2 } from 'lucide-react';
+import { ImportPlanButton } from '../features/plan-review/ImportPlanButton';
 import {
   createEditorStore,
   deleteProject,
@@ -42,9 +43,7 @@ export function ProjectsPage() {
         <OfflineBadge />
         <div className="ml-auto flex gap-2">
           <LangToggle />
-          <button className="btn" disabled title={t('projects.importSoon')}>
-            <Upload size={16} aria-hidden /> {t('projects.importSoon')}
-          </button>
+          <ImportPlanButton />
           <button className="btn" onClick={() => create(true)} data-testid="new-sample">
             <LayoutTemplate size={16} aria-hidden /> {t('projects.sample')}
           </button>

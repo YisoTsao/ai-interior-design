@@ -11,7 +11,7 @@
 - 單 Job 成本上限：見 services/api/models.yaml `budgets`
 - 結構驗證門檻狀態：**未校準**（mock 通過不代表有效，ADR-012）；ai-eval mock 結果見下方 P4 量測
 - 工具鏈：Node 24.14、pnpm 9.15.9（corepack）、TypeScript 6.0.3
-- 最後更新：2026-09-30｜目前 Phase：P5（進行中，WIP）
+- 最後更新：2026-09-30｜目前 Phase：P6（未開始）
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
@@ -21,13 +21,13 @@
 | P2 | 編輯器 (2D/3D/Command/資產庫) | ☑ | ☑ | `check_gates P2 --run` 全綠（lint/typecheck/test/build/test:e2e/licenses:check）；E2E 7/7；axe 無 serious/critical；107 個單元測試 |
 | P3 | 後端基礎 (Auth/專案/上傳/Job/點數) | ☑ | ☑ | lint/typecheck/test/build/test:integration(39)/test:contract(4)/test:e2e(9)/licenses 全綠；帳本併發/冪等/退款/對帳測試通過；ADR-018 |
 | P4 | AI 渲染 (G-buffer/Provider/Router/驗證) | ☑ | ☑ | 全部 Gate 指令綠（integration 49、contract 4、e2e 11 含真實後端 UI）；break_structure→重試→降級→退款＋JOB_FAILED、遮罩外逐位元不變皆有測試；ADR-019/020 |
-| P5 | 平面圖辨識 (DXF/點陣/校正/合成資料) | ◐ | ☐ | WIP：cv-service 核心（DXF、點陣、合成、指標）已寫；尚缺 FastAPI、pytest、評測 CLI、Node plan-import、校正 UI、E2E |
+| P5 | 平面圖辨識 (DXF/點陣/校正/合成資料) | ☑ | ☑ | 全部 Gate 綠：pytest 22、eval 無回歸、DXF 誤差 0.000%、integration 54、contract P5、E2E 14（上傳→校正→3D）；ADR-022；牆 IoU 未達〔假設〕目標 |
 | P6 | 助理 + BOM + 匯出 | ☐ | ☐ | |
 | P7 | 桌面端 + 硬化 + 上線準備 | ☐ | ☐ | |
 | P8 | 最終驗證與交付 | ☐ | ☐ | |
 
 ## Backlog 勾選
-以 `docs/backlog.md` 為準（已勾：E1 全部、E2 S2.1–S2.12、E3 S3.1–S3.5、E4 S4.1–S4.8、E5 S5.1–S5.10、S9.1）。
+以 `docs/backlog.md` 為準（已勾：E1 全部、E2 S2.1–S2.12、E3 S3.1–S3.5、E4 S4.1–S4.8、E5 S5.1–S5.10、E6 S6.1–S6.8、S9.1）。
 
 ## 決策與偏離（ADR 索引 / 對 skill 預設的偏離）
 - ADR-001~015 由 bootstrap 建立；ADR-010 於 P2 定案（Konva，附量測）；ADR-016 新增（牆開口改解析式，取代 ADR-003 的 CSG 部分）。
@@ -66,27 +66,23 @@
   PCFSoftShadowMap 在 r186 已移除，改 PCFShadowMap＋radius；無 GLB 資產 → 圓角分件家具；「自動點綴軟裝」為可 undo 的 Command。
   E2E 新增 e2e/style.spec.ts（截圖存 e2e/results/style-*.png）；perf.spec 兩種風格都量。
 
-## P5 續作筆記（下個 session 從這裡開始）
-- 已完成：`services/cv-service`（venv：`python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt`）
-  - `app/model.py` PlanResult 契約＋後處理；`app/vector/dxf.py` DXF 解析——6 個合成戶型牆長誤差 0.0%、門窗全數找到
-  - `app/raster/pipeline.py` 點陣管線（可替換 Segmenter、OCR 尺度、房間）；`synth/`（BSP 戶型、5 種繪圖風格、DXF 輸出）；`eval/metrics.py`、`eval/quick.py`、`eval/debug.py`
-  - 點陣現況（4 戶型×5 風格，`python -m eval.quick 4`）：牆 IoU 0.615、門窗 F1 0.640、房間 IoU 0.512；OCR 尺度有讀到時誤差多 <0.3%
-    （〔假設〕目標 牆 IoU ≥0.80、門窗 F1 ≥0.85 **未達標**；scan 與 cad 風格最弱）
-- 待做：`app/main.py`（FastAPI /v1/parse、/healthz、上限）、pytest（DXF ≤1% 誤差 Gate）、`eval/run.py`（分風格報告＋baseline 回歸）、
-  Dockerfile、Node `plan_import` job＋`/plan-imports` API＋VLM 標註（mock）、`apps/web/src/features/plan-review` 校正 UI、E2E 上傳→校正→3D；之後 P6。
-
 ## 阻礙與待人決策（⚠ 項須寫「解除條件」）
 | Phase | 項目 | 已用什麼替代 | 解除條件 |
 |---|---|---|---|
 | P3 | OIDC 供應商整合（未驗證） | AuthProvider 介面＋本機 email/密碼 JWT | 選定 IdP（Auth0/Keycloak/Supabase）並提供測試租戶 |
 | P3 | 真實金流（未驗證） | mock checkout＋HMAC 驗簽 webhook（冪等入帳） | 選定金流商（綠界/Stripe）並提供沙箱金鑰 |
 | P4 | ⚠ 真實 AI 供應商呼叫與評測（未驗證） | mock provider；OpenAI/FLUX 卡片以 HTTP mock 測試；OpenAI 端點/參數已依官方文件核對（2026-09-30） | 提供 OPENAI_API_KEY / BFL_API_KEY，跑 `pnpm ai-eval run --provider openai|flux` 並完成人工評分 |
+| P5 | ⚠ 平面圖辨識真實資料評測 | 合成資料（5 風格）評測＋回歸 baseline | 取得可商用授權的在地資料集，跑 `python -m eval.run` 對應的真實資料版本 |
+| P5 | ⚠ DWG／向量 PDF 匯入 | 拒絕並請使用者轉 DXF | 法務確認 ODA/LibreDWG 授權；PDF 向量抽取（PyMuPDF，AGPL 需評估） |
 | P4 | ⚠ 結構驗證門檻校準 | 〔假設〕0.65/0.80/0.90，`calibrated: false` | 真實供應商評測集結果（見上）＋人工評分後定案 |
 
 ## 未達標清單（軟性指標未達假設目標時填寫；P8 逐項處理）
 | 項目 | 假設目標 | 實測 | 改善 Task | 狀態 |
 |---|---|---|---|---|
-| （目前無）| | | | |
+| 點陣平面圖 牆 IoU（合成資料） | ≥ 0.80 | 0.724 | 分割模型（需授權資料集/在地資料）或牆帶精修 | 未達標 |
+| 點陣平面圖 房間 IoU（合成資料，cad 風格 0.30） | — | 0.493 | 空心雙線牆的房間切割 | 待改善 |
+| 掃描件 OCR 尺度誤差 | — | 中位 17% | 校正 UI 強制確認已兜底；改善 OCR 前處理 | 已兜底 |
+| 真實平面圖準確率 | ≥ 0.80 / 0.85 | 未量測 | 取得合法在地資料（建照圖/DM/手繪/掃描）後評測 | ⚠ 未驗證 |
 
 ## P2 量測紀錄（e2e/perf.spec.ts；原生 arm64 Chrome 154、M1 Pro、headless；場景 5 房間 + 200 家具）
 | 指標 | B8 預算〔假設〕 | 實測 | 備註 |
@@ -115,6 +111,16 @@
 | ai-eval mock break_structure（balanced，150 次） | 通過 0%；recall P10 0.389、中位數 0.441 | 與保留結構的差距 > 0.5 |
 | 3D 編輯 FPS（剖面模型／簡易） | 60.1 ／ 60.2；draw calls 63／61 | P4 後重測，未退步 |
 | mock 渲染端到端（1K，含上傳/驗證/存檔） | UI E2E 約 1–2 s | 真實供應商延遲未量測 |
+
+## P5 量測紀錄（cv-service，合成資料 20 張/風格）
+| 風格 | 牆 IoU | 門窗 F1 | 房間 IoU | 尺度自動判定率 |
+|---|---|---|---|---|
+| cad | 0.69 | 0.95 | 0.30 | 100% |
+| filled | 0.75 | 0.98 | 0.55 | 90% |
+| grey | 0.77 | 0.98 | 0.50 | 70% |
+| sketch | 0.69 | 0.98 | 0.55 | 85% |
+| scan | 0.71 | 0.97 | 0.57 | 95% |
+DXF 牆長誤差 0.000%（Gate ≤ 1%）；E2E 點陣匯入寬/深誤差 < 3%。詳見 `services/cv-service/eval/reports/latest/report.md`（由 eval.run 產生）。
 
 ## 假設數值定案紀錄（規則書「〔假設〕」→ 實測值）
 | 項目 | 假設 | 實測 | 日期 |

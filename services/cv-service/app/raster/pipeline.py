@@ -412,6 +412,49 @@ def bridge(segs: list[Seg], ops: list[dict]) -> tuple[list[Seg], list[dict]]:
     return merged, [o for o in ops if o["type"] not in ("wall",)]
 
 
+def close_envelope(segs: list[Seg], t_px: float) -> list[Seg]:
+    """外框（牆外接矩形的四條邊線）上的共線牆段合併成連續外牆：公寓外牆是封閉的，缺口是門窗（開口依位置另外指派）。
+    內部缺口不動（可能是真的開放通道）。"""
+    if not segs:
+        return segs
+    xs = [c for s in segs for c in (s.a[0], s.b[0])]
+    ys = [c for s in segs for c in (s.a[1], s.b[1])]
+    x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+    out: list[Seg] = []
+    groups: dict[str, list[Seg]] = {"L": [], "R": [], "T": [], "B": []}
+    for s in segs:
+        tol = max(s.thickness, t_px) * 1.5
+        vert = abs(s.a[0] - s.b[0]) < 1
+        horiz = abs(s.a[1] - s.b[1]) < 1
+        if vert and abs(s.a[0] - x0) <= tol:
+            groups["L"].append(s)
+        elif vert and abs(s.a[0] - x1) <= tol:
+            groups["R"].append(s)
+        elif horiz and abs(s.a[1] - y0) <= tol:
+            groups["T"].append(s)
+        elif horiz and abs(s.a[1] - y1) <= tol:
+            groups["B"].append(s)
+        else:
+            out.append(s)
+    for side, g in groups.items():
+        if not g:
+            continue
+        tot = max(1e-9, sum(s.length for s in g))
+        th = sum(s.thickness * s.length for s in g) / tot  # 長度加權（max 會高估牆厚）
+        cf = sum(s.confidence * s.length for s in g) / tot
+        if side in ("L", "R"):
+            x = sum(s.a[0] * s.length for s in g) / max(1e-9, sum(s.length for s in g))
+            lo = min(min(s.a[1], s.b[1]) for s in g)
+            hi = max(max(s.a[1], s.b[1]) for s in g)
+            out.append(Seg((x, lo), (x, hi), th, cf))
+        else:
+            y = sum(s.a[1] * s.length for s in g) / max(1e-9, sum(s.length for s in g))
+            lo = min(min(s.a[0], s.b[0]) for s in g)
+            hi = max(max(s.a[0], s.b[0]) for s in g)
+            out.append(Seg((lo, y), (hi, y), th, cf))
+    return out
+
+
 def find_rooms(mask: np.ndarray, segs: list[Seg], ops: list[dict], t_px: float) -> list[tuple[list[tuple[float, float]], float]]:
     """封閉區域 → 房間多邊形：牆 mask ＋ 把開口封起來，取不碰到影像邊界的空白連通區"""
     closed = mask.copy()
@@ -544,6 +587,9 @@ def parse_raster(data: bytes, hints: Optional[Hints] = None, segmenter: Optional
         if not any(overlaps(o, d) for d in dedup):
             dedup.append(o)
     ops = dedup
+    # 外牆封閉（門窗處被切斷的外牆段合併）；只做這一步（評測：跨開口合併與額外共線合併都會降低指標）
+    segs = close_envelope(segs, t_px)
+    segs = snap_endpoints(segs)
 
     # 尺度
     method = "unknown"

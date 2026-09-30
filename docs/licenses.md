@@ -26,6 +26,14 @@
 | 套件 | vite、vitest、eslint、turbo、fast-check | npm | MIT | ✅ | ✅ | 開發/測試 | 僅開發依賴 | 2026-09-29 |
 | 套件 | @axe-core/playwright | npm | MPL-2.0 | ✅（檔案級 copyleft；僅測試用，不隨產品散布） | — | 無障礙測試 | 僅開發依賴 | 2026-09-29 |
 | 套件 | @gltf-transform/core、gltf-validator | npm | MIT／Apache-2.0 | ✅ | ✅ | 資產管線 | P2 catalog-tools | 2026-09-29 |
+| 套件 | NestJS、drizzle-orm、pg、bullmq、ioredis、jose、ajv、yaml、pngjs、cookie-parser | npm | MIT（pg／ioredis MIT、bullmq MIT） | ✅ | ✅ | 後端 P3/P4 | licenses:check 自動掃描 | 2026-09-30 |
+| 套件 | @aws-sdk/client-s3、s3-request-presigner | npm | Apache-2.0 | ✅ | ✅ | 物件儲存 |  | 2026-09-30 |
+| 套件 | testcontainers、supertest、openapi-typescript | npm | MIT | ✅ | ✅ | 測試/型別生成 | 僅開發依賴 | 2026-09-30 |
+| 映像 | bitnamilegacy/minio | Docker Hub | AGPL-3.0（MinIO 伺服器） | 僅開發/測試 | — | 本機 S3 | **不隨產品散布**；正式環境用雲端 S3（ADR-018） | 2026-09-30 |
+| 套件 | fastapi、uvicorn、pydantic、python-multipart | PyPI | MIT／BSD-3／Apache-2.0 | ✅ | ✅ | cv-service |  | 2026-09-30 |
+| 套件 | numpy、opencv-python-headless、scikit-image、shapely、pillow | PyPI | BSD-3／Apache-2.0／BSD-3／BSD-3／HPND | ✅ | ✅ | cv-service（點陣管線） |  | 2026-09-30 |
+| 套件 | pytesseract＋Tesseract OCR | PyPI／系統套件 | Apache-2.0 | ✅ | ✅ | 尺寸標註 OCR | 缺席時尺度走使用者校正 | 2026-09-30 |
+| 資料 | 合成平面圖（services/cv-service/synth） | 專案自產 | 自有 | ✅ | ✅ | 評測/回歸 | P5 評測只用合成資料；**未使用任何第三方資料集或預訓練模型** | 2026-09-30 |
 
 ## 供應商與資料集現況（〔待查證〕項目需人處理）
 - CubiCasa5K：非商用，**MUST NOT 進入商用版**；商用前取得授權或不使用（P5 決策）。

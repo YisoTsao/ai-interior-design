@@ -16,7 +16,6 @@
     "stats": "{{walls}} walls · {{objects}} items",
     "updated": "Updated {{time}}",
     "loadError": "Couldn't read project: {{message}}",
-    "importSoon": "Upload floor plan (P5)",
     "sampleName": "Sample: 2-bedroom flat",
     "sampleRooms": {
       "living": "Living",
@@ -243,7 +242,8 @@
     "setMaterial": "apply material",
     "renameRoom": "rename room",
     "saveCamera": "save view",
-    "autoDecorate": "auto-decorate"
+    "autoDecorate": "auto-decorate",
+    "importPlan": "import floor plan"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -343,5 +343,47 @@
     "blue": "Blue",
     "cyan": "Cyan",
     "green": "Green"
+  },
+  "planImport": {
+    "button": "Import floor plan",
+    "title": "Import floor plan",
+    "loginHint": "Floor plan recognition runs in the cloud. Please sign in.",
+    "formats": "DXF (vector, most accurate) and PNG/JPG/WEBP (raster). Convert DWG to DXF first.",
+    "choose": "Choose a floor plan file",
+    "uploading": "Uploading…",
+    "badType": "Unsupported file type",
+    "reviewTitle": "Review floor plan",
+    "analyzing": "Analyzing…",
+    "canvas": "Floor plan with detected elements",
+    "panel": "Review",
+    "scale": "Scale (must be confirmed)",
+    "scaleMethod": {
+      "dxf_units": "Source: DXF units",
+      "dimension_ocr": "Source: dimension labels",
+      "user": "Source: user input",
+      "unknown": "Unknown scale: calibrate with two points"
+    },
+    "mmPerUnit": "1 {{u}} = {{v}} mm",
+    "calibStart": "Two-point calibration",
+    "calibClick": "Click point {{n}}",
+    "realLength": "Real distance (mm)",
+    "apply": "Apply",
+    "confirmScale": "Scale is correct",
+    "scaleConfirmed": "Scale confirmed",
+    "pending": "To review ({{n}})",
+    "noPending": "No low-confidence elements",
+    "kind": {
+      "wall": "Wall",
+      "door": "Door",
+      "window": "Window",
+      "passage": "Opening"
+    },
+    "accept": "Accept",
+    "delete": "Delete",
+    "counts": "{{w}} walls, {{o}} openings, {{r}} rooms",
+    "orthogonal": "Snap near-orthogonal walls",
+    "build": "Create 3D project",
+    "needScale": "Confirm the scale before creating the project",
+    "skipped": "{{n}} invalid elements were skipped"
   }
 }

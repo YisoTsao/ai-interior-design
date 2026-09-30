@@ -1,5 +1,8 @@
 // E2E 用完整後端（不需雲端與金鑰）：Testcontainers 起 Postgres/Redis/MinIO → 遷移/角色/種子 →
 // API（:3100）＋ 同程序 worker（AI_PROVIDER=mock）。Playwright 的 webServer 啟動它；程序結束時 Ryuk 會清掉容器。
+import { spawn } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { GenericContainer, Wait } from 'testcontainers';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer } from '@testcontainers/redis';
@@ -9,10 +12,12 @@ import {
   JobEvents,
   JobsService,
   LedgerService,
+  MockVisionProvider,
   QUEUE_NAME,
   Storage,
   createAiRuntime,
   createApp,
+  createPlanImportProcessor,
   createRedis,
   ensureLoginRoles,
   loadConfig,
@@ -22,6 +27,13 @@ import {
 } from '../dist/index.js';
 
 const port = Number(process.env.E2E_API_PORT ?? 3100);
+// cv-service（平面圖辨識，P5）：以 venv 的 uvicorn 啟動
+const cvDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../cv-service');
+const cvPort = Number(process.env.E2E_CV_PORT ?? 8101);
+const cv = spawn(path.join(cvDir, '.venv/bin/uvicorn'), ['app.main:app', '--host', '127.0.0.1', '--port', String(cvPort)], {
+  cwd: cvDir,
+  stdio: 'inherit',
+});
 const [pg, redis, minio] = await Promise.all([
   new PostgreSqlContainer('postgres:16-alpine').start(),
   new RedisContainer('redis:7-alpine').start(),
@@ -72,10 +84,15 @@ const ai = await createAiRuntime(
   { db, storage },
   { AI_PROVIDER: 'mock', AI_MOCK_MODE: process.env.AI_MOCK_MODE ?? 'ok' },
 );
-startWorker({ connection: conn, jobs, events, timeoutMs: config.jobTimeoutMs }, ai.processors);
+const cvServiceUrl = `http://127.0.0.1:${cvPort}`;
+startWorker({ connection: conn, jobs, events, timeoutMs: config.jobTimeoutMs }, {
+  ...ai.processors,
+  plan_import: createPlanImportProcessor({ db, storage, cvServiceUrl, vision: new MockVisionProvider() }),
+});
 console.log(`e2e backend ready on http://localhost:${port}/v1`);
 
 const stop = async () => {
+  cv.kill('SIGTERM');
   await app.close().catch(() => undefined);
   await Promise.allSettled([pg.stop(), redis.stop(), minio.stop()]);
   process.exit(0);

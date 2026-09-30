@@ -43,6 +43,8 @@ export function EditorPage() {
         if (dead) return;
         if (!rec) return setState('missing');
         store.getState().load({ projectId: rec.id, projectName: rec.name, scene: rec.scene });
+        // 平面圖匯入後直接看 3D（/p/:id/edit?view=3d）
+        if (new URLSearchParams(window.location.search).get('view') === '3d') store.getState().setView('3d');
         setState('ready');
       })
       .catch((e: unknown) => !dead && setState({ error: e instanceof Error ? e.message : String(e) }));
