@@ -51,6 +51,9 @@ export function findCollisions(
     poly: Vec2[];
     anchor?: 'floor' | 'wall' | 'ceiling';
     floorCovering?: boolean;
+    /** 垂直範圍 mm（選填）：不重疊者（例如桌上的檯燈與桌子）不算碰撞 */
+    y0?: number;
+    y1?: number;
   }[],
   minOverlapMm2 = 2500,
 ): CollisionWarning[] {
@@ -69,6 +72,11 @@ export function findCollisions(
       const a = footprints[i]!;
       const b = footprints[j]!;
       if (a.anchor === 'ceiling' || b.anchor === 'ceiling' || a.floorCovering || b.floorCovering) continue;
+      // 壁掛物（窗簾、壁燈、燈板）掛在牆上，可以在家具上方或後方
+      if (a.anchor === 'wall' || b.anchor === 'wall') continue;
+      // 疊放：垂直範圍不重疊（容差 1 mm）
+      if (a.y0 !== undefined && a.y1 !== undefined && b.y0 !== undefined && b.y1 !== undefined)
+        if (a.y1 <= b.y0 + 1 || b.y1 <= a.y0 + 1) continue;
       const ov = overlapArea(a.poly, b.poly);
       if (ov >= minOverlapMm2)
         out.push({ kind: 'object', objectId: a.id, otherId: b.id, overlapMm2: Math.round(ov) });

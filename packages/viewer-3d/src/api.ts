@@ -25,6 +25,9 @@ export interface Viewer3DApi {
   /** 剖面模型的視角預設（簡易模式也可用，會套用剖面相機限制） */
   viewPreset(p: ViewPreset): void;
   style(): ViewStyle;
+  lighting(): 'day' | 'night';
+  /** 夜間光源統計（測試用）：燈具總數、各池啟用數、投影數、窗戶光源數 */
+  lights(): { total: number; point: number; spot: number; area: number; shadows: number; windows: number };
   /** 以目前相機產生 G-buffer（03 §6；AI 渲染前置） */
   gbuffer(o: { width: number; height: number; clay?: boolean }): GBuffer;
   /** 目前被降為剖面高度的牆 id（測試用） */

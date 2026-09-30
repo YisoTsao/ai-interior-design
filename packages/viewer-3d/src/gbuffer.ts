@@ -120,12 +120,37 @@ export function renderGBuffer(
 
   try {
     gl.shadowMap.autoUpdate = false;
-    // 1. color / clay
-    const color = pass(
-      new THREE.Color('#ffffff'),
-      opts.clay ? track(new THREE.MeshStandardMaterial({ color: '#a8a8a8', roughness: 1 })) : null,
-      true,
-    );
+    // 1. color / clay：與畫面的光線模式無關（夜間氛圍的彩色燈光不進 G-buffer）→ 關掉場景光源與環境，改用固定的中性光
+    const lights: THREE.Light[] = [];
+    scene.traverse((o) => {
+      if ((o as THREE.Light).isLight && o.visible) {
+        lights.push(o as THREE.Light);
+        o.visible = false;
+      }
+    });
+    const env = scene.environment;
+    scene.environment = null;
+    const rig = new THREE.Group();
+    const hemi = new THREE.HemisphereLight('#ffffff', '#b8b2a8', 1.6);
+    const key = new THREE.DirectionalLight('#ffffff', 1.8);
+    key.position.set(-0.45, 1, 0.55).multiplyScalar(10000).add(target);
+    key.target.position.copy(target);
+    rig.add(hemi, key, key.target);
+    scene.add(rig);
+    let color: RGBA;
+    try {
+      color = pass(
+        new THREE.Color('#ffffff'),
+        opts.clay ? track(new THREE.MeshStandardMaterial({ color: '#a8a8a8', roughness: 1 })) : null,
+        true,
+      );
+    } finally {
+      scene.remove(rig);
+      hemi.dispose();
+      key.dispose();
+      for (const l of lights) l.visible = true;
+      scene.environment = env;
+    }
 
     // 2. depth：RGBA packing → 解包 NDC 深度 → 線性視距 → near..far 正規化為 8-bit
     // 背景清成白色 → 解包後 ≈ 1（最遠）

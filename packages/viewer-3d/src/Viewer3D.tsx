@@ -5,16 +5,19 @@ import { OrbitControls, TransformControls } from '@react-three/drei';
 import type { OrbitControls as OrbitImpl } from 'three-stdlib';
 import { useStore } from 'zustand';
 import { DEFAULTS, activeLevel, transformObject, type EditorStore } from '@interiorai/app-state';
-import { materialMap, objectDims, type Catalog, type Material } from '@interiorai/catalog';
-import { pointOnWall, wallLength } from '@interiorai/core-geometry';
+import { materialMap, objectDims, resolveParams, type Catalog, type Material } from '@interiorai/catalog';
+import { buildingFootprint, offsetPolygon, pointOnWall, wallLength } from '@interiorai/core-geometry';
 import type { Level, SceneObject, Wall } from '@interiorai/scene-schema';
 import { viewer3dApi } from './api.js';
 import { renderGBuffer } from './gbuffer.js';
 import { DollhouseStage, type QualityState } from './DollhouseStage.js';
 import { buildFurnitureGeometry, buildOpeningFill, styledVariantKey, variantKey } from './furniture.js';
+import { fixtureLights, lightColorHex, pickActive, windowLights, type LightingMode } from './lighting.js';
+import { FixtureLights, Plinth } from './NightScene.js';
 import { MaterialCache, ResourceScope } from './resources.js';
 import {
   DOLLHOUSE,
+  NIGHT,
   STYLE_MATERIALS,
   VIEW_PRESETS,
   classifyWalls,
@@ -39,6 +42,8 @@ export interface Viewer3DProps {
   showCeiling?: boolean;
   /** 視覺風格；預設 simple（P2 原行為）。切換時重建 Canvas，確保兩種模式互不殘留狀態 */
   viewStyle?: ViewStyle;
+  /** 剖面模型的光線：day＝日光（images2）、night＝夜間氛圍（images1，燈具為主光源）；預設 day */
+  lighting?: LightingMode;
 }
 
 const DH_CAMERA = {
@@ -51,15 +56,17 @@ const DH_CAMERA = {
 export function Viewer3D(props: Viewer3DProps) {
   const [ctxKey, setCtxKey] = useState(0);
   const dh = props.viewStyle === 'dollhouse';
+  const night = dh && props.lighting === 'night';
   return (
     <div
       className="h-full w-full"
       data-testid="viewer3d"
       data-style={dh ? 'dollhouse' : 'simple'}
-      style={{ background: dh ? '#ddd5ca' : props.theme.bg }}
+      data-lighting={dh ? (night ? 'night' : 'day') : 'none'}
+      style={{ background: night ? NIGHT.background.edge : dh ? '#ddd5ca' : props.theme.bg }}
     >
       <Canvas
-        key={`${ctxKey}-${dh ? 'dh' : 'simple'}`}
+        key={`${ctxKey}-${dh ? 'dh' : 'simple'}-${night ? 'night' : 'day'}`}
         frameloop="demand"
         dpr={[1, 2]}
         shadows={dh ? { enabled: true, type: THREE.PCFShadowMap } : false}
@@ -93,8 +100,10 @@ function SceneContent({
   uniformScale,
   showCeiling,
   viewStyle,
+  lighting,
 }: Viewer3DProps) {
   const dh = viewStyle === 'dollhouse';
+  const night = dh && lighting === 'night';
   const scene = useStore(store, (s) => s.scene);
   const levelId = useStore(store, (s) => s.levelId);
   const selection = useStore(store, (s) => s.selection);
@@ -112,8 +121,19 @@ function SceneContent({
     [materials, dh],
   );
   const mats = useMemo(
-    () => new MaterialCache(scope, lib, dh ? { hq: true, wallRoughness: DOLLHOUSE.wallRoughness } : {}),
-    [scope, lib, dh],
+    () =>
+      new MaterialCache(
+        scope,
+        lib,
+        dh
+          ? {
+              hq: true,
+              wallRoughness: DOLLHOUSE.wallRoughness,
+              ...(night ? { floorRoughness: NIGHT.floorRoughness } : {}),
+            }
+          : {},
+      ),
+    [scope, lib, dh, night],
   );
   const capMat = useMemo(
     () =>
@@ -127,16 +147,42 @@ function SceneContent({
   const glassMat = useMemo(
     () =>
       scope.track(
-        new THREE.MeshStandardMaterial({
-          color: DOLLHOUSE.glassColor,
-          transparent: true,
-          opacity: DOLLHOUSE.glassOpacity,
-          roughness: 0.05,
-          depthWrite: false,
-        }),
+        night
+          ? // 夜間：窗外是明亮的天光（images1），玻璃自發光並產生光暈
+            new THREE.MeshBasicMaterial({
+              color: new THREE.Color(NIGHT.window.color).multiplyScalar(NIGHT.window.emissive),
+            })
+          : new THREE.MeshStandardMaterial({
+              color: DOLLHOUSE.glassColor,
+              transparent: true,
+              opacity: DOLLHOUSE.glassOpacity,
+              roughness: 0.05,
+              depthWrite: false,
+            }),
       ),
-    [scope],
+    [scope, night],
   );
+  /** 自發光材質（依光色與調光；日光模式亮度低、夜間高到會 bloom） */
+  const emitCache = useRef(new Map<string, THREE.Material>());
+  const emissiveFor = (color: string, dimmer: number) => {
+    const key = `${color}|${dimmer}|${night}`;
+    let m = emitCache.current.get(key);
+    if (!m) {
+      const k = dimmer <= 0 ? 0.15 : night ? NIGHT.emissive * (0.25 + 0.75 * dimmer) : 1.1;
+      m = scope.track(new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k) }));
+      emitCache.current.set(key, m);
+    }
+    return m;
+  };
+  const emissiveOf = (o: SceneObject) => {
+    const e = catalog.get(o.catalogId);
+    if (!e?.light) return emissiveFor('#fff4d6', 1);
+    const p = resolveParams(e, o.params);
+    return emissiveFor(
+      lightColorHex(typeof p.color === 'string' ? p.color : undefined),
+      typeof p.dimmer === 'number' ? p.dimmer / 100 : 1,
+    );
+  };
   const quality = useRef<QualityState>({ orbiting: false, dragging: false });
   const vcMat = useMemo(
     () => scope.track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 })),
@@ -177,8 +223,13 @@ function SceneContent({
   // 牆幾何依（牆, 高度）快取；結構改變時整批釋放
   const wallCache = useMemo(() => new Map<string, THREE.BufferGeometry>(), [structure]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => wallCache.forEach((g) => scope.release(g)), [wallCache, scope]);
-  const wallHeight = (w: Wall) =>
-    dh && !fullWalls.has(w.id) ? Math.min(DOLLHOUSE.cutHeight, structure.height) : structure.height;
+  const wallHeight = (w: Wall) => {
+    if (!dh || fullWalls.has(w.id)) return structure.height;
+    // 夜間（images1）：內牆全高（接收燈光的彩色溢光），靠近相機的外牆只留牆腳
+    if (night)
+      return sides?.get(w.id)?.exterior ? Math.min(NIGHT.lipHeight, structure.height) : structure.height;
+    return Math.min(DOLLHOUSE.cutHeight, structure.height);
+  };
   const walls = structure.walls.map((w) => {
     const H = wallHeight(w);
     const k = `${w.id}|${H}`;
@@ -251,13 +302,38 @@ function SceneContent({
     if (!layers.furniture) return [];
     for (const o of level.objects) {
       if (single && o.id === single.id) continue;
+      if (hiddenFixture(o)) continue;
       const { key, g } = geomFor(o);
       const cur = map.get(key) ?? { g, objs: [] };
       cur.objs.push(o);
       map.set(key, cur);
     }
     return [...map.entries()];
-  }, [level.objects, single, layers.furniture, catalog]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [level.objects, single, layers.furniture, catalog, fullWalls, showCeiling]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * 不畫燈體（光仍照射）的物件，避免懸空：
+   * - 沒有天花板時的嵌入式天花燈（崁燈、軌道燈）
+   * - 掛在「已被剖面降低」牆上的壁掛物（窗簾、壁燈、燈板）
+   */
+  function hiddenFixture(o: SceneObject) {
+    if (!dh) return false;
+    const e = catalog.get(o.catalogId);
+    const t = e?.model.kind === 'parametric' ? e.model.type : '';
+    if (!showCeiling && (t === 'lamp_downlight' || t === 'lamp_track')) return true;
+    if (e?.anchor !== 'wall') return false;
+    return structure.walls.some((w) => {
+      if (wallHeight(w) >= structure.height) return false;
+      const L = wallLength(w) || 1;
+      const t2 =
+        ((o.position[0] - w.a[0]) * (w.b[0] - w.a[0]) + (o.position[2] - w.a[1]) * (w.b[1] - w.a[1])) /
+        (L * L);
+      if (t2 < -0.05 || t2 > 1.05) return false;
+      const px = w.a[0] + (w.b[0] - w.a[0]) * t2;
+      const pz = w.a[1] + (w.b[1] - w.a[1]) * t2;
+      return Math.hypot(o.position[0] - px, o.position[2] - pz) < w.thickness / 2 + 350;
+    });
+  }
 
   function slotColor(o: SceneObject) {
     const e = catalog.get(o.catalogId);
@@ -278,6 +354,25 @@ function SceneContent({
     if (b.isEmpty()) b.set(new THREE.Vector3(-1000, 0, -1000), new THREE.Vector3(7000, 2800, 5000));
     return b;
   }, [level]);
+
+  // 夜間光源：燈具＋全高外牆上的窗；依畫面焦點挑固定數量
+  const cutKey = [...structure.walls.map((w) => (wallHeight(w) < structure.height ? '1' : '0'))].join('');
+  const pools = useMemo(() => {
+    if (!night) return null;
+    const cut = new Set(structure.walls.filter((w) => wallHeight(w) < structure.height).map((w) => w.id));
+    const wins = sides
+      ? windowLights(structure, sides).filter(
+          (l) => !cut.has(structure.openings.find((o) => o.id === l.id)?.wallId ?? ''),
+        )
+      : [];
+    const c = bbox.getCenter(new THREE.Vector3());
+    return pickActive([...fixtureLights(level, catalog), ...wins], [c.x, 1200, c.z]);
+  }, [night, level, catalog, structure, sides, bbox, cutKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const footprint = useMemo(() => {
+    if (!night) return null;
+    const outer = buildingFootprint(structure, NIGHT.plinth.margin, NIGHT.plinth.radius);
+    return { outer, inner: outer.map((f) => offsetPolygon([f], -45)[0] ?? []) };
+  }, [night, structure]);
 
   const size = useThree((s) => s.size);
   const preset = useRef<ViewPreset>('iso-se');
@@ -362,7 +457,6 @@ function SceneContent({
             );
             camera.lookAt(target);
             updateCut();
-            gl.info.autoReset = true;
             invalidate();
             calls = Math.max(calls, gl.info.render.calls);
             tris = Math.max(tris, gl.info.render.triangles);
@@ -411,6 +505,15 @@ function SceneContent({
           o,
         ),
       style: () => (dh ? 'dollhouse' : 'simple'),
+      lighting: () => (night ? 'night' : 'day'),
+      lights: () => ({
+        total: night ? fixtureLights(level, catalog).length : 0,
+        point: pools?.point.length ?? 0,
+        spot: pools?.spot.length ?? 0,
+        area: pools?.area.length ?? 0,
+        shadows: pools ? [...pools.point, ...pools.spot].filter((l) => l.castShadow).length : 0,
+        windows: pools?.area.filter((l) => l.source === 'window').length ?? 0,
+      }),
       cutWalls: () => [...cutWallIds].sort(),
       currentCamera: () => {
         const t = controls.current?.target ?? new THREE.Vector3();
@@ -437,7 +540,11 @@ function SceneContent({
   return (
     <>
       {dh ? (
-        <DollhouseStage bbox={bbox} mats={mats} quality={quality} />
+        <>
+          <DollhouseStage bbox={bbox} mats={mats} quality={quality} lighting={night ? 'night' : 'day'} />
+          {pools && <FixtureLights pools={pools} />}
+          {footprint && <Plinth footprint={footprint.outer} inner={footprint.inner} />}
+        </>
       ) : (
         <>
           <color attach="background" args={[theme.bg]} />
@@ -522,7 +629,7 @@ function SceneContent({
           key={key}
           geom={grp.g}
           objs={grp.objs}
-          material={vcMat}
+          material={dh ? [vcMat, emissiveOf(grp.objs[0]!)] : vcMat}
           colorOf={bodyColor}
           selected={selSet}
           highlight={theme.primary}
@@ -536,6 +643,7 @@ function SceneContent({
           obj={single}
           geom={geomFor(single).g}
           material={selMat}
+          emissive={dh ? emissiveOf(single) : undefined}
           color={bodyColor(single)}
           level={level}
           mode={transformMode}
@@ -562,7 +670,7 @@ function FurnitureInstances({
 }: {
   geom: THREE.BufferGeometry;
   objs: SceneObject[];
-  material: THREE.Material;
+  material: THREE.Material | THREE.Material[];
   colorOf: (o: SceneObject) => THREE.Color;
   selected: Set<string>;
   highlight: string;
@@ -598,7 +706,7 @@ function FurnitureInstances({
   return (
     <instancedMesh
       ref={ref}
-      args={[geom, material, objs.length]}
+      args={[geom, material as THREE.Material, objs.length]}
       userData={{ gkind: 'object', ids: objs.map((o) => o.id) }}
       castShadow={shadows}
       receiveShadow={shadows}
@@ -615,6 +723,7 @@ function SelectedObject({
   obj,
   geom,
   material,
+  emissive,
   color,
   level,
   mode,
@@ -627,6 +736,7 @@ function SelectedObject({
   obj: SceneObject;
   geom: THREE.BufferGeometry;
   material: THREE.MeshStandardMaterial;
+  emissive?: THREE.Material;
   color: THREE.Color;
   level: Level;
   mode: Viewer3DProps['transformMode'];
@@ -682,7 +792,7 @@ function SelectedObject({
       >
         <mesh
           geometry={geom}
-          material={mat}
+          material={emissive ? [mat, emissive] : mat}
           castShadow={shadows}
           receiveShadow={shadows}
           userData={{ gkind: 'object', id: obj.id }}

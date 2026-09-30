@@ -154,7 +154,7 @@ export function Inspector({
                     value={String(params[k])}
                     options={(spec.values ?? []).map((v) => ({
                       value: v,
-                      label: t(`inspector.swings.${v}`),
+                      label: t(k === 'color' ? `lightColors.${v}` : `inspector.swings.${v}`),
                     }))}
                     onChange={(v) =>
                       exec(updateObject(levelId, id, { params: { ...(obj.params ?? {}), [k]: v } }))

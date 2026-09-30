@@ -58,7 +58,10 @@
     },
     "decorate": "Auto-decorate",
     "decorateNone": "No free spots for decor",
-    "decorateDone": "Added {{n}} decor items"
+    "decorateDone": "Added {{n}} decor items",
+    "lighting": "Lighting",
+    "lightingNight": "Evening mood",
+    "lightingDay": "Daylight"
   },
   "tools": {
     "title": "Tools",
@@ -173,7 +176,9 @@
     "shelves": "Shelves",
     "swing": "Swing",
     "sill": "Sill",
-    "panes": "Panes"
+    "panes": "Panes",
+    "lightColor": "Light color",
+    "dimmer": "Brightness %"
   },
   "room": {
     "unnamed": "Unnamed room"
@@ -323,5 +328,20 @@
     "toRegister": "No account? Sign up",
     "toLogin": "Have an account? Sign in",
     "logout": "Sign out"
+  },
+  "lightColors": {
+    "2700K": "Warm 2700K",
+    "3000K": "Warm 3000K",
+    "4000K": "Neutral 4000K",
+    "5000K": "Daylight 5000K",
+    "6500K": "Cool 6500K",
+    "amber": "Amber",
+    "red": "Red",
+    "pink": "Pink",
+    "magenta": "Magenta",
+    "purple": "Purple",
+    "blue": "Blue",
+    "cyan": "Cyan",
+    "green": "Green"
   }
 }

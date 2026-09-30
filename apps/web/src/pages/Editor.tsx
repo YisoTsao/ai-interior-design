@@ -110,6 +110,7 @@ function EditorShell() {
   const lengthUnit = usePrefs((s) => s.lengthUnit);
   const areaUnit = usePrefs((s) => s.areaUnit);
   const viewStyle = usePrefs((s) => s.viewStyle);
+  const lighting = usePrefs((s) => s.lighting);
   const [mode, setMode] = useState<TransformMode>('translate');
   const [uniformScale, setUniformScale] = useState(true);
   const [showCeiling, setShowCeiling] = useState(false);
@@ -191,6 +192,7 @@ function EditorShell() {
                 uniformScale={uniformScale}
                 showCeiling={showCeiling}
                 viewStyle={viewStyle}
+                lighting={lighting}
               />
             )}
           </CanvasBoundary>
@@ -222,7 +224,8 @@ function TopBar({
   const redoable = useEditor(canRedo);
   const lastLabel = useEditor((s) => s.history.past.at(-1)?.label);
   const cams = useEditor((s) => s.scene.cameras?.length ?? 0);
-  const { lengthUnit, areaUnit, setLength, setArea, viewStyle, setViewStyle } = usePrefs();
+  const { lengthUnit, areaUnit, setLength, setArea, viewStyle, setViewStyle, lighting, setLighting } =
+    usePrefs();
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-2">
       <Link to="/" className="icon-btn" aria-label={t('top.back')} title={t('top.back')}>
@@ -336,6 +339,20 @@ function TopBar({
               <option value="simple">{t('top.styleSimple')}</option>
             </select>
           </label>
+          {viewStyle === 'dollhouse' && (
+            <label className="flex items-center gap-1 text-xs">
+              <span className="sr-only">{t('top.lighting')}</span>
+              <select
+                className="field w-28 font-sans"
+                value={lighting}
+                onChange={(e) => setLighting(e.target.value as typeof lighting)}
+                data-testid="view-lighting"
+              >
+                <option value="night">{t('top.lightingNight')}</option>
+                <option value="day">{t('top.lightingDay')}</option>
+              </select>
+            </label>
+          )}
           {viewStyle === 'dollhouse' && (
             <label className="flex items-center gap-1 text-xs">
               <span className="sr-only">{t('top.viewPreset')}</span>

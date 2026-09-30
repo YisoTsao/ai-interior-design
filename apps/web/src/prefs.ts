@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AreaUnit, LengthUnit } from '@interiorai/editor-2d';
-import type { ViewStyle } from '@interiorai/viewer-3d';
+import type { LightingMode, ViewStyle } from '@interiorai/viewer-3d';
 
 interface Prefs {
   lengthUnit: LengthUnit;
@@ -9,6 +9,8 @@ interface Prefs {
   setArea(u: AreaUnit): void;
   viewStyle: ViewStyle;
   setViewStyle(s: ViewStyle): void;
+  lighting: LightingMode;
+  setLighting(l: LightingMode): void;
 }
 const read = <T extends string>(k: string, fb: T): T => {
   try {
@@ -32,4 +34,7 @@ export const usePrefs = create<Prefs>((set) => ({
   setArea: (areaUnit) => (write('areaUnit', areaUnit), set({ areaUnit })),
   viewStyle: read<ViewStyle>('viewStyle', 'dollhouse'),
   setViewStyle: (viewStyle) => (write('viewStyle', viewStyle), set({ viewStyle })),
+  // 預設夜間氛圍（images1：燈具為主要光源）
+  lighting: read<LightingMode>('lighting', 'night'),
+  setLighting: (lighting) => (write('lighting', lighting), set({ lighting })),
 }));

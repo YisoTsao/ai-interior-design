@@ -168,6 +168,8 @@ export interface MaterialCacheOpts {
   /** 剖面模型：高品質貼圖、牆面 roughness 固定 */
   hq?: boolean;
   wallRoughness?: number;
+  /** 夜間氛圍：地板更光滑（反射燈光） */
+  floorRoughness?: number;
 }
 
 /** 以 materialId 取得共用材質（同一 scope 內快取；B5：材質以 id 引用） */
@@ -191,9 +193,11 @@ export class MaterialCache {
         color: tex ? '#ffffff' : (def?.color ?? fallback),
         map: tex,
         roughness:
-          this.opts.wallRoughness !== undefined && wallish && def?.pattern !== 'tile'
-            ? this.opts.wallRoughness
-            : (def?.roughness ?? 0.85),
+          this.opts.floorRoughness !== undefined && def?.category === 'floor'
+            ? Math.min(def.roughness, this.opts.floorRoughness)
+            : this.opts.wallRoughness !== undefined && wallish && def?.pattern !== 'tile'
+              ? this.opts.wallRoughness
+              : (def?.roughness ?? 0.85),
         side: THREE.FrontSide,
       }),
     );

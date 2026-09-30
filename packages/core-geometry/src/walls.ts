@@ -1,5 +1,5 @@
 import type { Level, Wall } from '@interiorai/scene-schema';
-import { unionPolygons, type Polygon } from './clip.js';
+import { offsetPolygon, roundCorners, unionPolygons, type Polygon } from './clip.js';
 import {
   add,
   closestOnSegment,
@@ -119,6 +119,15 @@ export function wallQuad(walls: readonly Wall[], w: Wall): Vec2[] {
 export function wallOutline(level: Pick<Level, 'walls'>): Polygon[] {
   const walls = level.walls.filter((w) => wallLength(w) > 0);
   return unionPolygons(walls.map((w) => wallQuad(walls, w)));
+}
+
+/**
+ * 建物外框（剖面模型的底座輪廓）：牆體聯集的外環（捨棄洞＝室內），外擴 margin 並倒圓角 radius。
+ */
+export function buildingFootprint(level: Pick<Level, 'walls'>, margin = 0, radius = 0): Vec2[][] {
+  const outer = wallOutline(level).map((p) => p.outer);
+  const grown = margin ? offsetPolygon(outer, margin) : outer;
+  return radius ? roundCorners(grown, radius) : grown;
 }
 
 /** 兩牆是否共線且端點相接（可合併） */

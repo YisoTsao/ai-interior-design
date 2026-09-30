@@ -104,9 +104,13 @@ export function buildSampleScene(names: { living: string; bed1: string; bed2: st
     else if (r.wallIds.includes(south.id)) {
       st.exec(renameRoom(L, r.id, names.bed1));
       st.exec(setMaterial(L, { kind: 'floor', roomId: r.id }, 'mat_wood_walnut'));
-    } else st.exec(renameRoom(L, r.id, names.bed2));
+    } else {
+      st.exec(renameRoom(L, r.id, names.bed2));
+      st.exec(setMaterial(L, { kind: 'floor', roomId: r.id }, 'mat_wood_walnut'));
+    }
   }
-  st.exec(setMaterial(L, { kind: 'floor', roomId: living.id }, 'mat_tile_grey60'));
+  // 深色胡桃木地板（夜間氛圍中反射燈光，images1）
+  st.exec(setMaterial(L, { kind: 'floor', roomId: living.id }, 'mat_wood_walnut'));
   const place = (catalogId: string, x: number, z: number, rot = 0, y = 0) =>
     st.exec(addObject(L, { catalogId, position: [x, y, z], rotationY: rot }));
   place('sofa_3seat_a', 2600, 6900, Math.PI);
@@ -125,5 +129,34 @@ export function buildSampleScene(names: { living: string; bed1: string; bed2: st
   place('bed_single_90', 7900, 6900);
   place('desk_office_1400', 6300, 7900, Math.PI);
   place('lamp_pendant_a', 2600, 5800, 0, 2400);
+  // 燈具（夜間氛圍的主要光源，images1）：客廳崁燈、立燈、電視櫃燈條；主臥檯燈與壁燈；次臥電競角落
+  const light = (
+    catalogId: string,
+    x: number,
+    z: number,
+    rot: number,
+    y: number,
+    params?: Record<string, number | string>,
+  ) =>
+    st.exec(addObject(L, { catalogId, position: [x, y, z], rotationY: rot, ...(params ? { params } : {}) }));
+  const down = 2800 - 60;
+  for (const [x, z] of [
+    [1300, 1000],
+    [3900, 1000],
+    [1300, 4300],
+    [3900, 4300],
+    [7100, 2600],
+    [7100, 5600],
+  ] as const)
+    light('lamp_downlight_a', x, z, 0, down);
+  light('lamp_floor_a', 1200, 7800, 0, 0);
+  light('led_strip_1000', 2600, 3780, 0, 500, { color: 'amber' });
+  light('lamp_table_a', 6300, 400, 0, 500);
+  light('lamp_wall_a', 8450, 190, 0, 1450);
+  light('monitor_27', 6300, 8060, Math.PI, 750, { color: '6500K' });
+  light('light_hex_a', 8885, 7250, -Math.PI / 2, 1150, { color: 'magenta' });
+  light('led_bar_1200', 5330, 7650, Math.PI / 2, 0, { color: 'pink' });
+  light('curtain_pair', 6400, 8230, Math.PI, 0, { w: 3000 });
+  light('curtain_pair', 8830, 1950, -Math.PI / 2, 0, { w: 2100 });
   return s.getState().scene;
 }

@@ -58,6 +58,8 @@
 - P4：ADR-020——image-ops 共用影像套件；G-buffer 深度 8-bit；供應商以 PNG 位元組傳遞；mock 模式保留路線代號；重新投遞時沿用 retry_count；
   前端登入（記憶體 token＋refresh cookie）、渲染前自動存雲端版本快照；`pnpm test:e2e` 需要 Docker（真實後端）。
 - P4：ADR-019——ai-eval 發現「結構完全保留」的 mock 在 balanced 只有 96.7% 通過（不可見的 objectId 邊界被計入）→ 參考邊緣改為 clay 可見的結構邊緣。
+- P4.5（使用者要求，P5 前）：ADR-021 夜間氛圍光線（對照 images1）——燈具為物理光源（lm→cd/nit，固定光源池＋陰影預算）、自發光＋bloom、
+  光滑深色木地板、依外框的圓角底座＋黃色底部光暈、灰色舞台；新增 11 種燈具＋窗簾；光線模式偏好預設 night；夜間旋轉 60 FPS。
 - P4：中文額外要求→英文標準化（ChatProvider）未做，移到 P6；目前原文送出並保存。免費方案成品可見浮水印未做（只有中繼資料標示＋未通過預覽浮水印）。
 - P2.5（使用者要求，P3 前）：3D 改為「等角建築剖面模型」風格（isometric-dollhouse-style），ADR-017。
   `viewStyle` 開關（預設 dollhouse，可切回 simple；simple 行為與 FPS 不變）。AO 用 three 內建 GTAOPass（無新依賴）；

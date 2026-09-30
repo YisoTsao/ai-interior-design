@@ -27,6 +27,27 @@ export const DOLLHOUSE = {
   glassOpacity: 0.25,
 } as const;
 
+/**
+ * 夜間氛圍（images1）：燈具是主要光源、自發光部件 bloom、光滑深色木地板反射燈光、
+ * 依建物外框的圓角底座＋黃色底部光暈、深灰暈影背景；遠側外牆與內牆全高、近側外牆只留牆腳。
+ */
+export const NIGHT = {
+  /** 物理光度 → 顯示值的比例（曝光固定 1.0，讓 bloom 門檻與背景都在顯示範圍） */
+  photometricScale: 0.03,
+  /** 自發光材質亮度倍率（顯示值 > bloom 門檻才會發光） */
+  emissive: 3.2,
+  hemi: { sky: '#aab4d6', ground: '#20180f', intensity: 0.22 },
+  envIntensity: 0.08,
+  background: { center: '#86868a', edge: '#3a3a3d' },
+  ground: '#4a4a4d',
+  lipHeight: 100,
+  plinth: { margin: 160, radius: 420, height: 230, color: '#d6d5d1', gap: 110 },
+  underglow: { color: '#ffb020', strength: 3.5, spread: 650, decal: 2.2 },
+  bloom: { strength: 0.55, radius: 0.35, threshold: 1.0 },
+  floorRoughness: 0.14,
+  window: { color: '#e4ecff', emissive: 1.6 },
+} as const;
+
 /** 視角預設：四個等角方位＋近俯視（仰角受 OrbitControls 上限約束） */
 export type ViewPreset = 'iso-se' | 'iso-sw' | 'iso-nw' | 'iso-ne' | 'top';
 export const VIEW_PRESETS: Record<ViewPreset, { azimuthDeg: number; elevationDeg: number }> = {

@@ -15,16 +15,25 @@ const ACCENT = '#5a5650';
 const DARK = '#2e2c2a';
 const LIGHT = '#f4f2ee';
 const GLASS = '#cfe3ea';
+/** 自發光部件（燈罩、燈板、螢幕、LED）：排在最後並自成 group 1，由光色材質著色（夜間氛圍會 bloom） */
+export const EMIT = '#fff4d6';
 /** 剖面模型的莫蘭迪軟裝色（低飽和） */
 const MORANDI = { sage: '#a3b09a', blue: '#9aa8b5', beige: '#d9cdb8', grey: '#b3aea7', linen: '#efebe3' };
 
-const box = (w: number, h: number, d: number, x: number, y: number, z: number, color = BODY): Part => ({
-  g: new THREE.BoxGeometry(Math.max(1, w), Math.max(1, h), Math.max(1, d)),
-  x,
-  y: y + h / 2,
-  z,
-  color,
-});
+const box = (
+  w: number,
+  h: number,
+  d: number,
+  x: number,
+  y: number,
+  z: number,
+  color = BODY,
+  ry = 0,
+): Part => {
+  const g = new THREE.BoxGeometry(Math.max(1, w), Math.max(1, h), Math.max(1, d));
+  if (ry) g.rotateY(-ry);
+  return { g, x, y: y + h / 2, z, color };
+};
 const cyl = (
   rTop: number,
   rBot: number,
@@ -145,10 +154,121 @@ function parts(type: string, w: number, d: number, h: number, p: Record<string, 
       return [
         cyl(w * 0.35, w * 0.35, 30, 0, 0, 0, DARK),
         cyl(12, 12, h - 330, 0, 30, 0, DARK),
-        cyl(w * 0.35, w * 0.5, 300, 0, h - 300, 0, LIGHT),
+        cyl(w * 0.35, w * 0.5, 300, 0, h - 300, 0, EMIT),
       ];
     case 'lamp_pendant':
-      return [cyl(4, 4, h * 0.5, 0, h * 0.5, 0, DARK), cyl(w * 0.15, w * 0.5, h * 0.5, 0, 0, 0)];
+      return [
+        cyl(4, 4, h * 0.5, 0, h * 0.5, 0, DARK),
+        cyl(w * 0.15, w * 0.5, h * 0.5, 0, 20, 0),
+        cyl(w * 0.42, w * 0.42, 14, 0, 12, 0, EMIT),
+      ];
+    case 'lamp_table':
+      return [
+        cyl(w * 0.3, w * 0.34, 24, 0, 0, 0, DARK),
+        cyl(10, 10, h * 0.5, 0, 24, 0, ACCENT),
+        cyl(w * 0.32, w * 0.5, h * 0.42, 0, h * 0.58, 0, EMIT),
+      ];
+    case 'lamp_wall':
+      return [
+        box(110, 180, 18, 0, h / 2 - 90, -d / 2 + 9, DARK),
+        box(24, 24, d * 0.6, 0, h * 0.5, -d / 2 + d * 0.3, DARK),
+        cyl(w * 0.35, w * 0.48, h * 0.55, 0, h * 0.4, d * 0.1, EMIT),
+      ];
+    case 'lamp_downlight':
+      return [cyl(w / 2, w / 2, 14, 0, h - 14, 0, LIGHT), cyl(w * 0.34, w * 0.34, 10, 0, h - 22, 0, EMIT)];
+    case 'lamp_track': {
+      const out: Part[] = [box(w, 30, 40, 0, h - 30, 0, DARK)];
+      for (const x of [-w / 3, 0, w / 3]) {
+        out.push(cyl(8, 8, 50, x, h - 80, 0, DARK));
+        out.push(cyl(38, 30, 110, x, h - 190, 30, DARK));
+        out.push(cyl(28, 28, 8, x, h - 196, 30, EMIT));
+      }
+      return out;
+    }
+    case 'lamp_chandelier': {
+      const out: Part[] = [
+        cyl(w * 0.12, w * 0.12, 30, 0, h - 30, 0, ACCENT),
+        cyl(6, 6, h * 0.45, 0, h * 0.5, 0, ACCENT),
+      ];
+      out.push(cyl(w * 0.1, w * 0.14, 80, 0, h * 0.42, 0, ACCENT));
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const [x, z] = [Math.cos(a) * w * 0.38, Math.sin(a) * w * 0.38];
+        out.push(box(w * 0.36, 12, 12, x / 2, h * 0.45, z / 2, ACCENT, a));
+        const bulb = new THREE.IcosahedronGeometry(55, 1);
+        out.push({ g: bulb, x, y: h * 0.45 + 60, z, color: EMIT });
+      }
+      return out;
+    }
+    case 'lamp_arc': {
+      // 底座＋弧形燈桿（折線近似）＋燈罩在 +X 端
+      const out: Part[] = [box(360, 40, 360, -w / 2 + 180, 0, 0, DARK)];
+      const x0 = -w / 2 + 180;
+      const x1 = w * 0.4;
+      const pts: [number, number][] = [];
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        pts.push([
+          x0 + (x1 - x0) * t,
+          40 + ((h - 180) * Math.sin(t * Math.PI * 0.62)) / Math.sin(Math.PI * 0.62),
+        ]);
+      }
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = pts[i - 1]!;
+        const [bx2, by] = pts[i]!;
+        const len = Math.hypot(bx2 - ax, by - ay);
+        const g = new THREE.CylinderGeometry(12, 12, len, 8);
+        g.rotateZ(-Math.atan2(bx2 - ax, by - ay));
+        out.push({ g, x: (ax + bx2) / 2, y: (ay + by) / 2, z: 0, color: DARK });
+      }
+      out.push(cyl(60, 200, 170, x1, h - 190, 0, DARK));
+      out.push(cyl(180, 180, 8, x1, h - 196, 0, EMIT));
+      return out;
+    }
+    case 'light_hex': {
+      // 三片六角形燈板（面朝 +Z，貼牆）
+      const r = Math.min(w, h) * 0.3;
+      const cells: [number, number][] = [
+        [-r * 0.9, h * 0.62],
+        [r * 0.9, h * 0.62],
+        [0, h * 0.62 - r * 1.6],
+      ];
+      return cells.map(([x, y]) => {
+        const g = new THREE.CylinderGeometry(r, r, d, 6);
+        g.rotateX(Math.PI / 2);
+        g.rotateZ(Math.PI / 6);
+        return { g, x, y, z: 0, color: EMIT };
+      });
+    }
+    case 'led_strip':
+      return [box(w, 6, d, 0, 0, 0, DARK), box(w - 4, h - 6, d * 0.6, 0, 6, 0, EMIT)];
+    case 'led_bar':
+      return [box(w, h, d, 0, 0, -2, DARK), box(w * 0.5, h - 40, 6, 0, 20, d / 2, EMIT)];
+    case 'monitor':
+      return [
+        box(220, 12, 180, 0, 0, -d / 4, DARK),
+        box(40, 170, 20, 0, 12, -d / 4, DARK),
+        box(w, h - 150, 24, 0, 150, 0, DARK),
+        box(w - 24, h - 174, 4, 0, 162, 14, EMIT),
+      ];
+    case 'curtain': {
+      // 窗簾桿＋左右兩片打褶布簾（直立圓柱排列成摺）
+      const rod = new THREE.CylinderGeometry(12, 12, w, 10);
+      rod.rotateZ(Math.PI / 2);
+      const out: Part[] = [{ g: rod, x: 0, y: h - 20, z: 0, color: DARK }];
+      const panelW = w * 0.26;
+      for (const side of [-1, 1]) {
+        const cx = side * (w / 2 - panelW / 2);
+        const folds = 7;
+        for (let i = 0; i < folds; i++) {
+          const fx = cx - panelW / 2 + (panelW * (i + 0.5)) / folds;
+          out.push(
+            cyl(panelW / folds / 1.6, panelW / folds / 1.6, h - 60, fx, 10, (i % 2) * 22 - 11, BODY, 10),
+          );
+        }
+      }
+      return out;
+    }
     case 'rug':
       return [box(w, Math.max(4, h), d, 0, 0, 0)];
     case 'plant': {
@@ -253,7 +373,16 @@ function dollhouseParts(
     default: {
       // 其餘類型：沿用簡易分件，但全部改為圓角方塊
       return parts(type, w, d, h, p).map((pt) => {
-        if (pt.g.type !== 'BoxGeometry') return pt;
+        // 燈具細件（含旋轉的方塊）維持原樣；只把一般方塊換成圓角
+        if (
+          pt.g.type !== 'BoxGeometry' ||
+          pt.color === EMIT ||
+          type.startsWith('lamp') ||
+          type.startsWith('light') ||
+          type.startsWith('led') ||
+          type === 'monitor'
+        )
+          return pt;
         const { width, height, depth } = (pt.g as THREE.BoxGeometry).parameters;
         pt.g.dispose();
         return bx(width, height, depth, pt.x, pt.y - height / 2, pt.z, pt.color);
@@ -294,13 +423,17 @@ export function buildFurnitureGeometry(
   const type = entry?.model.kind === 'parametric' ? entry.model.type : 'box';
   const dh = opts?.style === 'dollhouse';
   const ps = dh ? dollhouseParts(type, w, d, h, r) : parts(type, w, d, h, r);
+  // 自發光部件排在最後，自成 group 1
+  ps.sort((x, y) => Number(x.color === EMIT) - Number(y.color === EMIT));
   const color = new THREE.Color();
+  let opaque = 0;
   const geoms = ps.map((pt) => {
     const g = (pt.g.index ? pt.g.toNonIndexed() : pt.g) as THREE.BufferGeometry;
     if (g !== pt.g) pt.g.dispose();
     g.translate(pt.x, pt.y, pt.z);
     color.set(dh && pt.color === BODY ? (opts?.bodyColor ?? BODY) : pt.color).convertSRGBToLinear();
     const n = g.getAttribute('position').count;
+    if (pt.color !== EMIT) opaque += n;
     const cols = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) cols.set([color.r, color.g, color.b], i * 3);
     g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
@@ -310,10 +443,17 @@ export function buildFurnitureGeometry(
   });
   const merged = mergeGeometries(geoms, false)!;
   geoms.forEach((g) => g.dispose());
+  // group 0＝一般部件、group 1＝自發光（單一材質時 group 被忽略，行為與 P2 相同）
+  const total = merged.getAttribute('position').count;
+  merged.addGroup(0, opaque, 0);
+  if (total > opaque) merged.addGroup(opaque, total - opaque, 1);
   merged.computeBoundingBox();
   merged.computeBoundingSphere();
   return merged;
 }
+
+/** 幾何是否含自發光部件 */
+export const hasEmissive = (g: THREE.BufferGeometry) => g.groups.some((x) => x.materialIndex === 1);
 
 /** 開口內的門扇/窗框（僅視覺，幾何挖洞由 CSG 處理） */
 export function buildOpeningFill(

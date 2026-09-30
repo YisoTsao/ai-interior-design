@@ -13,7 +13,11 @@ const ready = (page: Page) =>
 test('剖面模型：剖面牆隨視角改變、可切回簡易模式', async ({ page }) => {
   test.setTimeout(180_000);
   await newSampleProject(page);
-  await page.evaluate(() => localStorage.setItem('viewStyle', 'dollhouse'));
+  // 日光模式的剖面規則（夜間氛圍另見 lighting.spec）
+  await page.evaluate(() => {
+    localStorage.setItem('viewStyle', 'dollhouse');
+    localStorage.setItem('lighting', 'day');
+  });
   await page.reload();
   await page.waitForFunction(() => (window as any).__editor);
   await page.getByTestId('view-3d').click();

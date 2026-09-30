@@ -58,7 +58,10 @@
     },
     "decorate": "自動點綴軟裝",
     "decorateNone": "沒有可以再放軟裝的位置",
-    "decorateDone": "已加入 {{n}} 件軟裝"
+    "decorateDone": "已加入 {{n}} 件軟裝",
+    "lighting": "光線",
+    "lightingNight": "夜間氛圍",
+    "lightingDay": "日光"
   },
   "tools": {
     "title": "工具",
@@ -173,7 +176,9 @@
     "shelves": "層板數",
     "swing": "開向",
     "sill": "窗台高",
-    "panes": "分割數"
+    "panes": "分割數",
+    "lightColor": "光色",
+    "dimmer": "亮度 %"
   },
   "room": {
     "unnamed": "未命名房間"
@@ -323,5 +328,20 @@
     "toRegister": "沒有帳號？註冊",
     "toLogin": "已有帳號？登入",
     "logout": "登出"
+  },
+  "lightColors": {
+    "2700K": "暖白 2700K",
+    "3000K": "暖白 3000K",
+    "4000K": "自然白 4000K",
+    "5000K": "晝白 5000K",
+    "6500K": "冷白 6500K",
+    "amber": "琥珀",
+    "red": "紅",
+    "pink": "粉紅",
+    "magenta": "洋紅",
+    "purple": "紫",
+    "blue": "藍",
+    "cyan": "青",
+    "green": "綠"
   }
 }

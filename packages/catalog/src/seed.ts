@@ -1,4 +1,4 @@
-import type { CatalogEntry, Material } from './schema.js';
+import { LIGHT_COLORS, type CatalogEntry, type LightSpec, type Material } from './schema.js';
 
 /** 自產參數化模組：專案自有，可商用（登記於 docs/licenses.md） */
 export const OWN_LICENSE = {
@@ -45,6 +45,38 @@ function e(
     status: 'published',
     ...opts,
   };
+}
+
+/** 燈具：共用 color（光色）與 dimmer（調光）參數；外殼材質預設黑色金屬 */
+function lamp(
+  slug: string,
+  nameZh: string,
+  nameEn: string,
+  dims: [number, number, number],
+  type: P['type'],
+  color: (typeof LIGHT_COLORS)[number],
+  light: Omit<LightSpec, 'facing' | 'castShadow'> & Partial<Pick<LightSpec, 'facing' | 'castShadow'>>,
+  opts: Partial<CatalogEntry> = {},
+): CatalogEntry {
+  const [w, d, h] = dims;
+  return e(
+    slug,
+    nameZh,
+    nameEn,
+    'lighting',
+    dims,
+    pm(type, {
+      ...sizeParams(w, d, h),
+      color: { type: 'enum', values: [...LIGHT_COLORS], default: color, labelKey: 'param.lightColor' },
+      dimmer: int(0, 100, 100, 'param.dimmer'),
+    }),
+    {
+      tags: ['燈', 'light'],
+      light: { facing: 'down', castShadow: false, ...light },
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_metal_black' }],
+      ...opts,
+    },
+  );
 }
 
 export const SEED_CATALOG: CatalogEntry[] = [
@@ -228,11 +260,152 @@ export const SEED_CATALOG: CatalogEntry[] = [
   e('bathtub_1600', '浴缸 160', 'Bathtub 160', 'bathroom', [1600, 750, 560], pm('bathtub'), {
     tags: ['浴缸'],
   }),
-  // 燈具與裝飾
-  e('lamp_floor_a', '立燈', 'Floor lamp', 'lighting', [400, 400, 1600], pm('lamp_floor'), { tags: ['燈'] }),
-  e('lamp_pendant_a', '吊燈', 'Pendant lamp', 'lighting', [500, 500, 400], pm('lamp_pendant'), {
-    anchor: 'ceiling',
-    tags: ['燈'],
+  // 燈具（光源規格 light：lm、發光位置、光束角/發光面；參數 color/dimmer）與裝飾
+  lamp('lamp_floor_a', '立燈', 'Floor lamp', [400, 400, 1600], 'lamp_floor', '2700K', {
+    kind: 'point',
+    lumens: 900,
+    offset: [0, 1450, 0],
+    castShadow: true,
+  }),
+  lamp(
+    'lamp_pendant_a',
+    '吊燈',
+    'Pendant lamp',
+    [500, 500, 400],
+    'lamp_pendant',
+    '3000K',
+    {
+      kind: 'point',
+      lumens: 1100,
+      offset: [0, 60, 0],
+      castShadow: true,
+    },
+    { anchor: 'ceiling' },
+  ),
+  lamp('lamp_table_a', '檯燈', 'Table lamp', [280, 280, 460], 'lamp_table', '2700K', {
+    kind: 'point',
+    lumens: 450,
+    offset: [0, 360, 0],
+    castShadow: true,
+  }),
+  lamp(
+    'lamp_wall_a',
+    '壁燈',
+    'Wall sconce',
+    [220, 160, 260],
+    'lamp_wall',
+    '2700K',
+    {
+      kind: 'point',
+      lumens: 400,
+      offset: [0, 170, 90],
+    },
+    { anchor: 'wall' },
+  ),
+  lamp(
+    'lamp_downlight_a',
+    '崁燈',
+    'Downlight',
+    [110, 110, 60],
+    'lamp_downlight',
+    '3000K',
+    {
+      kind: 'spot',
+      lumens: 650,
+      offset: [0, 0, 0],
+      beamDeg: 70,
+      castShadow: true,
+    },
+    { anchor: 'ceiling' },
+  ),
+  lamp(
+    'lamp_track_a',
+    '軌道投射燈',
+    'Track spotlight',
+    [900, 70, 180],
+    'lamp_track',
+    '3000K',
+    {
+      kind: 'spot',
+      lumens: 900,
+      offset: [0, 0, 60],
+      beamDeg: 36,
+      castShadow: true,
+    },
+    { anchor: 'ceiling' },
+  ),
+  lamp(
+    'lamp_chandelier_a',
+    '主燈吊燈',
+    'Chandelier',
+    [800, 800, 650],
+    'lamp_chandelier',
+    '2700K',
+    {
+      kind: 'point',
+      lumens: 2400,
+      offset: [0, 200, 0],
+      castShadow: true,
+    },
+    { anchor: 'ceiling' },
+  ),
+  lamp('lamp_arc_a', '弧形立燈', 'Arc floor lamp', [1300, 400, 2000], 'lamp_arc', '2700K', {
+    kind: 'spot',
+    lumens: 1000,
+    offset: [520, 1800, 0],
+    beamDeg: 90,
+    castShadow: true,
+  }),
+  lamp(
+    'light_hex_a',
+    '六角燈板',
+    'Hexagon light panels',
+    [620, 30, 420],
+    'light_hex',
+    'magenta',
+    {
+      kind: 'area',
+      lumens: 350,
+      offset: [0, 210, 30],
+      size: { w: 560, h: 380 },
+      facing: 'front',
+    },
+    { anchor: 'wall' },
+  ),
+  lamp('led_strip_1000', 'LED 燈條 1m', 'LED strip 1m', [1000, 20, 12], 'led_strip', 'amber', {
+    kind: 'area',
+    lumens: 400,
+    offset: [0, 6, 0],
+    size: { w: 1000, h: 16 },
+    facing: 'up',
+  }),
+  lamp('led_bar_1200', 'LED 直立燈條', 'LED light bar', [60, 60, 1200], 'led_bar', 'pink', {
+    kind: 'area',
+    lumens: 500,
+    offset: [0, 600, 30],
+    size: { w: 30, h: 1150 },
+    facing: 'front',
+  }),
+  lamp(
+    'monitor_27',
+    '螢幕 27 吋',
+    'Monitor 27"',
+    [620, 200, 460],
+    'monitor',
+    '6500K',
+    {
+      kind: 'area',
+      lumens: 220,
+      offset: [0, 280, 35],
+      size: { w: 600, h: 340 },
+      facing: 'front',
+    },
+    { category: 'office' },
+  ),
+  e('curtain_pair', '窗簾（一對）', 'Curtains', 'decor', [2000, 160, 2500], pm('curtain'), {
+    anchor: 'wall',
+    tags: ['窗簾'],
+    materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_fabric_charcoal' }],
   }),
   e('plant_a', '盆栽', 'Plant', 'decor', [450, 450, 1200], pm('plant'), { tags: ['植物'] }),
   // 草稿示範：授權未確認 → 不得 published（07、B5）
