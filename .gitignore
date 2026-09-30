@@ -17,3 +17,7 @@ catalog/ingested
 
 # ai-eval 執行結果（產出的效果圖；summary 摘要記錄在 PROGRESS）
 ai-eval/results/
+
+# cv-service Python 環境
+services/cv-service/.venv/
+**/__pycache__/

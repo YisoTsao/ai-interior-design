@@ -11,7 +11,7 @@
 - 單 Job 成本上限：見 services/api/models.yaml `budgets`
 - 結構驗證門檻狀態：**未校準**（mock 通過不代表有效，ADR-012）；ai-eval mock 結果見下方 P4 量測
 - 工具鏈：Node 24.14、pnpm 9.15.9（corepack）、TypeScript 6.0.3
-- 最後更新：2026-09-30｜目前 Phase：P5（未開始）
+- 最後更新：2026-09-30｜目前 Phase：P5（進行中，WIP）
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
@@ -21,7 +21,7 @@
 | P2 | 編輯器 (2D/3D/Command/資產庫) | ☑ | ☑ | `check_gates P2 --run` 全綠（lint/typecheck/test/build/test:e2e/licenses:check）；E2E 7/7；axe 無 serious/critical；107 個單元測試 |
 | P3 | 後端基礎 (Auth/專案/上傳/Job/點數) | ☑ | ☑ | lint/typecheck/test/build/test:integration(39)/test:contract(4)/test:e2e(9)/licenses 全綠；帳本併發/冪等/退款/對帳測試通過；ADR-018 |
 | P4 | AI 渲染 (G-buffer/Provider/Router/驗證) | ☑ | ☑ | 全部 Gate 指令綠（integration 49、contract 4、e2e 11 含真實後端 UI）；break_structure→重試→降級→退款＋JOB_FAILED、遮罩外逐位元不變皆有測試；ADR-019/020 |
-| P5 | 平面圖辨識 (DXF/點陣/校正/合成資料) | ☐ | ☐ | |
+| P5 | 平面圖辨識 (DXF/點陣/校正/合成資料) | ◐ | ☐ | WIP：cv-service 核心（DXF、點陣、合成、指標）已寫；尚缺 FastAPI、pytest、評測 CLI、Node plan-import、校正 UI、E2E |
 | P6 | 助理 + BOM + 匯出 | ☐ | ☐ | |
 | P7 | 桌面端 + 硬化 + 上線準備 | ☐ | ☐ | |
 | P8 | 最終驗證與交付 | ☐ | ☐ | |
@@ -65,6 +65,15 @@
   `viewStyle` 開關（預設 dollhouse，可切回 simple；simple 行為與 FPS 不變）。AO 用 three 內建 GTAOPass（無新依賴）；
   PCFSoftShadowMap 在 r186 已移除，改 PCFShadowMap＋radius；無 GLB 資產 → 圓角分件家具；「自動點綴軟裝」為可 undo 的 Command。
   E2E 新增 e2e/style.spec.ts（截圖存 e2e/results/style-*.png）；perf.spec 兩種風格都量。
+
+## P5 續作筆記（下個 session 從這裡開始）
+- 已完成：`services/cv-service`（venv：`python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt`）
+  - `app/model.py` PlanResult 契約＋後處理；`app/vector/dxf.py` DXF 解析——6 個合成戶型牆長誤差 0.0%、門窗全數找到
+  - `app/raster/pipeline.py` 點陣管線（可替換 Segmenter、OCR 尺度、房間）；`synth/`（BSP 戶型、5 種繪圖風格、DXF 輸出）；`eval/metrics.py`、`eval/quick.py`、`eval/debug.py`
+  - 點陣現況（4 戶型×5 風格，`python -m eval.quick 4`）：牆 IoU 0.615、門窗 F1 0.640、房間 IoU 0.512；OCR 尺度有讀到時誤差多 <0.3%
+    （〔假設〕目標 牆 IoU ≥0.80、門窗 F1 ≥0.85 **未達標**；scan 與 cad 風格最弱）
+- 待做：`app/main.py`（FastAPI /v1/parse、/healthz、上限）、pytest（DXF ≤1% 誤差 Gate）、`eval/run.py`（分風格報告＋baseline 回歸）、
+  Dockerfile、Node `plan_import` job＋`/plan-imports` API＋VLM 標註（mock）、`apps/web/src/features/plan-review` 校正 UI、E2E 上傳→校正→3D；之後 P6。
 
 ## 阻礙與待人決策（⚠ 項須寫「解除條件」）
 | Phase | 項目 | 已用什麼替代 | 解除條件 |
