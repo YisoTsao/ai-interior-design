@@ -95,7 +95,12 @@ class TraditionalSegmenter:
 
     def walls(self, gray: np.ndarray):
         blur = cv2.GaussianBlur(gray, (3, 3), 0)
-        _, ink = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        # 墨跡＝深色筆畫；Otsu 門檻上限 150，避免房間底色（淺色填色）被當成墨跡
+        otsu, _ = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+        _, ink = cv2.threshold(blur, min(otsu, 150), 255, cv2.THRESH_BINARY_INV)
+        # 模糊/掃描件的細線（門弧、窗線）可能淡到門檻以上 → 加上局部自適應門檻
+        thin = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 31, 18)
+        ink = cv2.bitwise_or(ink, thin)
         # 實心牆：細筆畫（文字、尺寸線）在開運算就消失 → 只需濾掉很小的殘塊；
         # 空心牆需閉運算，文字會被糊成塊 → 用較大的長度門檻
         opened = lambda m, frac: _keep_long(
@@ -107,7 +112,7 @@ class TraditionalSegmenter:
         best = (solid, 0)
         base = max(1, int(solid.sum() // 255))
         for k in (5, 7, 9, 13):
-            m = opened(cv2.morphologyEx(ink, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (k, k))), 0.1)
+            m = opened(cv2.morphologyEx(ink, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (k, k))), 0.13)
             if m.sum() // 255 > base * 1.8 and (best[1] == 0 or m.sum() > best[0].sum() * 1.15):
                 best = (m, k)
         self.hollow = best[1] > 0
@@ -186,6 +191,49 @@ def vectorize(mask: np.ndarray) -> tuple[list[Seg], float]:
     return [s for s in out if s.length >= t_px * 1.2], t_px
 
 
+def detect_symbols(ink: np.ndarray, mask: np.ndarray, t_px: float) -> list[dict]:
+    """直接找門窗符號（不依賴牆段）：
+    - 門：牆外的細線元件（門扇＋1/4 弧）外框約為正方形，其中一邊貼在牆線上、該處牆有缺口且兩端外仍有牆
+    - 窗：沿牆方向細長、落在牆缺口中的細線元件
+    回傳開口（影像座標的兩端點）；呼叫端會把缺口補回牆 mask，讓牆向量化成連續的一道。"""
+    thin = cv2.bitwise_and(ink, cv2.bitwise_not(cv2.dilate(mask, np.ones((3, 3), np.uint8))))
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(thin, 8)
+    t = max(2.0, t_px)
+    out = []
+
+    def wall_cov(a, b, pad: float, lo: float, hi: float) -> float:
+        return _line_cov(mask, a, b, n=20, r=int(max(1, t / 3)), lo=lo, hi=hi)
+
+    for i in range(1, n):
+        x, y, w, h, area = stats[i]
+        side, short = max(w, h), min(w, h)
+        # 候選開口：外框四邊（門）或長軸中線（窗）
+        cands = []
+        if 2.5 * t <= side <= 22 * t and short >= 0.7 * side and area < 0.35 * w * h:
+            cands += [("door", (x, y), (x + w, y)), ("door", (x, y + h), (x + w, y + h)),
+                      ("door", (x, y), (x, y + h)), ("door", (x + w, y), (x + w, y + h))]
+        if side >= 2.5 * t and short <= 1.8 * t:
+            if w >= h:
+                cands.append(("window", (x, y + h / 2), (x + w, y + h / 2)))
+            else:
+                cands.append(("window", (x + w / 2, y), (x + w / 2, y + h)))
+        best = None
+        for kind, a, b in cands:
+            L = math.dist(a, b)
+            u = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+            inside = wall_cov(a, b, 0, 0.15, 0.85)
+            ext = lambda p, d: (p[0] + u[0] * d, p[1] + u[1] * d)
+            before = _line_cov(mask, ext(a, -2.2 * t), ext(a, -0.8 * t), n=6, r=int(max(1, t / 3)), lo=0, hi=1)
+            after = _line_cov(mask, ext(b, 0.8 * t), ext(b, 2.2 * t), n=6, r=int(max(1, t / 3)), lo=0, hi=1)
+            sc = (1 - inside) * 0.4 + before * 0.3 + after * 0.3
+            if inside < 0.3 and before > 0.6 and after > 0.6 and (best is None or sc > best[0]):
+                best = (sc, kind, a, b)
+        if best:
+            sc, kind, a, b = best
+            out.append({"type": kind, "p0": a, "p1": b, "swing": None, "confidence": round(0.55 + 0.4 * sc, 3)})
+    return out
+
+
 def _line_cov(img: np.ndarray, a, b, n: int = 24, r: int = 1, lo: float = 0.1, hi: float = 0.9) -> float:
     ts = np.linspace(lo, hi, n)
     return float(np.mean([_ink_near(img, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, r) for t in ts]))
@@ -247,7 +295,8 @@ def find_openings(segs: list[Seg], ink: np.ndarray, mask: np.ndarray, t_px: floa
             elif kind == "wall":
                 ops.append({"type": "wall", "p0": p.b, "p1": g1, "i": i, "j": j})
             else:
-                ops.append({"type": "door", "p0": p.b, "p1": g1, "i": i, "j": j, "swing": None, "confidence": conf})
+                # 'none'：沒有門窗標記的缺口不猜（保留兩段牆、不產生開口），但切房間時要封起來
+                ops.append({"type": "gap", "p0": p.b, "p1": g1, "i": i, "j": None, "end": None})
         # 自由端 → 前方的垂直牆
         for end, sign in (("a", -1), ("b", 1)):
             pt = getattr(p, end)
@@ -276,6 +325,12 @@ def find_openings(segs: list[Seg], ink: np.ndarray, mask: np.ndarray, t_px: floa
             dist, k = best
             g1 = (pt[0] + d[0] * dist, pt[1] + d[1] * dist)
             kind, conf, swing = _classify_gap(ink, mask, pt, g1, p.thickness)
+            # 自由端缺口較容易誤判（射線可能穿過整個房間）：門寬需合理、信心要求較高
+            if dist > p.thickness * 12 or conf < 0.78 or kind not in ("door", "window"):
+                # 不當成開口，但切房間時封起來（不跨越房間：限於門寬範圍）
+                if dist <= p.thickness * 12:
+                    ops.append({"type": "gap", "p0": pt, "p1": g1, "i": i, "j": None, "end": None})
+                continue
             if kind in ("door", "window"):
                 if end == "a":
                     swing = {"left": "right", "right": "left"}.get(swing or "", swing)
@@ -320,6 +375,8 @@ def bridge(segs: list[Seg], ops: list[dict]) -> tuple[list[Seg], list[dict]]:
     """開口兩側的牆段合併為一道牆；自由端的門窗 → 把牆延伸到前方牆。'wall' 型缺口只合併、不產生開口。"""
     segs = [Seg(s.a, s.b, s.thickness, s.confidence, dict(s.meta)) for s in segs]
     for o in ops:
+        if o["type"] == "gap":
+            continue
         if o.get("j") is None:
             s = segs[o["i"]]
             if o["end"] == "b":
@@ -352,7 +409,7 @@ def bridge(segs: list[Seg], ops: list[dict]) -> tuple[list[Seg], list[dict]]:
         a = (base.a[0] + u[0] * lo, base.a[1] + u[1] * lo)
         b = (base.a[0] + u[0] * hi, base.a[1] + u[1] * hi)
         merged.append(Seg(a, b, float(np.median([s.thickness for s in g])), float(np.mean([s.confidence for s in g]))))
-    return merged, [o for o in ops if o["type"] != "wall"]
+    return merged, [o for o in ops if o["type"] not in ("wall",)]
 
 
 def find_rooms(mask: np.ndarray, segs: list[Seg], ops: list[dict], t_px: float) -> list[tuple[list[tuple[float, float]], float]]:
@@ -453,7 +510,13 @@ def parse_raster(data: bytes, hints: Optional[Hints] = None, segmenter: Optional
     gray = rotate(gray0, angle)
     mask, ink, seg_conf = seg.walls(gray)
     warnings: list[Warning] = []
-    segs, t_px = vectorize(mask)
+    _, t0 = vectorize(mask)
+    symbols = detect_symbols(ink, mask, t0)
+    # 把找到的門窗缺口補回牆 mask → 牆向量化成連續的一道（開口之後再指派）
+    filled = mask.copy()
+    for o in symbols:
+        cv2.line(filled, tuple(map(int, o["p0"])), tuple(map(int, o["p1"])), 255, max(2, int(round(t0))))
+    segs, t_px = vectorize(filled)
     if not orthogonal:
         pass
     if not segs:
@@ -461,13 +524,26 @@ def parse_raster(data: bytes, hints: Optional[Hints] = None, segmenter: Optional
     # 開口尺寸範圍：尺度已知用 mm，未知用牆厚倍數
     mmpp_hint = hints.scaleMmPerPx
     rng = (450 / mmpp_hint, 2600 / mmpp_hint) if mmpp_hint else (t_px * 3, t_px * 28)
-    ops = find_openings(segs, ink, mask, t_px, rng)
+    ops = find_openings(segs, ink, filled, t_px, rng)
     if getattr(seg, "hollow", False):
         ops += hollow_windows(segs, ink, t_px, rng[0])
     segs, ops = bridge(segs, ops)
     segs = [s for s in segs if s.length >= t_px * 2.5]
     segs = snap_endpoints(segs)
-    rooms = find_rooms(mask, segs, ops, t_px)
+    rooms = find_rooms(filled, segs, ops, t_px)  # 含未標記缺口：全部封起來再切房間
+    ops = [o for o in ops if o["type"] in ("door", "window")]
+    # 符號偵測的開口優先；與其重疊的缺口式開口去重
+    def overlaps(a, b):
+        ca = ((a["p0"][0] + a["p1"][0]) / 2, (a["p0"][1] + a["p1"][1]) / 2)
+        cb = ((b["p0"][0] + b["p1"][0]) / 2, (b["p0"][1] + b["p1"][1]) / 2)
+        return math.dist(ca, cb) < max(math.dist(a["p0"], a["p1"]), math.dist(b["p0"], b["p1"])) * 0.6
+    ops = symbols + [o for o in ops if not any(overlaps(o, s2) for s2 in symbols)]
+    # 去重：窗的三條平行線各自是一個元件 → 同一位置只留信心最高的一個
+    dedup: list[dict] = []
+    for o in sorted(ops, key=lambda x: -x.get("confidence", 0)):
+        if not any(overlaps(o, d) for d in dedup):
+            dedup.append(o)
+    ops = dedup
 
     # 尺度
     method = "unknown"

@@ -21,3 +21,4 @@ ai-eval/results/
 # cv-service Python 環境
 services/cv-service/.venv/
 **/__pycache__/
+services/cv-service/eval/reports/

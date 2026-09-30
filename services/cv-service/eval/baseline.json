@@ -1,0 +1,63 @@
+{
+  "date": "2026-09-30",
+  "plans_per_style": 20,
+  "segmenter": "traditional-cv",
+  "raster": {
+    "overall": {
+      "wall_iou": 0.724,
+      "opening_f1": 0.9734,
+      "room_iou": 0.4932
+    },
+    "by_style": {
+      "cad": {
+        "wall_iou": 0.694,
+        "opening_f1": 0.9547,
+        "room_iou": 0.2988,
+        "scale_detect_rate": 1.0,
+        "scale_error_median": 0.0033,
+        "sec_per_plan": 0.278
+      },
+      "filled": {
+        "wall_iou": 0.751,
+        "opening_f1": 0.983,
+        "room_iou": 0.545,
+        "scale_detect_rate": 0.9,
+        "scale_error_median": 0.0033,
+        "sec_per_plan": 0.267
+      },
+      "grey": {
+        "wall_iou": 0.7696,
+        "opening_f1": 0.9826,
+        "room_iou": 0.5011,
+        "scale_detect_rate": 0.7,
+        "scale_error_median": 0.0034,
+        "sec_per_plan": 0.285
+      },
+      "sketch": {
+        "wall_iou": 0.6921,
+        "opening_f1": 0.9796,
+        "room_iou": 0.5529,
+        "scale_detect_rate": 0.85,
+        "scale_error_median": 0.0039,
+        "sec_per_plan": 0.293
+      },
+      "scan": {
+        "wall_iou": 0.7135,
+        "opening_f1": 0.9669,
+        "room_iou": 0.5682,
+        "scale_detect_rate": 0.95,
+        "scale_error_median": 0.1684,
+        "sec_per_plan": 0.367
+      }
+    }
+  },
+  "vector": {
+    "wall_length_error_max": 0.0,
+    "wall_length_error_mean": 0.0
+  },
+  "targets": {
+    "wall_iou": 0.8,
+    "opening_f1": 0.85
+  },
+  "note": "合成資料評測；真實建照圖/DM/手繪/掃描資料集尚未取得（授權與蒐集），真實準確率未驗證"
+}
