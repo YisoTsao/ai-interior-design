@@ -15,7 +15,9 @@ const st = (page: Page) =>
     };
   });
 const ready3d = (page: Page) =>
-  page.waitForFunction(() => (window as any).__editor.viewer3d()?.info().calls > 0, null, { timeout: 60_000 });
+  page.waitForFunction(() => (window as any).__editor.viewer3d()?.info().calls > 0, null, {
+    timeout: 60_000,
+  });
 
 /** FE-PRJ-02／06：標籤、垃圾桶與還原；匯出專案檔再匯入 */
 test('專案列表：標籤篩選、垃圾桶還原、專案檔匯出與匯入', async ({ page }) => {
@@ -40,7 +42,9 @@ test('專案列表：標籤篩選、垃圾桶還原、專案檔匯出與匯入',
   await page.getByRole('radiogroup').getByRole('button').first().click();
   await expect(page.getByTestId('project-card')).toHaveCount(n);
   // 匯入 → 多一個專案
-  await page.getByTestId('project-file-input').setInputFiles({ name: 'x.interiorai', mimeType: 'application/gzip', buffer: readFileSync(path!) });
+  await page
+    .getByTestId('project-file-input')
+    .setInputFiles({ name: 'x.interiorai', mimeType: 'application/gzip', buffer: readFileSync(path!) });
   await expect(page.getByTestId('project-card')).toHaveCount(n + 1);
 });
 
@@ -87,7 +91,10 @@ test('匯出：DXF／SVG（2D）、GLB／4K／俯視圖（3D）', async ({ page 
   test.setTimeout(120_000);
   await newSampleProject(page);
   await page.getByTestId('open-export').click();
-  for (const [id, ext] of [['dxf', 'dxf'], ['svg', 'svg']] as const) {
+  for (const [id, ext] of [
+    ['dxf', 'dxf'],
+    ['svg', 'svg'],
+  ] as const) {
     const [dl] = await Promise.all([page.waitForEvent('download'), page.getByTestId(`export-${id}`).click()]);
     expect(dl.suggestedFilename()).toMatch(new RegExp(`\\.${ext}$`));
   }
@@ -104,7 +111,10 @@ test('匯出：DXF／SVG（2D）、GLB／4K／俯視圖（3D）', async ({ page 
   const png: Buffer = readFileSync(await shot.path());
   expect(png.readUInt32BE(16)).toBe(3840);
   expect(png.readUInt32BE(20)).toBe(2160);
-  const [top] = await Promise.all([page.waitForEvent('download'), page.getByTestId('export-topplan').click()]);
+  const [top] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('export-topplan').click(),
+  ]);
   expect(top.suggestedFilename()).toMatch(/-top\.png$/);
 });
 

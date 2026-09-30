@@ -25,6 +25,7 @@ export const getProjectThumb = (projectId: string) => get<string>(`thumb:${proje
 export const deleteProjectMedia = async (projectId: string) => {
   await del(`thumb:${projectId}`, store);
   await del(`gallery:${projectId}`, store);
+  await del(`underlay:${projectId}`, store);
 };
 
 export const setCameraThumb = (camId: string, dataUrl: string) => set(`cam:${camId}`, dataUrl, store);
@@ -73,3 +74,18 @@ export function download(blobOrUrl: Blob | string, filename: string) {
   a.click();
   if (typeof blobOrUrl !== 'string') setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/** 描圖底圖（FE-PLAN-11）：影像與位置、比例、透明度（每個專案一份，本機） */
+export interface UnderlayRecord {
+  src: string;
+  x: number;
+  z: number;
+  widthMm: number;
+  rotationDeg: number;
+  opacity: number;
+  visible: boolean;
+  locked?: boolean;
+}
+export const getUnderlay = (projectId: string) => get<UnderlayRecord>(`underlay:${projectId}`, store);
+export const setUnderlay = (projectId: string, u: UnderlayRecord | null) =>
+  u ? set(`underlay:${projectId}`, u, store) : del(`underlay:${projectId}`, store);

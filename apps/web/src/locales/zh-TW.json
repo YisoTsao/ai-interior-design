@@ -94,7 +94,22 @@
     "walk": "第一人稱漫遊（WASD）",
     "walkHint": "WASD／方向鍵移動、Shift 奔跑、拖曳或雙擊鎖定滑鼠轉頭、Esc 離開",
     "toggleLeft": "左側面板",
-    "toggleRight": "右側面板"
+    "toggleRight": "右側面板",
+    "display": "顯示模式",
+    "displayModes": {
+      "real": "真實",
+      "clay": "白模",
+      "wire": "線框",
+      "xray": "X 光"
+    },
+    "levelsMode": "顯示樓層",
+    "levelsModes": {
+      "active": "目前樓層",
+      "below": "目前及以下",
+      "all": "全部樓層"
+    },
+    "lens": "焦距",
+    "twoPoint": "兩點透視"
   },
   "tools": {
     "title": "工具",
@@ -388,7 +403,10 @@
     "assistantProposal": "套用助理提案",
     "projectInfo": "修改專案屬性",
     "site": "調整日照",
-    "lightPreset": "套用燈光方案"
+    "lightPreset": "套用燈光方案",
+    "splitWall": "分割牆",
+    "mergeWalls": "合併牆",
+    "pasteStyle": "貼上樣式"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -663,7 +681,11 @@
     "lock": "鎖定／解鎖",
     "hide": "隱藏／顯示",
     "selectSame": "選取同類型",
-    "selectAll": "全選"
+    "selectAll": "全選",
+    "copyStyle": "複製樣式",
+    "pasteStyle": "貼上樣式",
+    "splitWall": "在此插入節點（分割牆）",
+    "mergeWalls": "合併兩面牆"
   },
   "prompt": {
     "ok": "確定"
@@ -1063,7 +1085,8 @@
     "toggleView": "切換 2D／3D",
     "gizmo": "3D 移動／旋轉／縮放",
     "frame": "全景（3D）",
-    "walk": "漫遊移動／奔跑"
+    "walk": "漫遊移動／奔跑",
+    "style": "複製／貼上樣式"
   },
   "sun": {
     "title": "日照模擬",
@@ -1089,5 +1112,36 @@
       "london": "倫敦",
       "newyork": "紐約"
     }
+  },
+  "plan": {
+    "title": "平面圖設定",
+    "style": "顯示樣式",
+    "styles": {
+      "blueprint": "藍圖",
+      "color": "彩色",
+      "mono": "黑白施工"
+    },
+    "showGrid": "顯示格線",
+    "gridMm": "格線間距",
+    "angle": "角度吸附",
+    "snapTo": "吸附對象",
+    "targets": {
+      "endpoint": "牆端點",
+      "wall": "牆線",
+      "angle": "角度",
+      "grid": "格線"
+    },
+    "underlay": "描圖底圖",
+    "underlayAdd": "上傳底圖圖片",
+    "underlayVisible": "顯示底圖",
+    "underlayRemove": "移除底圖",
+    "opacity": "透明度",
+    "width": "實際寬度",
+    "rotation": "旋轉",
+    "calibrate": "以測量校正比例",
+    "calibrateHint": "先用測量工具（M）量圖上一段已知長度，再按「校正比例」輸入實際長度。",
+    "calibrateNeed": "請先用測量工具量兩點",
+    "calibratePrompt": "量到 {{mm}} mm（圖上）。實際長度是多少 mm？",
+    "calibrated": "底圖比例已校正（× {{k}}）"
   }
 }

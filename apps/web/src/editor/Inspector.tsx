@@ -22,6 +22,7 @@ import {
 import { objectDims, resolveParams, type CatalogEntry } from '@interiorai/catalog';
 import { detectRooms, wallLength } from '@interiorai/core-geometry';
 import { SunStudy } from './SunStudy';
+import { PlanSettings } from './PlanSettings';
 import { formatArea } from '@interiorai/editor-2d';
 import type {
   Appearance,
@@ -876,6 +877,7 @@ function ScenePanel({ level }: { level: Level }) {
   return (
     <div className="space-y-2" data-testid="inspector-scene">
       <p className="text-xs text-muted">{t('inspector.none')}</p>
+      {view === '2d' && <PlanSettings />}
       <Section title={t('env.title')} testId="section-env">
         <SelectField<SkyPreset>
           label={t('env.sky')}

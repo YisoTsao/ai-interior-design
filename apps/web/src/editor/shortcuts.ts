@@ -24,6 +24,7 @@ export const SHORTCUT_LIST: [string, string, 'general' | 'tools' | 'edit' | 'vie
   ['Esc', 'shortcuts.escape', 'tools'],
   ['Ctrl/⌘ C · X · V', 'shortcuts.clipboard', 'edit'],
   ['Ctrl/⌘ D', 'shortcuts.duplicate', 'edit'],
+  ['Ctrl/⌘ Shift C · V', 'shortcuts.style', 'edit'],
   ['Ctrl/⌘ A', 'shortcuts.selectAll', 'edit'],
   ['Ctrl/⌘ G · Shift G', 'shortcuts.group', 'edit'],
   ['Q · E', 'shortcuts.rotate', 'edit'],
@@ -79,6 +80,8 @@ export function useShortcuts(
         e.preventDefault();
         return act.duplicate();
       }
+      if (mod && e.shiftKey && k === 'c') return (e.preventDefault(), act.copyStyle());
+      if (mod && e.shiftKey && k === 'v') return (e.preventDefault(), act.pasteStyle());
       if (mod && k === 'c') return act.copy();
       if (mod && k === 'x') return (e.preventDefault(), act.cut());
       if (mod && k === 'v') return (e.preventDefault(), act.paste());

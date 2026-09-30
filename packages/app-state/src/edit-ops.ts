@@ -1,7 +1,7 @@
 import type { Draft } from 'immer';
 import { current, isDraft } from 'immer';
 import { objectDims, type Catalog } from '@interiorai/catalog';
-import { objectFootprint, type Vec2 } from '@interiorai/core-geometry';
+import { mergeWallPair, objectFootprint, splitWallAt, type Vec2 } from '@interiorai/core-geometry';
 import {
   newId,
   type Level,
@@ -600,6 +600,47 @@ export function setSite(patch: Partial<SiteInfo>): Command {
       const meta = (d.meta ?? {}) as Record<string, unknown>;
       meta.site = { ...((meta.site as Partial<SiteInfo> | undefined) ?? {}), ...patch };
       d.meta = meta as Draft<Scene>['meta'];
+    },
+  };
+}
+
+/** 牆的層級替換（保留 draft 身分，只換陣列內容） */
+const setWalls = (lv: Draft<Level>, next: Level) => {
+  lv.walls = next.walls as Draft<Wall>[];
+  lv.openings = next.openings as Draft<Opening>[];
+  lv.rooms = syncRooms({ ...next }) as Draft<Room>[];
+};
+
+/** 在牆上插入節點（FE-PLAN-15）：offset＝距 a 端 mm；預設中點 */
+export function splitWall(levelId: string, wallId: string, offset?: number): Command {
+  return {
+    id: cid('splitWall'),
+    label: 'command.splitWall',
+    do: (d) => {
+      const lv = levelOf(d, levelId);
+      const cur = plain(lv) as Level;
+      const w = cur.walls.find((x) => x.id === wallId);
+      const L = w ? Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]) : 0;
+      const r = splitWallAt(cur, wallId, offset ?? L / 2, newId('w'));
+      if (r.violations.length) throw new CommandRejected(r.violations);
+      setWalls(lv, r.level);
+    },
+  };
+}
+
+/** 合併兩面共線相接的牆（FE-PLAN-15） */
+export function mergeWalls(levelId: string, aId: string, bId: string): Command {
+  return {
+    id: cid('mergeWalls'),
+    label: 'command.mergeWalls',
+    do: (d) => {
+      const lv = levelOf(d, levelId);
+      const next = mergeWallPair(plain(lv) as Level, aId, bId);
+      if (!next)
+        throw new CommandRejected([
+          { code: 'WALLS_NOT_MERGEABLE', id: aId, message: '兩面牆需共線且相接（接點不能有其他牆）' },
+        ]);
+      setWalls(lv, next);
     },
   };
 }

@@ -94,7 +94,22 @@
     "walk": "Walk mode (WASD)",
     "walkHint": "WASD/arrows to move, Shift to run, drag or double-click to look, Esc to exit",
     "toggleLeft": "Left panel",
-    "toggleRight": "Right panel"
+    "toggleRight": "Right panel",
+    "display": "Display mode",
+    "displayModes": {
+      "real": "Realistic",
+      "clay": "Clay",
+      "wire": "Wireframe",
+      "xray": "X-ray"
+    },
+    "levelsMode": "Floors shown",
+    "levelsModes": {
+      "active": "Current floor",
+      "below": "Current & below",
+      "all": "All floors"
+    },
+    "lens": "Lens",
+    "twoPoint": "Two-point"
   },
   "tools": {
     "title": "Tools",
@@ -388,7 +403,10 @@
     "assistantProposal": "apply assistant proposal",
     "projectInfo": "edit project info",
     "site": "adjust sun study",
-    "lightPreset": "apply lighting preset"
+    "lightPreset": "apply lighting preset",
+    "splitWall": "split wall",
+    "mergeWalls": "merge walls",
+    "pasteStyle": "paste style"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -663,7 +681,11 @@
     "lock": "Lock / unlock",
     "hide": "Hide / show",
     "selectSame": "Select same type",
-    "selectAll": "Select all"
+    "selectAll": "Select all",
+    "copyStyle": "Copy style",
+    "pasteStyle": "Paste style",
+    "splitWall": "Insert node here (split wall)",
+    "mergeWalls": "Merge the two walls"
   },
   "prompt": {
     "ok": "OK"
@@ -1063,7 +1085,8 @@
     "toggleView": "Toggle 2D / 3D",
     "gizmo": "3D move / rotate / scale",
     "frame": "Frame all (3D)",
-    "walk": "Walk / run"
+    "walk": "Walk / run",
+    "style": "Copy / paste style"
   },
   "sun": {
     "title": "Sun study",
@@ -1089,5 +1112,36 @@
       "london": "London",
       "newyork": "New York"
     }
+  },
+  "plan": {
+    "title": "Plan settings",
+    "style": "Display style",
+    "styles": {
+      "blueprint": "Blueprint",
+      "color": "Color",
+      "mono": "Mono"
+    },
+    "showGrid": "Show grid",
+    "gridMm": "Grid spacing",
+    "angle": "Angle snap",
+    "snapTo": "Snap to",
+    "targets": {
+      "endpoint": "Wall ends",
+      "wall": "Wall lines",
+      "angle": "Angles",
+      "grid": "Grid"
+    },
+    "underlay": "Tracing underlay",
+    "underlayAdd": "Upload underlay image",
+    "underlayVisible": "Show underlay",
+    "underlayRemove": "Remove underlay",
+    "opacity": "Opacity",
+    "width": "Real width",
+    "rotation": "Rotation",
+    "calibrate": "Calibrate from measurement",
+    "calibrateHint": "Measure a known length on the image with the Measure tool (M), then press Calibrate and enter the real length.",
+    "calibrateNeed": "Measure two points with the Measure tool first",
+    "calibratePrompt": "Measured {{mm}} mm on the image. What is the real length in mm?",
+    "calibrated": "Underlay calibrated (× {{k}})"
   }
 }

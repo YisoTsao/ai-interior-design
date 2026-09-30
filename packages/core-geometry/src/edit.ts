@@ -184,3 +184,66 @@ export function mergeCollinearWalls(level: Level): Level {
   }
   return next;
 }
+
+/**
+ * 在牆上插入節點（FE-PLAN-15）：於距 a 端 offset 處分成兩面牆（第二段取得新 id）；
+ * 開口依位置歸屬；跨過分割點的開口 → 拒絕。房間的 wallIds 由呼叫端重新同步。
+ */
+export function splitWallAt(level: Level, wallId: string, offset: number, newWallId: string): EditResult {
+  const w = level.walls.find((x) => x.id === wallId);
+  if (!w)
+    return {
+      level,
+      changedWallIds: [],
+      violations: [{ code: 'WALL_NOT_FOUND', id: wallId, message: '找不到牆' }],
+    };
+  const L = wallLength(w);
+  const at = Math.round(offset);
+  if (at < LIMITS.minWallLength || L - at < LIMITS.minWallLength)
+    return {
+      level,
+      changedWallIds: [],
+      violations: [{ code: 'WALL_TOO_SHORT', id: wallId, message: '分割後的牆太短' }],
+    };
+  const cross = level.openings.find((o) => o.wallId === wallId && o.offset < at && o.offset + o.width > at);
+  if (cross)
+    return {
+      level,
+      changedWallIds: [],
+      violations: [{ code: 'OPENING_OUT_OF_RANGE', id: cross.id, message: '分割點落在門窗上' }],
+    };
+  const next = clone(level);
+  const d = norm(sub(w.b as Vec2, w.a as Vec2));
+  const p = roundVec(add(w.a as Vec2, scale(d, at)));
+  const first: Wall = { ...w, b: [p[0], p[1]] };
+  const second: Wall = { ...w, id: newWallId, a: [p[0], p[1]] };
+  next.walls = next.walls.flatMap((x) => (x.id === wallId ? [first, second] : [x]));
+  next.openings = next.openings.map((o) =>
+    o.wallId === wallId && o.offset >= at ? { ...o, wallId: newWallId, offset: o.offset - at } : o,
+  );
+  next.rooms = next.rooms.map((r) =>
+    r.wallIds.includes(wallId) ? { ...r, wallIds: [...r.wallIds, newWallId] } : r,
+  );
+  return { level: next, changedWallIds: [wallId, newWallId], violations: [] };
+}
+
+/** 合併兩面共線相接的牆（不論材質；保留第一面的屬性） */
+export function mergeWallPair(level: Level, aId: string, bId: string): Level | null {
+  const a = level.walls.find((w) => w.id === aId);
+  const b = level.walls.find((w) => w.id === bId);
+  if (!a || !b || !areCollinearJoined(a, b)) return null;
+  // 借用 mergeCollinearWalls：暫時讓兩面牆屬性一致、其他牆不參與
+  const others = level.walls.filter((w) => w.id !== aId && w.id !== bId);
+  const probe: Level = { ...level, walls: [a, { ...b, type: a.type, materialId: a.materialId }] };
+  const merged = mergeCollinearWalls(probe);
+  if (merged.walls.length !== 1) return null;
+  // 分割點有其他牆相接時不可合併
+  const shared = [a.a, a.b].find(
+    (p) => eq(p as Vec2, b.a as Vec2, JOINT_TOLERANCE) || eq(p as Vec2, b.b as Vec2, JOINT_TOLERANCE),
+  ) as Vec2;
+  if (
+    others.some((w) => eq(w.a as Vec2, shared, JOINT_TOLERANCE) || eq(w.b as Vec2, shared, JOINT_TOLERANCE))
+  )
+    return null;
+  return { ...merged, walls: [...others, merged.walls[0]!], openings: merged.openings };
+}

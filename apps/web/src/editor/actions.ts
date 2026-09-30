@@ -8,15 +8,21 @@ import {
   duplicateObjects,
   groupObjects,
   makeClip,
+  mergeWalls,
   mirrorObjects,
   pasteClip,
+  setMaterial,
+  splitWall,
+  updateRoom,
+  updateWall,
   transformObject,
   ungroupObjects,
   updateObject,
   type AlignMode,
   type EditorStore,
 } from '@interiorai/app-state';
-import type { Vec2 } from '@interiorai/core-geometry';
+import { closestOnSegment, type Vec2 } from '@interiorai/core-geometry';
+import type { Level } from '@interiorai/scene-schema';
 import { plan2dApi } from '@interiorai/editor-2d';
 import { catalog } from '../catalogData';
 import { getClip, setClip } from './clipboard';
@@ -25,6 +31,29 @@ import { mergeLook } from './look';
 /**
  * 編輯動作（快捷鍵、右鍵選單、屬性面板共用）。每個動作都是單一 Command（一次 undo）。
  */
+/**
+ * 樣式剪貼簿（FE-PROP-03）：複製物件的材質＋外觀、牆的兩面材質＋外觀＋鋪貼、房間的地板材質＋鋪貼，
+ * 貼到同類型的選取項目（一次 undo）。
+ */
+type StyleClip =
+  | {
+      kind: 'object';
+      materialOverrides?: Level['objects'][number]['materialOverrides'];
+      appearance?: Level['objects'][number]['appearance'];
+    }
+  | {
+      kind: 'wall';
+      wall: Pick<
+        Level['walls'][number],
+        'materialId' | 'materialIdB' | 'appearance' | 'appearanceB' | 'tilingA' | 'tilingB'
+      >;
+    }
+  | {
+      kind: 'room';
+      room: Pick<Level['rooms'][number], 'floorMaterialId' | 'floorAppearance' | 'floorTiling'>;
+    };
+let styleClip: StyleClip | null = null;
+
 export function editActions(store: EditorStore) {
   const st = () => store.getState();
   const level = () => activeLevel(st());
@@ -128,6 +157,93 @@ export function editActions(store: EditorStore) {
           'command.updateObject',
         ),
       );
+    },
+    /** 複製選取項目的樣式（取第一個） */
+    copyStyle() {
+      const l = level();
+      const id = st().selection[0];
+      const o = l.objects.find((x) => x.id === id);
+      const w = l.walls.find((x) => x.id === id);
+      const r = l.rooms.find((x) => x.id === id);
+      if (o) {
+        const { hidden: _h, ...look } = o.appearance ?? {};
+        styleClip = {
+          kind: 'object',
+          materialOverrides: o.materialOverrides,
+          appearance: Object.keys(look).length ? look : undefined,
+        };
+      } else if (w)
+        styleClip = {
+          kind: 'wall',
+          wall: {
+            materialId: w.materialId,
+            materialIdB: w.materialIdB,
+            appearance: w.appearance,
+            appearanceB: w.appearanceB,
+            tilingA: w.tilingA,
+            tilingB: w.tilingB,
+          },
+        };
+      else if (r)
+        styleClip = {
+          kind: 'room',
+          room: {
+            floorMaterialId: r.floorMaterialId,
+            floorAppearance: r.floorAppearance,
+            floorTiling: r.floorTiling,
+          },
+        };
+      return !!(o || w || r);
+    },
+    pasteStyle() {
+      const c = styleClip;
+      if (!c) return;
+      const l = level();
+      const sel = st().selection;
+      const cmds =
+        c.kind === 'object'
+          ? l.objects
+              .filter((o) => sel.includes(o.id))
+              .map((o) =>
+                updateObject(l.id, o.id, {
+                  // 只套用目標家具有的材質槽
+                  materialOverrides: Object.fromEntries(
+                    Object.entries(c.materialOverrides ?? {}).filter(([slot]) =>
+                      catalog.get(o.catalogId)?.materialSlots.some((m) => m.name === slot),
+                    ),
+                  ),
+                  appearance: mergeLook(c.appearance, { hidden: o.appearance?.hidden }),
+                }),
+              )
+          : c.kind === 'wall'
+            ? l.walls.filter((w) => sel.includes(w.id)).map((w) => updateWall(l.id, w.id, c.wall))
+            : l.rooms
+                .filter((r) => sel.includes(r.id))
+                .flatMap((r) => [
+                  ...(c.room.floorMaterialId
+                    ? [setMaterial(l.id, { kind: 'floor', roomId: r.id }, c.room.floorMaterialId)]
+                    : []),
+                  updateRoom(l.id, r.id, {
+                    floorAppearance: c.room.floorAppearance,
+                    floorTiling: c.room.floorTiling,
+                  }),
+                ]);
+      if (cmds.length) exec(batch(cmds, 'command.pasteStyle'));
+    },
+    hasStyle: () => !!styleClip,
+    /** 在牆上（點擊位置或中點）插入節點（FE-PLAN-15） */
+    splitWall(at?: Vec2) {
+      const l = level();
+      const w = l.walls.find((x) => st().selection.includes(x.id));
+      if (!w) return;
+      const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+      const off = at ? closestOnSegment(at, w.a as Vec2, w.b as Vec2).t * L : undefined;
+      exec(splitWall(l.id, w.id, off));
+    },
+    mergeWalls() {
+      const l = level();
+      const ws = l.walls.filter((x) => st().selection.includes(x.id));
+      if (ws.length === 2) exec(mergeWalls(l.id, ws[0]!.id, ws[1]!.id));
     },
     counts() {
       const l = level();

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
+import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import type Konva from 'konva';
 import { useStore } from 'zustand';
 import {
@@ -13,7 +13,9 @@ import {
   DEFAULTS,
   moveWallVertex,
   resizeWall,
+  inferRoomKind,
   setMaterial,
+  stackElevation,
   transformObject,
   translateWall,
   updateAnnotation,
@@ -83,7 +85,67 @@ export interface Plan2DProps {
   requestText?: (initial: string) => Promise<string | null>;
   /** 下層樓層（淡色參考，FE-LVL-02） */
   ghostLevel?: Level | null;
+  /** 格線與吸附設定（FE-PLAN-13） */
+  snapSettings?: SnapSettings;
+  /** 顯示樣式（FE-PLAN-12）：blueprint＝藍圖（預設）、color＝房間依用途填色、mono＝黑白施工圖 */
+  planStyle?: PlanStyle;
+  /** 描圖底圖（FE-PLAN-11） */
+  underlay?: Underlay | null;
 }
+export type PlanStyle = 'blueprint' | 'color' | 'mono';
+export interface SnapSettings {
+  gridMm?: number;
+  angleDeg?: number;
+  showGrid?: boolean;
+  targets?: { endpoint?: boolean; wall?: boolean; angle?: boolean; grid?: boolean };
+}
+/** 底圖：左上角位於世界座標 (x, z)，寬 widthMm（高依影像比例），繞左上角旋轉 */
+export interface Underlay {
+  src: string;
+  x: number;
+  z: number;
+  widthMm: number;
+  rotationDeg: number;
+  opacity: number;
+  visible: boolean;
+}
+/** 房間依用途的填色（color 樣式） */
+export const ROOM_KIND_FILL: Record<string, string> = {
+  living: '#f2dfbd',
+  dining: '#f4cfae',
+  bedroom: '#c9dcef',
+  kitchen: '#d3e8c4',
+  bath: '#bfe3e8',
+  study: '#dccdea',
+  entry: '#e6dccb',
+  balcony: '#cfe3c0',
+  storage: '#dcd6cc',
+  other: '#e2e2e2',
+};
+const MONO: Partial<Plan2DTheme> = {
+  bg: '#ffffff',
+  grid: '#f0f0f0',
+  gridMajor: '#dedede',
+  wall: '#111111',
+  wallStroke: '#000000',
+  floor: '#ffffff',
+  text: '#111111',
+  muted: '#444444',
+  object: '#ffffff',
+  opening: '#000000',
+};
+const COLOR: Partial<Plan2DTheme> = {
+  bg: '#fbf8f3',
+  grid: '#efe9df',
+  gridMajor: '#e2d9cb',
+  wall: '#3a3530',
+  wallStroke: '#2a2622',
+  floor: '#f3eee6',
+  text: '#2a2622',
+  muted: '#5c554d',
+  object: '#ffffff',
+  opening: '#8a5a2b',
+};
 
 type Preview = { level: Level; changed: Set<string>; invalid: boolean };
 type Drag =
@@ -113,11 +175,24 @@ export function Plan2D({
   t,
   lengthUnit,
   areaUnit,
-  theme,
   onContextMenu,
   requestText,
   ghostLevel,
-}: Plan2DProps) {
+  snapSettings,
+  planStyle = 'blueprint',
+  underlay,
+  theme: baseTheme,
+}: Omit<Plan2DProps, 'theme'> & { theme: Plan2DTheme }) {
+  const theme = useMemo(
+    () =>
+      planStyle === 'mono'
+        ? { ...baseTheme, ...MONO }
+        : planStyle === 'color'
+          ? { ...baseTheme, ...COLOR }
+          : baseTheme,
+    [baseTheme, planStyle],
+  );
+  const underlayImg = useImage(underlay?.visible ? underlay.src : null);
   const scene = useStore(store, (s) => s.scene);
   const levelId = useStore(store, (s) => s.levelId);
   const selection = useStore(store, (s) => s.selection);
@@ -148,6 +223,8 @@ export function Plan2D({
   const [dimDraft, setDimDraft] = useState<Vec2[]>([]);
   const [guides, setGuides] = useState<Guide[]>([]);
   const lastPointer = useRef<Vec2 | null>(null);
+  const measureRef = useRef<Vec2[]>([]);
+  measureRef.current = measure.pts;
   const v = view ?? fitView(null, size);
 
   // 容器尺寸
@@ -186,6 +263,7 @@ export function Plan2D({
       },
       fit,
       pointerWorld: () => lastPointer.current,
+      measurePoints: () => measureRef.current,
       snapshot: (maxSide = 640) => {
         const st = stageRef.current;
         if (!st) return null;
@@ -208,11 +286,19 @@ export function Plan2D({
   const tol = SNAP_PX / v.scale;
   const doSnap = useCallback(
     (p: Vec2, extra: Partial<Parameters<typeof snap>[1]> = {}) => {
-      const r = snap(p, { level, tolerance: tol, gridMm: 100, disabled: !snapEnabled || altDown, ...extra });
+      const r = snap(p, {
+        level,
+        tolerance: tol,
+        gridMm: snapSettings?.gridMm ?? 100,
+        angleStepRad: ((snapSettings?.angleDeg ?? 15) * Math.PI) / 180,
+        ...(snapSettings?.targets ? { targets: snapSettings.targets } : {}),
+        disabled: !snapEnabled || altDown,
+        ...extra,
+      });
       setSnapInfo(r);
       return r.point;
     },
-    [level, tol, snapEnabled, altDown],
+    [level, tol, snapEnabled, altDown, snapSettings],
   );
 
   const pointer = (): Vec2 | null => {
@@ -667,7 +753,14 @@ export function Plan2D({
           exec(
             batch(
               [
-                transformObject(levelId, drag.id, { position: drag.pos }),
+                transformObject(levelId, drag.id, {
+                  // 疊放吸附（FE-V3D-04）：落在桌面／櫃面上時自動抬高
+                  position: [
+                    drag.pos[0],
+                    stackElevation(level, catalog, o, [drag.pos[0], drag.pos[2]], o.rotationY) ?? drag.pos[1],
+                    drag.pos[2],
+                  ],
+                }),
                 ...mates.map((m) =>
                   transformObject(levelId, m.id, {
                     position: [m.position[0] + dx, m.position[1], m.position[2] + dz],
@@ -764,7 +857,20 @@ export function Plan2D({
         }}
       >
         <Layer listening={false}>
-          <Grid v={v} size={size} theme={theme} />
+          {snapSettings?.showGrid !== false && <Grid v={v} size={size} theme={theme} />}
+          {underlay?.visible && underlayImg && (
+            <Group x={v.ox} y={v.oy} scaleX={v.scale} scaleY={v.scale}>
+              <KImage
+                image={underlayImg}
+                x={underlay.x}
+                y={underlay.z}
+                width={underlay.widthMm}
+                height={(underlay.widthMm * underlayImg.height) / Math.max(1, underlayImg.width)}
+                rotation={underlay.rotationDeg}
+                opacity={underlay.opacity}
+              />
+            </Group>
+          )}
         </Layer>
         {ghostLevel && (
           <Layer listening={false} opacity={0.22}>
@@ -789,6 +895,7 @@ export function Plan2D({
               collisions={collisions}
               t={t}
               areaUnit={areaUnit}
+              roomFill={planStyle === 'color' ? (k) => ROOM_KIND_FILL[k ?? 'other'] : undefined}
             />
           </Group>
         </Layer>
@@ -1199,6 +1306,7 @@ interface StaticProps {
   collisions: Set<string>;
   t: Plan2DProps['t'];
   areaUnit: AreaUnit;
+  roomFill?: ((kind: string | undefined) => string | undefined) | undefined;
 }
 
 /** 靜態圖層：拖曳期間 props 不變 → 不重畫（ADR-010） */
@@ -1214,6 +1322,7 @@ const StaticPlan = memo(function StaticPlan({
   collisions,
   t,
   areaUnit,
+  roomFill,
 }: StaticProps) {
   const outline = useMemo(
     () => wallOutline({ walls: level.walls.filter((w) => !hidden.has(w.id)) }),
@@ -1234,7 +1343,12 @@ const StaticPlan = memo(function StaticPlan({
                 name={r ? 'room' : undefined}
                 points={flat(d.floor)}
                 closed
-                fill={selected ? theme.primary : theme.floor}
+                fill={
+                  selected
+                    ? theme.primary
+                    : ((roomFill && roomFill(r ? inferRoomKind(r, d.netArea / 1e6, false) : undefined)) ??
+                      theme.floor)
+                }
                 opacity={selected ? 0.18 : 1}
                 perfectDrawEnabled={false}
               />
@@ -1852,4 +1966,20 @@ function WindowSymbol({
       ))}
     </>
   );
+}
+
+/** 載入圖片（底圖用）；src 變更時重新載入 */
+function useImage(src: string | null): HTMLImageElement | null {
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (!src) return setImg(null);
+    const im = new window.Image();
+    let dead = false;
+    im.onload = () => !dead && setImg(im);
+    im.src = src;
+    return () => {
+      dead = true;
+    };
+  }, [src]);
+  return img;
 }

@@ -12,7 +12,14 @@ import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, TransformControls } from '@react-three/drei';
 import type { OrbitControls as OrbitImpl } from 'three-stdlib';
 import { useStore } from 'zustand';
-import { DEFAULTS, activeLevel, setMaterial, transformObject, type EditorStore } from '@interiorai/app-state';
+import {
+  DEFAULTS,
+  activeLevel,
+  setMaterial,
+  stackElevation,
+  transformObject,
+  type EditorStore,
+} from '@interiorai/app-state';
 import { materialMap, objectDims, type Catalog, type CatalogEntry, type Material } from '@interiorai/catalog';
 import {
   buildingFootprint,
@@ -42,6 +49,14 @@ import {
 } from './lighting.js';
 import { instantiateModel, useModel } from './models.js';
 import { WalkControls } from './walk.js';
+import {
+  CollisionBoxes,
+  DisplayModeEffect,
+  Measure3D,
+  OtherLevels,
+  type DisplayMode,
+  type LevelsMode,
+} from './extras.js';
 import { FixtureLights, Plinth } from './NightScene.js';
 import { MaterialCache, ResourceScope } from './resources.js';
 import {
@@ -81,6 +96,12 @@ export interface Viewer3DProps {
   /** 資產目錄版本（使用者上傳模型後遞增，觸發重新分組） */
   catalogVersion?: number;
   /** 右鍵選單（hit＝點到的實體 id；world＝地面座標 x,z） */
+  /** 顯示模式（FE-V3D-11）；預設 real */
+  displayMode?: DisplayMode;
+  /** 顯示哪些樓層（FE-LVL-03）；預設 active */
+  levelsMode?: LevelsMode;
+  /** 碰撞紅框（FE-V3D-13）；預設開 */
+  showCollisions?: boolean;
   onContextMenu?: (e: {
     clientX: number;
     clientY: number;
@@ -152,6 +173,9 @@ function SceneContent({
   graphics = DEFAULT_GRAPHICS,
   catalogVersion = 0,
   onContextMenu,
+  displayMode = 'real',
+  levelsMode = 'active',
+  showCollisions = true,
 }: Viewer3DProps) {
   const dh = viewStyle === 'dollhouse';
   const night = dh && lighting === 'night';
@@ -490,6 +514,9 @@ function SceneContent({
   const isGlb = (o: SceneObject) => catalog.get(o.catalogId)?.model.kind === 'glb';
   const single = selection.length === 1 ? level.objects.find((o) => o.id === selection[0]) : undefined;
   const selSet = useMemo(() => new Set(selection), [selection]);
+  /** X 光模式：牆以半透明呈現 */
+  const xray = (a: Appearance | undefined): Appearance | undefined =>
+    displayMode === 'xray' ? { ...a, opacity: 0.22 } : a;
   const groups = useMemo(() => {
     const map = new Map<
       string,
@@ -874,6 +901,37 @@ function SceneContent({
         updateCut();
         invalidate();
       },
+      kinds: () => {
+        const out: Record<string, number> = {};
+        scene3.traverse((o) => {
+          const k = o.userData.gkind as string | undefined;
+          if (k) out[k] = (out[k] ?? 0) + 1;
+        });
+        return out;
+      },
+      override: () => (scene3.userData.displayOverride as THREE.Material | null | undefined)?.type ?? null,
+      setLens: (mm) => {
+        const pc = camera as THREE.PerspectiveCamera;
+        pc.fov = (2 * Math.atan(24 / (2 * Math.max(8, Math.min(200, mm)))) * 180) / Math.PI;
+        pc.updateProjectionMatrix();
+        invalidate();
+      },
+      lens: () =>
+        Math.round(24 / (2 * Math.tan((((camera as THREE.PerspectiveCamera).fov / 2) * Math.PI) / 180))),
+      twoPoint: () => {
+        const t = controls.current?.target;
+        if (!t) return;
+        // 解除剖面模型的俯角限制，讓視線可以完全水平
+        setEyeLevel(true);
+        if (controls.current) {
+          controls.current.minPolarAngle = 0;
+          controls.current.maxPolarAngle = Math.PI / 2;
+        }
+        t.y = camera.position.y;
+        camera.lookAt(t);
+        controls.current?.update();
+        invalidate();
+      },
       walk: (on) => setWalking(on),
       isWalking: () => walking,
     });
@@ -1023,7 +1081,9 @@ function SceneContent({
         if (sn) [x, z, rot] = [sn.pos[0], sn.pos[1], sn.rotationY];
         else [x, z] = [Math.round(x / 10) * 10, Math.round(z / 10) * 10];
       }
-      last = { pos: [x, o.position[1], z], rot };
+      // 疊放吸附（FE-V3D-04）
+      const y = stackElevation(level, catalog, o, [x, z], rot) ?? o.position[1];
+      last = { pos: [x, y, z], rot };
       setDragPos({ id: o.id, ...last });
       invalidate();
     };
@@ -1079,6 +1139,15 @@ function SceneContent({
         </>
       )}
       {walking && <WalkControls level={level} onExit={() => setWalking(false)} />}
+      {displayMode !== 'real' && displayMode !== 'xray' && <DisplayModeEffect mode={displayMode} />}
+      {showCollisions && !walking && <CollisionBoxes level={level} catalog={catalog} />}
+      {levelsMode !== 'active' && (
+        <OtherLevels
+          levels={scene.levels.filter((l) => levelsMode === 'all' || l.elevation < level.elevation)}
+          active={level}
+        />
+      )}
+      <Measure3D active={tool === 'measure'} />
       <OrbitControls
         ref={controls}
         makeDefault
@@ -1101,8 +1170,13 @@ function SceneContent({
             receiveShadow={dh}
             geometry={geom}
             material={[
-              mats.tiled(w.materialId, '#efece6', w.appearance, w.tilingA),
-              mats.tiled(w.materialIdB ?? w.materialId, '#efece6', w.appearanceB ?? w.appearance, w.tilingB),
+              mats.tiled(w.materialId, '#efece6', xray(w.appearance), w.tilingA),
+              mats.tiled(
+                w.materialIdB ?? w.materialId,
+                '#efece6',
+                xray(w.appearanceB ?? w.appearance),
+                w.tilingB,
+              ),
               selSet.has(w.id) ? selMat : capMat,
             ]}
             onClick={surface('wall', w.id)}

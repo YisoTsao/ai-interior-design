@@ -77,7 +77,11 @@ export function ContextMenu({
       {item('paste', () => actions.paste(state.world ?? undefined), c.clip, '⌘V')}
       {item('duplicate', actions.duplicate, c.objects > 0, '⌘D')}
       {item('delete', actions.del, c.any > 0, 'Del')}
+      {item('copyStyle', actions.copyStyle, c.any > 0, '⇧⌘C')}
+      {item('pasteStyle', actions.pasteStyle, c.any > 0 && actions.hasStyle(), '⇧⌘V')}
       {sep('s1')}
+      {item('splitWall', () => actions.splitWall(state.world ?? undefined), c.walls === 1)}
+      {item('mergeWalls', actions.mergeWalls, c.walls === 2)}
       {item('rotate90', () => actions.rotate(90), c.objects > 0, 'E')}
       {item('mirrorX', () => actions.mirror('x'), c.objects > 0)}
       {item('mirrorZ', () => actions.mirror('z'), c.objects > 0)}

@@ -15,7 +15,9 @@ async function fromTemplate(page: Page, id: string, furnish: boolean) {
   if (!furnish) await page.getByTestId('tpl-furnish').uncheck();
   await page.getByTestId('wizard-name').fill(`E2E ${id}`);
   await page.getByTestId('wizard-create').click();
-  await page.waitForFunction(() => (window as any).__editor && document.querySelector('[data-testid=plan2d]'));
+  await page.waitForFunction(
+    () => (window as any).__editor && document.querySelector('[data-testid=plan2d]'),
+  );
 }
 
 /** FE-PRJ-01／03：精靈 → 範本（已佈置）→ 專案列表顯示坪數、房數、縮圖；搜尋與清單版面 */

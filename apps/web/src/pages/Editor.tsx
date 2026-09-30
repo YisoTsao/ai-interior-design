@@ -22,6 +22,7 @@ import {
   Map,
   Maximize,
   Receipt,
+  Ruler,
   Redo2,
   Share2,
   Undo2,
@@ -39,6 +40,7 @@ import { HistoryPanel } from '../editor/HistoryPanel';
 import { ProjectInfoDialog } from '../editor/ProjectInfoDialog';
 import { ShortcutsDialog } from '../editor/ShortcutsDialog';
 import { setProjectThumb, shrink } from '../media';
+import { useUnderlay } from '../editor/underlay';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
   activeLevel,
@@ -51,6 +53,7 @@ import {
   planDecor,
   saveCameraBookmark,
   setMaterial,
+  stackElevation,
   startAutosave,
 } from '@interiorai/app-state';
 import { defaultElevation, objectDims } from '@interiorai/catalog';
@@ -158,6 +161,8 @@ function EditorShell() {
   const viewStyle = usePrefs((s) => s.viewStyle);
   const lighting = usePrefs((s) => s.lighting);
   const graphics = usePrefs((s) => s.graphics);
+  const displayMode = usePrefs((s) => s.displayMode);
+  const levelsMode = usePrefs((s) => s.levelsMode);
   const catalogVersion = useCatalogVersion();
   const [mode, setMode] = useState<TransformMode>('translate');
   const [uniformScale, setUniformScale] = useState(true);
@@ -199,6 +204,12 @@ function EditorShell() {
   }, [t, togglePanels]);
   const prompt = usePrompt();
   const projectId = useEditor((s) => s.projectId);
+  const snapPrefs = usePrefs((s) => s.snap);
+  const planStyle = usePrefs((s) => s.planStyle);
+  const underlay = useUnderlay((s) => s.rec);
+  useEffect(() => {
+    void useUnderlay.getState().load(projectId);
+  }, [projectId]);
   const saveStatus = useEditor((s) => s.saveStatus);
   // 專案縮圖（FE-PRJ-01）：存檔完成後擷取目前畫面（最多每 20 秒一次）
   useEffect(() => {
@@ -269,7 +280,7 @@ function EditorShell() {
     e.preventDefault();
     const s = store.getState();
     const lvl = activeLevel(s);
-    const y = defaultElevation(entry, lvl.height);
+    let y = defaultElevation(entry, lvl.height);
     let pos: [number, number] = [Math.round(pt[0]), Math.round(pt[1])];
     let rot = 0;
     const dims = objectDims(entry);
@@ -277,6 +288,8 @@ function EditorShell() {
       const sn = snapToWall(lvl, pos, dims.d, entry.anchor === 'wall' ? 1500 : 250);
       if (sn) [pos, rot] = [sn.pos, sn.rotationY];
     }
+    // 疊放吸附（FE-V3D-04）：拖到桌面／櫃面上
+    y = stackElevation(lvl, catalog, { catalogId: entry.id }, pos, rot) ?? y;
     const before = new Set(lvl.objects.map((o) => o.id));
     if (
       s.exec(addObject(s.levelId, { catalogId: entry.id, position: [pos[0], y, pos[1]], rotationY: rot }))
@@ -339,6 +352,9 @@ function EditorShell() {
                 areaUnit={areaUnit}
                 theme={theme}
                 ghostLevel={ghost}
+                snapSettings={snapPrefs}
+                planStyle={planStyle}
+                underlay={underlay}
                 onContextMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, world: e.world })}
                 requestText={async (initial) =>
                   (
@@ -361,6 +377,8 @@ function EditorShell() {
                 lighting={lighting}
                 graphics={graphics}
                 catalogVersion={catalogVersion}
+                displayMode={displayMode}
+                levelsMode={levelsMode}
                 onContextMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, world: e.world })}
               />
             )}
@@ -624,7 +642,18 @@ function ViewportHud({
   const { t } = useTranslation();
   const store = useEditorStore();
   const cams = useEditor((s) => s.scene.cameras?.length ?? 0);
-  const { viewStyle, setViewStyle, lighting, setLighting } = usePrefs();
+  const {
+    viewStyle,
+    setViewStyle,
+    lighting,
+    setLighting,
+    displayMode,
+    setDisplayMode,
+    levelsMode,
+    setLevelsMode,
+  } = usePrefs();
+  const tool = useEditor((s) => s.tool);
+  const levelCount = useEditor((s) => s.scene.levels.length);
   return (
     <div
       className="hud-panel absolute top-3 left-3 z-10 flex max-w-[calc(100%-24px)] flex-wrap items-center gap-1 p-1.5"
@@ -735,6 +764,61 @@ function ViewportHud({
           </select>
         </label>
       )}
+      <IconButton
+        label={t('tools.measure')}
+        pressed={tool === 'measure'}
+        testId="hud-measure"
+        onClick={() => store.getState().setTool(tool === 'measure' ? 'select' : 'measure')}
+      >
+        <Ruler size={18} aria-hidden />
+      </IconButton>
+      <label className="flex items-center gap-1 text-xs">
+        <span className="sr-only">{t('top.display')}</span>
+        <select
+          className="field w-24 font-sans"
+          value={displayMode}
+          onChange={(e) => setDisplayMode(e.target.value as typeof displayMode)}
+          data-testid="view-display"
+        >
+          {(['real', 'clay', 'wire', 'xray'] as const).map((m) => (
+            <option key={m} value={m}>
+              {t(`top.displayModes.${m}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      {levelCount > 1 && (
+        <select
+          className="field w-28 font-sans"
+          aria-label={t('top.levelsMode')}
+          value={levelsMode}
+          onChange={(e) => setLevelsMode(e.target.value as typeof levelsMode)}
+          data-testid="view-levels"
+        >
+          {(['active', 'below', 'all'] as const).map((m) => (
+            <option key={m} value={m}>
+              {t(`top.levelsModes.${m}`)}
+            </option>
+          ))}
+        </select>
+      )}
+      <select
+        className="field w-20 font-sans"
+        aria-label={t('top.lens')}
+        value=""
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === 'two') viewer3dApi.get()?.twoPoint();
+          else if (v) viewer3dApi.get()?.setLens(Number(v));
+        }}
+        data-testid="view-lens"
+      >
+        <option value="">{t('top.lens')}</option>
+        {[16, 24, 35, 50, 85].map((mm) => (
+          <option key={mm} value={mm}>{`${mm} mm`}</option>
+        ))}
+        <option value="two">{t('top.twoPoint')}</option>
+      </select>
       <button
         className="hud-chip"
         aria-pressed={showCeiling}

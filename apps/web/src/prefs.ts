@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import type { AreaUnit, LengthUnit } from '@interiorai/editor-2d';
+import type { AreaUnit, LengthUnit, PlanStyle, SnapSettings } from '@interiorai/editor-2d';
 import {
   DEFAULT_GRAPHICS,
+  type DisplayMode,
+  type LevelsMode,
   type GraphicsSettings,
   type LightingMode,
   type ViewStyle,
@@ -19,7 +21,34 @@ interface Prefs {
   /** 畫質（本機偏好） */
   graphics: GraphicsSettings;
   setGraphics(p: Partial<GraphicsSettings>): void;
+  /** 2D 顯示樣式（FE-PLAN-12） */
+  planStyle: PlanStyle;
+  setPlanStyle(s: PlanStyle): void;
+  /** 格線與吸附（FE-PLAN-13） */
+  snap: Required<Pick<SnapSettings, 'gridMm' | 'angleDeg' | 'showGrid'>> & {
+    targets: Required<NonNullable<SnapSettings['targets']>>;
+  };
+  setSnap(p: Partial<Prefs['snap']>): void;
+  /** 3D 顯示模式與樓層（FE-V3D-11、FE-LVL-03） */
+  displayMode: DisplayMode;
+  setDisplayMode(m: DisplayMode): void;
+  levelsMode: LevelsMode;
+  setLevelsMode(m: LevelsMode): void;
 }
+const DEFAULT_SNAP: Prefs['snap'] = {
+  gridMm: 100,
+  angleDeg: 15,
+  showGrid: true,
+  targets: { endpoint: true, wall: true, angle: true, grid: true },
+};
+const readJson = <T>(k: string, fb: T): T => {
+  try {
+    const raw = localStorage.getItem(k);
+    return raw ? { ...fb, ...(JSON.parse(raw) as Partial<T>) } : fb;
+  } catch {
+    return fb;
+  }
+};
 const read = <T extends string>(k: string, fb: T): T => {
   try {
     return (localStorage.getItem(k) as T | null) ?? fb;
@@ -61,5 +90,18 @@ export const usePrefs = create<Prefs>((set) => ({
       const graphics = { ...st.graphics, ...p };
       write('graphics', JSON.stringify(graphics));
       return { graphics };
+    }),
+  planStyle: read<PlanStyle>('planStyle', 'blueprint'),
+  setPlanStyle: (planStyle) => (write('planStyle', planStyle), set({ planStyle })),
+  displayMode: read<DisplayMode>('displayMode', 'real'),
+  setDisplayMode: (displayMode) => (write('displayMode', displayMode), set({ displayMode })),
+  levelsMode: read<LevelsMode>('levelsMode', 'active'),
+  setLevelsMode: (levelsMode) => (write('levelsMode', levelsMode), set({ levelsMode })),
+  snap: readJson('snapSettings', DEFAULT_SNAP),
+  setSnap: (p) =>
+    set((st) => {
+      const snap = { ...st.snap, ...p, targets: { ...st.snap.targets, ...p.targets } };
+      write('snapSettings', JSON.stringify(snap));
+      return { snap };
     }),
 }));

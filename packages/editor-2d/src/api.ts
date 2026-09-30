@@ -9,6 +9,8 @@ export interface Plan2DApi {
   pointerWorld(): Vec2 | null;
   /** 2D 畫面 PNG（專案縮圖、匯出） */
   snapshot(maxSide?: number): string | null;
+  /** 測量工具目前的點（底圖比例校正用） */
+  measurePoints(): Vec2[];
 }
 let current: Plan2DApi | null = null;
 export const plan2dApi = {
