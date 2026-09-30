@@ -1,0 +1,56 @@
+{
+  "name": "@interiorai/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --dir test/unit",
+    "test:integration": "vitest run -c vitest.integration.config.ts --dir test/integration",
+    "test:contract": "vitest run -c vitest.integration.config.ts --dir test/contract",
+    "migrate": "node dist/db/migrate-cli.js",
+    "seed": "node dist/db/seed-cli.js",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1143.0",
+    "@aws-sdk/s3-request-presigner": "^3.1143.0",
+    "@interiorai/catalog": "workspace:^",
+    "@interiorai/scene-schema": "workspace:^",
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "@nestjs/platform-express": "^11",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "bullmq": "^5.81.5",
+    "cookie-parser": "^1.4.7",
+    "drizzle-orm": "^0.45.3",
+    "ioredis": "^5.11.1",
+    "jose": "^6.2.12",
+    "pg": "^8.23.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "^12",
+    "@testcontainers/redis": "^12",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.0",
+    "testcontainers": "^12",
+    "vitest": "^5.0.2"
+  }
+}

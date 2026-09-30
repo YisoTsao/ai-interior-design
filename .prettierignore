@@ -3,3 +3,6 @@ pnpm-lock.yaml
 dist
 coverage
 .turbo
+
+# 由 openapi-typescript 產生（api-client 測試比對原始輸出）
+**/*.gen.ts

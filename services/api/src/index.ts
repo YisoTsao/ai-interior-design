@@ -1,0 +1,20 @@
+// 供 services/worker 與測試使用的公開介面
+export * from './config.js';
+export * from './tokens.js';
+export { Db, type Tx } from './db/db.js';
+export * from './db/migrate.js';
+export { seedCatalog } from './db/seed.js';
+export { createRedis } from './infra/redis.js';
+export { Storage } from './infra/storage.js';
+export { ApiError, type ErrorCode } from './common/errors.js';
+export { log } from './common/log.js';
+export { OpenApiContract } from './common/openapi.js';
+export { createApp, AppModule, type AppExtras } from './app.module.js';
+export { LedgerService } from './modules/billing/ledger.service.js';
+export { reconcile } from './modules/billing/reconcile.js';
+export { signPayload } from './modules/billing/billing.controller.js';
+export { JobEvents } from './modules/jobs/job-events.js';
+export * from './modules/jobs/job-state.js';
+export * from './modules/jobs/jobs.service.js';
+export * from './worker/runtime.js';
+export { reapZombies } from './worker/maintenance.js';

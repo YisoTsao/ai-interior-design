@@ -1,5 +1,11 @@
 openapi: 3.1.0
-info: { title: InteriorAI API, version: 1.0.0, description: '權威契約檔（ADR-015）；同鍵不同內容的 Idempotency-Key 回 422 IDEMPOTENCY_KEY_REUSED（ADR-014）。' }
+info:
+  title: InteriorAI API
+  version: 1.1.0
+  description: >-
+    權威契約檔（ADR-015）；同鍵不同內容的 Idempotency-Key 回 422 IDEMPOTENCY_KEY_REUSED（ADR-014）。
+    每個 operation 以 `x-phase` 標註交付階段：API 必須實作 x-phase ≤ 目前階段的所有 operation，
+    且不得有契約外的路由（契約測試 services/api/test/contract 驗證）。請求本文由 API 依本檔以 JSON Schema 驗證。
 servers: [{ url: /v1 }]
 security: [{ bearerAuth: [] }]
 components:
@@ -9,16 +15,209 @@ components:
     IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 8, maxLength: 128 } }
     Cursor: { name: cursor, in: query, schema: { type: string } }
     Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    OrgId: { name: X-Org-Id, in: header, required: false, description: 切換作用中的組織（須為成員）, schema: { type: string, format: uuid } }
   schemas:
     ErrorCode:
       type: string
       enum: [AUTH_REQUIRED, FORBIDDEN, NOT_FOUND, VALIDATION_FAILED, VERSION_CONFLICT, INSUFFICIENT_CREDITS,
              RATE_LIMITED, UPLOAD_REJECTED, MODERATION_BLOCKED, JOB_FAILED, PROVIDER_UNAVAILABLE,
-             SCHEMA_UNSUPPORTED, SCENE_LIMIT_EXCEEDED, IDEMPOTENCY_KEY_REUSED, SCALE_UNKNOWN]
+             SCHEMA_UNSUPPORTED, SCENE_LIMIT_EXCEEDED, IDEMPOTENCY_KEY_REUSED, SCALE_UNKNOWN,
+             CONFLICT, CREDITS_FROZEN, INTERNAL]
     Error:
       type: object
       required: [code, message, requestId]
       properties: { code: { $ref: '#/components/schemas/ErrorCode' }, message: { type: string }, details: {}, requestId: { type: string } }
+    OrgRole: { type: string, enum: [owner, admin, editor, viewer] }
+    User:
+      type: object
+      required: [id, email, locale]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        displayName: { type: [string, 'null'] }
+        locale: { type: string }
+    Me:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required: [orgs, activeOrgId]
+          properties:
+            activeOrgId: { type: string, format: uuid }
+            orgs:
+              type: array
+              items:
+                type: object
+                required: [id, name, role, plan]
+                properties: { id: { type: string, format: uuid }, name: { type: string }, role: { $ref: '#/components/schemas/OrgRole' }, plan: { type: string } }
+    Credentials:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 200 }
+    Register:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 8, maxLength: 200 }
+        displayName: { type: string, maxLength: 80 }
+        locale: { type: string, enum: [zh-TW, en] }
+    AuthResult:
+      type: object
+      required: [accessToken, expiresIn, user]
+      description: refresh token 以 httpOnly cookie `rt` 回傳（Path=/v1/auth）；非瀏覽器用戶端可讀 refreshToken 欄位。
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: 秒 }
+        user: { $ref: '#/components/schemas/User' }
+    RefreshRequest:
+      type: object
+      additionalProperties: false
+      properties: { refreshToken: { type: string } }
+    Project:
+      type: object
+      required: [id, name, updatedAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        thumbnailUrl: { type: [string, 'null'] }
+        currentVersionId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ProjectCreate:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties: { name: { type: string, minLength: 1, maxLength: 120 } }
+    ProjectPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties: { name: { type: string, minLength: 1, maxLength: 120 } }
+    ProjectPage:
+      type: object
+      required: [items, nextCursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/Project' } }, nextCursor: { type: [string, 'null'] } }
+    Version:
+      type: object
+      required: [id, projectId, schemaVersion, contentHash, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        parentVersionId: { type: [string, 'null'], format: uuid }
+        schemaVersion: { type: string }
+        contentHash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        note: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    VersionWithScene:
+      allOf:
+        - $ref: '#/components/schemas/Version'
+        - type: object
+          required: [scene]
+          properties: { scene: { $ref: '#/components/schemas/Scene' } }
+    VersionCreate:
+      type: object
+      additionalProperties: false
+      required: [baseVersionId, scene]
+      properties:
+        baseVersionId: { type: [string, 'null'], format: uuid }
+        scene: { $ref: '#/components/schemas/Scene' }
+        note: { type: string, maxLength: 200 }
+    VersionConflict:
+      description: 409 的 details：目前最新版本
+      type: object
+      required: [latest]
+      properties: { latest: { $ref: '#/components/schemas/Version' } }
+    UploadKind: { type: string, enum: [plan, photo, gbuffer, asset, other] }
+    UploadCreate:
+      type: object
+      additionalProperties: false
+      required: [kind, filename, mime, sizeBytes]
+      properties:
+        kind: { $ref: '#/components/schemas/UploadKind' }
+        filename: { type: string, minLength: 1, maxLength: 200 }
+        mime: { type: string, maxLength: 100 }
+        sizeBytes: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+    Upload:
+      type: object
+      required: [id, kind, mime, sizeBytes, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/UploadKind' }
+        mime: { type: string }
+        sizeBytes: { type: integer }
+        status: { type: string, enum: [pending, uploaded, rejected] }
+        createdAt: { type: string, format: date-time }
+    UploadTicket:
+      type: object
+      required: [upload, putUrl, headers, expiresIn]
+      properties:
+        upload: { $ref: '#/components/schemas/Upload' }
+        putUrl: { type: string }
+        headers: { type: object, additionalProperties: { type: string } }
+        expiresIn: { type: integer }
+    Dims: { type: object, required: [w, d, h], properties: { w: { type: integer }, d: { type: integer }, h: { type: integer } } }
+    License:
+      type: object
+      required: [type, source]
+      properties: { type: { type: string }, source: { type: string }, allowedUse: { type: array, items: { type: string } }, attribution: { type: string } }
+    Asset:
+      type: object
+      required: [id, slug, nameZh, category, dimsMm, anchor, status]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        nameZh: { type: string }
+        nameEn: { type: [string, 'null'] }
+        category: { type: string }
+        tags: { type: array, items: { type: string } }
+        styleTags: { type: array, items: { type: string } }
+        dimsMm: { $ref: '#/components/schemas/Dims' }
+        anchor: { type: string, enum: [floor, wall, ceiling] }
+        parametric: { type: [object, 'null'] }
+        materialSlots: { type: array }
+        license: { $ref: '#/components/schemas/License' }
+        status: { type: string, enum: [draft, review, published, retired] }
+    AssetCreate:
+      type: object
+      additionalProperties: false
+      required: [slug, nameZh, category, dimsMm, anchor, uploadId, license]
+      properties:
+        slug: { type: string, pattern: '^[a-z0-9_]{3,64}$' }
+        nameZh: { type: string, minLength: 1, maxLength: 80 }
+        nameEn: { type: string, maxLength: 80 }
+        category: { type: string, maxLength: 40 }
+        tags: { type: array, maxItems: 20, items: { type: string, maxLength: 30 } }
+        dimsMm: { $ref: '#/components/schemas/Dims' }
+        anchor: { type: string, enum: [floor, wall, ceiling] }
+        uploadId: { type: string, format: uuid }
+        license: { $ref: '#/components/schemas/License' }
+    AssetPage:
+      type: object
+      required: [items, nextCursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/Asset' } }, nextCursor: { type: [string, 'null'] } }
+    Material:
+      type: object
+      required: [id, slug, nameZh, category, realSizeMm, status]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        nameZh: { type: string }
+        category: { type: string }
+        maps: { type: object }
+        realSizeMm: { type: object, required: [w, h], properties: { w: { type: integer }, h: { type: integer } } }
+        status: { type: string }
+    MaterialList:
+      type: object
+      required: [items]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/Material' } } }
     JobState: { type: string, enum: [queued, running, validating, succeeded, failed, canceled] }
     Job:
       type: object
@@ -29,13 +228,48 @@ components:
         state: { $ref: '#/components/schemas/JobState' }
         progress: { type: integer, minimum: 0, maximum: 100 }
         costEstimateCredits: { type: integer }
-        costActualCredits: { type: integer, nullable: true }
-        errorCode: { type: string, nullable: true }
-        output: { type: object, nullable: true }
-    Project:
+        costActualCredits: { type: [integer, 'null'] }
+        retryCount: { type: integer }
+        errorCode: { type: [string, 'null'] }
+        errorMessage: { type: [string, 'null'] }
+        output: { type: [object, 'null'] }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+    Credits:
       type: object
-      required: [id, name, updatedAt]
-      properties: { id: { type: string, format: uuid }, name: { type: string }, thumbnailUrl: { type: string, nullable: true }, currentVersionId: { type: string, format: uuid, nullable: true }, updatedAt: { type: string, format: date-time } }
+      required: [balance, frozen]
+      properties: { balance: { type: integer, minimum: 0 }, frozen: { type: boolean, description: 對帳不一致時停止新預扣（ADR-014） } }
+    LedgerEntry:
+      type: object
+      required: [id, delta, reason, balanceAfter, createdAt]
+      properties:
+        id: { type: string }
+        delta: { type: integer }
+        reason: { type: string, enum: [purchase, reserve, settle, refund, grant, adjust] }
+        jobId: { type: [string, 'null'], format: uuid }
+        balanceAfter: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+    LedgerPage:
+      type: object
+      required: [items, nextCursor]
+      properties: { items: { type: array, items: { $ref: '#/components/schemas/LedgerEntry' } }, nextCursor: { type: [string, 'null'] } }
+    CheckoutRequest:
+      type: object
+      additionalProperties: false
+      required: [packageId]
+      properties: { packageId: { type: string, enum: [credits_50, credits_200] } }
+    CheckoutSession:
+      type: object
+      required: [checkoutId, url, provider]
+      properties: { checkoutId: { type: string }, url: { type: string }, provider: { type: string, description: v1 只有 mock（真實金流未驗證） } }
+    PaymentEvent:
+      type: object
+      required: [id, type, orgId, credits]
+      properties:
+        id: { type: string, minLength: 8 }
+        type: { type: string, enum: [payment.succeeded] }
+        orgId: { type: string, format: uuid }
+        credits: { type: integer, minimum: 1 }
     Scene: { $ref: 'scene.schema.json' }
     RenderRequest:
       type: object
@@ -57,49 +291,216 @@ components:
   responses:
     Err: { description: Error, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
 paths:
-  /auth/login: { post: { security: [], summary: 登入, responses: { '200': { description: ok } } } }
-  /auth/refresh: { post: { security: [], summary: 換發 token, responses: { '200': { description: ok } } } }
-  /me: { get: { summary: 目前使用者, responses: { '200': { description: ok } } }, delete: { summary: 刪除帳號與衍生資料, responses: { '202': { description: accepted } } } }
-  /projects:
-    get: { summary: 專案列表, parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }], responses: { '200': { description: ok } } }
-    post: { summary: 建立專案, responses: { '201': { description: created } } }
-  /projects/{id}:
-    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-    get: { summary: 取得專案, responses: { '200': { description: ok } } }
-    patch: { summary: 更新專案中繼資料, responses: { '200': { description: ok } } }
-    delete: { summary: 刪除專案, responses: { '204': { description: deleted } } }
-  /projects/{id}/versions:
-    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
-    get: { summary: 版本列表, responses: { '200': { description: ok } } }
+  /healthz:
+    get: { x-phase: P3, security: [], summary: 健康檢查, responses: { '200': { description: ok, content: { application/json: { schema: { type: object, required: [ok], properties: { ok: { type: boolean } } } } } } } }
+  /auth/register:
     post:
-      summary: 儲存新版本（樂觀鎖）
-      requestBody: { content: { application/json: { schema: { type: object, required: [baseVersionId, scene], properties: { baseVersionId: { type: string, format: uuid, nullable: true }, scene: { $ref: '#/components/schemas/Scene' }, note: { type: string } } } } } }
-      responses: { '201': { description: created }, '409': { $ref: '#/components/responses/Err' } }
-  /projects/{id}/restore/{versionId}: { post: { summary: 還原版本, responses: { '200': { description: ok } } } }
-  /uploads: { post: { summary: 建立上傳（回預簽名 URL；型別/大小不符回 422 UPLOAD_REJECTED，DWG 預設拒絕）, responses: { '201': { description: created }, '422': { $ref: '#/components/responses/Err' } } } }
-  /uploads/{id}/complete: { post: { summary: 完成上傳並檢查, responses: { '200': { description: ok } } } }
+      x-phase: P3
+      security: []
+      summary: 註冊（本機 AuthProvider；建立個人組織並贈送點數）
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Register' } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '409': { $ref: '#/components/responses/Err' }
+        '422': { $ref: '#/components/responses/Err' }
+  /auth/login:
+    post:
+      x-phase: P3
+      security: []
+      summary: 登入
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Credentials' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '401': { $ref: '#/components/responses/Err' }
+        '429': { $ref: '#/components/responses/Err' }
+  /auth/refresh:
+    post:
+      x-phase: P3
+      security: []
+      summary: 換發 token（refresh token 輪替；重用舊 token 會撤銷整個 token 家族）
+      requestBody: { required: false, content: { application/json: { schema: { $ref: '#/components/schemas/RefreshRequest' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResult' } } } }
+        '401': { $ref: '#/components/responses/Err' }
+  /auth/logout:
+    post:
+      x-phase: P3
+      security: []
+      summary: 登出（撤銷 refresh token 家族）
+      requestBody: { required: false, content: { application/json: { schema: { $ref: '#/components/schemas/RefreshRequest' } } } }
+      responses: { '204': { description: ok } }
+  /me:
+    get:
+      x-phase: P3
+      summary: 目前使用者
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Me' } } } }
+        '401': { $ref: '#/components/responses/Err' }
+    delete: { x-phase: P7, summary: 刪除帳號與衍生資料, responses: { '202': { description: accepted } } }
+  /projects:
+    get:
+      x-phase: P3
+      summary: 專案列表
+      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/OrgId' }]
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectPage' } } } } }
+    post:
+      x-phase: P3
+      summary: 建立專案
+      parameters: [{ $ref: '#/components/parameters/OrgId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectCreate' } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
+        '403': { $ref: '#/components/responses/Err' }
+  /projects/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P3
+      summary: 取得專案
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
+        '404': { $ref: '#/components/responses/Err' }
+    patch:
+      x-phase: P3
+      summary: 更新專案中繼資料
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectPatch' } } } }
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } } }
+    delete: { x-phase: P3, summary: 刪除專案（軟刪除）, responses: { '204': { description: deleted } } }
+  /projects/{id}/versions:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P3
+      summary: 版本列表（新到舊）
+      responses: { '200': { description: ok, content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Version' } } } } } } } }
+    post:
+      x-phase: P3
+      summary: 儲存新版本（樂觀鎖；內容與目前版本相同時回 200 與既有版本）
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/VersionCreate' } } } }
+      responses:
+        '200': { description: 內容未變，回目前版本, content: { application/json: { schema: { $ref: '#/components/schemas/Version' } } } }
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Version' } } } }
+        '409': { $ref: '#/components/responses/Err' }
+        '422': { $ref: '#/components/responses/Err' }
+  /versions/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P3
+      summary: 取得版本（含 Scene）
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/VersionWithScene' } } } } }
+  /projects/{id}/restore/{versionId}:
+    parameters: [{ $ref: '#/components/parameters/Id' }, { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }]
+    post:
+      x-phase: P3
+      summary: 還原版本（把目前版本指回該版本；版本本身不可變）
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } } }
+  /uploads:
+    post:
+      x-phase: P3
+      summary: 建立上傳（回預簽名 URL；型別/大小不符回 422 UPLOAD_REJECTED，DWG 預設拒絕）
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UploadCreate' } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/UploadTicket' } } } }
+        '422': { $ref: '#/components/responses/Err' }
+  /uploads/{id}/complete:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      x-phase: P3
+      summary: 完成上傳並檢查（大小、檔頭 magic bytes 與宣告的 mime 一致）
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Upload' } } } }
+        '422': { $ref: '#/components/responses/Err' }
   /plan-imports:
-    post: { summary: 建立平面圖辨識任務, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } }
-  /plan-imports/{id}: { get: { summary: 取得辨識結果（Scene 草稿+信心度）, responses: { '200': { description: ok } } } }
-  /assets: { get: { summary: 資產搜尋, responses: { '200': { description: ok } } }, post: { summary: 使用者上傳資產（進審核）, responses: { '202': { description: accepted } } } }
-  /assets/{id}: { get: { summary: 資產詳情, responses: { '200': { description: ok } } } }
+    post: { x-phase: P5, summary: 建立平面圖辨識任務, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } }
+  /plan-imports/{id}: { get: { x-phase: P5, summary: 取得辨識結果（Scene 草稿+信心度）, responses: { '200': { description: ok } } } }
+  /assets:
+    get:
+      x-phase: P3
+      summary: 資產搜尋（只回 published）
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 80 } }
+        - { name: category, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AssetPage' } } } } }
+    post:
+      x-phase: P3
+      summary: 使用者上傳資產（進審核，status=review）
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AssetCreate' } } } }
+      responses:
+        '202': { description: accepted, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } }
+        '409': { $ref: '#/components/responses/Err' }
+  /assets/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P3
+      summary: 資產詳情
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Asset' } } } } }
+  /materials:
+    get:
+      x-phase: P3
+      summary: 材質列表（published）
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/MaterialList' } } } } }
   /renders:
     post:
+      x-phase: P4
       summary: 建立渲染任務（預扣點數）
       parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
       requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/RenderRequest' } } } }
       responses: { '202': { description: accepted, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }, '402': { $ref: '#/components/responses/Err' }, '422': { $ref: '#/components/responses/Err' }, '429': { $ref: '#/components/responses/Err' } }
-  /renders/{id}: { get: { summary: 取得渲染結果, responses: { '200': { description: ok } } } }
-  /renders/{id}/cancel: { post: { summary: 取消, responses: { '200': { description: ok } } } }
-  /renders/{id}/inpaint: { post: { summary: 局部重繪, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } } }
-  /jobs/{id}: { get: { summary: 任務狀態, responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } } } } }
-  /jobs/{id}/events: { get: { summary: SSE 進度串流, responses: { '200': { description: text/event-stream } } } }
-  /assistant/chat: { post: { summary: 助理（只回結構化提案，不改資料）, responses: { '200': { description: ok } } } }
-  /credits: { get: { summary: 餘額, responses: { '200': { description: ok } } } }
-  /credits/ledger: { get: { summary: 帳本, responses: { '200': { description: ok } } } }
-  /credits/checkout: { post: { summary: 建立結帳, responses: { '200': { description: ok } } } }
-  /webhooks/payments: { post: { security: [], summary: 金流 webhook（驗簽）, responses: { '200': { description: ok } } } }
-  /projects/{id}/shares: { post: { summary: 建立分享連結, responses: { '201': { description: created } } } }
-  /shares/{id}: { delete: { summary: 撤銷, responses: { '204': { description: revoked } } } }
-  /projects/{id}/exports: { post: { summary: 匯出（png/jpg/pdf/dxf/glb/csv）, responses: { '202': { description: accepted } } } }
-  /me/export: { post: { summary: 匯出個人資料, responses: { '202': { description: accepted } } } }
+  /renders/{id}: { get: { x-phase: P4, summary: 取得渲染結果, responses: { '200': { description: ok } } } }
+  /renders/{id}/cancel: { post: { x-phase: P4, summary: 取消, responses: { '200': { description: ok } } } }
+  /renders/{id}/inpaint: { post: { x-phase: P4, summary: 局部重繪, parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }], responses: { '202': { description: accepted } } } }
+  /jobs/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P3
+      summary: 任務狀態
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '404': { $ref: '#/components/responses/Err' }
+  /jobs/{id}/events:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      x-phase: P3
+      summary: "SSE 進度串流（event=job，data=Job；終態後關閉）"
+      responses: { '200': { description: text/event-stream, content: { text/event-stream: { schema: { type: string } } } } }
+  /jobs/{id}/cancel:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      x-phase: P3
+      summary: 取消任務（queued/running → canceled，預扣點數退回）
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Job' } } } }
+        '409': { $ref: '#/components/responses/Err' }
+  /assistant/chat: { post: { x-phase: P6, summary: 助理（只回結構化提案，不改資料）, responses: { '200': { description: ok } } } }
+  /credits:
+    get:
+      x-phase: P3
+      summary: 餘額
+      parameters: [{ $ref: '#/components/parameters/OrgId' }]
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Credits' } } } } }
+  /credits/ledger:
+    get:
+      x-phase: P3
+      summary: 帳本（新到舊）
+      parameters: [{ $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/OrgId' }]
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/LedgerPage' } } } } }
+  /credits/checkout:
+    post:
+      x-phase: P3
+      summary: 建立結帳（v1 只有 mock 金流）
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CheckoutRequest' } } } }
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/CheckoutSession' } } } } }
+  /webhooks/payments:
+    post:
+      x-phase: P3
+      security: []
+      summary: 金流 webhook（HMAC-SHA256 驗簽，標頭 X-Signature；同一事件 id 只入帳一次）
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentEvent' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: object, required: [ok], properties: { ok: { type: boolean } } } } } }
+        '401': { $ref: '#/components/responses/Err' }
+  /projects/{id}/shares: { post: { x-phase: P7, summary: 建立分享連結, responses: { '201': { description: created } } } }
+  /shares/{id}: { delete: { x-phase: P7, summary: 撤銷, responses: { '204': { description: revoked } } } }
+  /projects/{id}/exports: { post: { x-phase: P6, summary: 匯出（png/jpg/pdf/dxf/glb/csv）, responses: { '202': { description: accepted } } } }
+  /me/export: { post: { x-phase: P7, summary: 匯出個人資料, responses: { '202': { description: accepted } } } }

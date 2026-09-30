@@ -11,7 +11,8 @@ export default tseslint.config(
       '**/coverage/**',
       '**/.turbo/**',
       'docs/**',
-      'services/**',
+      'services/cv-service/**',
+      '**/*.gen.ts',
       'ai-eval/**',
       'tools/**',
     ],
@@ -28,6 +29,15 @@ export default tseslint.config(
   {
     files: ['e2e/**', 'tools/**', '**/*.mjs', 'playwright.config.ts', '**/vite.config.ts', '**/vitest.config.ts'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
+    files: ['services/**/*.ts'],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    // 整合測試以未型別化的 JSON 回應斷言
+    files: ['services/**/test/**/*.ts'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
   {
     // E2E 透過未型別化的 window.__editor 測試鉤子操作

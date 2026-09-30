@@ -1,0 +1,8 @@
+/** DI token（全部顯式注入，不依賴 emitDecoratorMetadata：測試用的轉譯器不輸出型別中繼資料） */
+export const CONFIG = Symbol('CONFIG');
+export const CONTRACT = Symbol('CONTRACT');
+export const DB = Symbol('DB');
+export const SYSTEM_DB = Symbol('SYSTEM_DB');
+export const REDIS = Symbol('REDIS');
+export const STORAGE = Symbol('STORAGE');
+export const AUTH_PROVIDER = Symbol('AUTH_PROVIDER');

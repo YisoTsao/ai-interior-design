@@ -47,9 +47,9 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e        # 使用 mock AI
       - run: pnpm licenses:check  # 依賴與資產授權掃描
-      # P3 起（實作後取消註解）：
-      # - run: pnpm test:integration
-      # - run: pnpm test:contract   # OpenAPI 與實作一致
+      # P3 起：
+      - run: pnpm test:integration   # Testcontainers（runner 內建 Docker）
+      - run: pnpm test:contract      # OpenAPI 與實作一致
       # P7 起：
       # - run: pnpm size            # bundle 大小預算
       - run: pnpm audit --prod

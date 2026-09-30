@@ -11,7 +11,7 @@
 - 單 Job 成本上限：見 services/api/models.yaml `budgets`
 - 結構驗證門檻狀態：**未校準**（mock 通過不代表有效，ADR-012）
 - 工具鏈：Node 24.14、pnpm 9.15.9（corepack）、TypeScript 6.0.3
-- 最後更新：2026-09-30｜目前 Phase：P3（未開始；已完成 P3 前的 3D 風格改版 ADR-017）
+- 最後更新：2026-09-30｜目前 Phase：P4（進行中）
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
@@ -19,7 +19,7 @@
 | P0 | 文件與決策 | ☑ | ☑ | check_gates P0 通過；backlog 27 個 FR 全數對應 Story |
 | P1 | 骨架 + scene-schema + core-geometry | ☑ | ☑ | lint/typecheck/test/build 全綠；core-geometry 分支覆蓋 94.59%（硬性 ≥90%）；60 測試（含 fast-check） |
 | P2 | 編輯器 (2D/3D/Command/資產庫) | ☑ | ☑ | `check_gates P2 --run` 全綠（lint/typecheck/test/build/test:e2e/licenses:check）；E2E 7/7；axe 無 serious/critical；107 個單元測試 |
-| P3 | 後端基礎 (Auth/專案/上傳/Job/點數) | ☐ | ☐ | |
+| P3 | 後端基礎 (Auth/專案/上傳/Job/點數) | ☑ | ☑ | lint/typecheck/test/build/test:integration(39)/test:contract(4)/test:e2e(9)/licenses 全綠；帳本併發/冪等/退款/對帳測試通過；ADR-018 |
 | P4 | AI 渲染 (G-buffer/Provider/Router/驗證) | ☐ | ☐ | |
 | P5 | 平面圖辨識 (DXF/點陣/校正/合成資料) | ☐ | ☐ | |
 | P6 | 助理 + BOM + 匯出 | ☐ | ☐ | |
@@ -27,7 +27,7 @@
 | P8 | 最終驗證與交付 | ☐ | ☐ | |
 
 ## Backlog 勾選
-以 `docs/backlog.md` 為準（已勾：E1 全部、E2 S2.1–S2.12、E3 S3.1–S3.5、S9.1）。
+以 `docs/backlog.md` 為準（已勾：E1 全部、E2 S2.1–S2.12、E3 S3.1–S3.5、E4 S4.1–S4.8、S9.1）。
 
 ## 決策與偏離（ADR 索引 / 對 skill 預設的偏離）
 - ADR-001~015 由 bootstrap 建立；ADR-010 於 P2 定案（Konva，附量測）；ADR-016 新增（牆開口改解析式，取代 ADR-003 的 CSG 部分）。
@@ -51,6 +51,10 @@
 - P2：catalog-tools 的 ingest 只做檢查段（validator、尺寸 ±2%、原點、面數、授權→draft/review）；轉檔、Draco/Meshopt、KTX2、LOD1、縮圖需原生工具（toktx 等），尚未實作，列 P7。
 - P2：自動儲存只到 IndexedDB（本機）；雲端版本在 P3 接上。
 - P2：WebGL context lost → 以 key 重建 Canvas；未做實機測試（無法在 CI 可靠觸發）。
+- P3：ADR-018——OpenAPI 契約驅動驗證（請求/回應/冪等/公開端點皆由契約決定，`x-phase` 標階段）；新增 `refresh_tokens`、`credit_balances`（migration 0002）；
+  DB 角色 interiorai_app（RLS）/interiorai_system（BYPASSRLS）；Job `failed` 為終態（偏離 04 §5，驗證重試走 validating→running）；
+  NestJS 11、BullMQ 5；MinIO 改用 `bitnamilegacy/minio`（官方映像已無法匿名拉取）；前端型別由 OpenAPI 產生（packages/api-client，測試確保同步）。
+- P3：Web 端尚未接 API（登入/雲端版本）→ P4 渲染 UI 一起接。上傳病毒掃描、S3 SSE/生命週期、OTel → P7。
 - P2.5（使用者要求，P3 前）：3D 改為「等角建築剖面模型」風格（isometric-dollhouse-style），ADR-017。
   `viewStyle` 開關（預設 dollhouse，可切回 simple；simple 行為與 FPS 不變）。AO 用 three 內建 GTAOPass（無新依賴）；
   PCFSoftShadowMap 在 r186 已移除，改 PCFShadowMap＋radius；無 GLB 資產 → 圓角分件家具；「自動點綴軟裝」為可 undo 的 Command。
@@ -59,6 +63,8 @@
 ## 阻礙與待人決策（⚠ 項須寫「解除條件」）
 | Phase | 項目 | 已用什麼替代 | 解除條件 |
 |---|---|---|---|
+| P3 | OIDC 供應商整合（未驗證） | AuthProvider 介面＋本機 email/密碼 JWT | 選定 IdP（Auth0/Keycloak/Supabase）並提供測試租戶 |
+| P3 | 真實金流（未驗證） | mock checkout＋HMAC 驗簽 webhook（冪等入帳） | 選定金流商（綠界/Stripe）並提供沙箱金鑰 |
 
 ## 未達標清單（軟性指標未達假設目標時填寫；P8 逐項處理）
 | 項目 | 假設目標 | 實測 | 改善 Task | 狀態 |
@@ -76,6 +82,13 @@
 | 首次載入可互動、存檔時間、記憶體 | ≤3 s / ≤1 s / ≤1.5 GB | 未量測 | P7 效能硬化時補 |
 | 3D 編輯 FPS — 剖面模型（ADR-017，M2） | ≥ 50（skill：60） | 60.1（p95 18.2 ms）／63 draw calls／186k 三角形 | 旋轉中跳過 AO、不重算陰影 |
 | 3D 編輯 FPS — 簡易模式（ADR-017，M2） | ≥ 50 | 60.0（p95 18.4 ms）／61／20k | 與 P2 一致 |
+
+## P3 量測紀錄
+| 指標 | 實測 | 備註 |
+|---|---|---|
+| 併發預扣（餘額 20、30 個各扣 1） | 恰好 20 成功、10 個 INSUFFICIENT_CREDITS、餘額 0 | credit_balances 行鎖序列化 |
+| 同時 4 個儲存（同 base） | 1 個 201、3 個 409 | 專案行鎖＋樂觀鎖 |
+| 整合測試總時間（含 3 個容器啟動） | 約 20 s | M2、Docker 20.10 |
 
 ## 假設數值定案紀錄（規則書「〔假設〕」→ 實測值）
 | 項目 | 假設 | 實測 | 日期 |
