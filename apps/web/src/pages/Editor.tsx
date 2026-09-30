@@ -2,7 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ArrowLeft, Bookmark, Box, Camera, Eye, Leaf, Map, Maximize, Redo2, Undo2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Bookmark,
+  Box,
+  Camera,
+  Eye,
+  Footprints,
+  Leaf,
+  Map,
+  Maximize,
+  Redo2,
+  Undo2,
+} from 'lucide-react';
+import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
   activeLevel,
   addObject,
@@ -13,9 +26,12 @@ import {
   loadProject,
   planDecor,
   saveCameraBookmark,
+  setMaterial,
   startAutosave,
 } from '@interiorai/app-state';
-import { defaultElevation } from '@interiorai/catalog';
+import { defaultElevation, objectDims } from '@interiorai/catalog';
+import { snapToWall } from '@interiorai/core-geometry';
+import { recordRecent } from '../editor/assetPrefs';
 import { Plan2D, plan2dApi } from '@interiorai/editor-2d';
 import { VIEW_PRESETS, Viewer3D, viewer3dApi, type ViewPreset } from '@interiorai/viewer-3d';
 import { catalog, materials, useCatalogVersion } from '../catalogData';
@@ -27,6 +43,10 @@ import { Inspector } from '../editor/Inspector';
 import { LeftPanel } from '../editor/LeftPanel';
 import { RenderPanel } from '../editor/RenderPanel';
 import { useShortcuts, type TransformMode } from '../editor/shortcuts';
+import { editActions } from '../editor/actions';
+import { ContextMenu, type MenuState } from '../editor/ContextMenu';
+import { LevelBar } from '../editor/LevelBar';
+import { usePrompt } from '../editor/PromptDialog';
 import { usePrefs } from '../prefs';
 import { useCanvasTheme } from '../theme';
 
@@ -118,26 +138,80 @@ function EditorShell() {
   const [mode, setMode] = useState<TransformMode>('translate');
   const [uniformScale, setUniformScale] = useState(true);
   const [showCeiling, setShowCeiling] = useState(false);
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const prompt = usePrompt();
+  const actions = useMemo(() => editActions(store), [store]);
+  const scene = useEditor((s) => s.scene);
+  const levelId = useEditor((s) => s.levelId);
+  // 下一層（淡色參考）
+  const ghost = useMemo(() => {
+    const cur = scene.levels.find((l) => l.id === levelId);
+    return cur
+      ? ([...scene.levels]
+          .filter((l) => l.elevation < cur.elevation)
+          .sort((a, b) => b.elevation - a.elevation)[0] ?? null)
+      : null;
+  }, [scene, levelId]);
+  const askArray = async () => {
+    const r = await prompt.ask(t('ctx.array'), [
+      { key: 'count', label: t('ctx.arrayCount'), value: '3', type: 'number' },
+      { key: 'dx', label: t('ctx.arrayDx'), value: '600', type: 'number' },
+      { key: 'dz', label: t('ctx.arrayDz'), value: '0', type: 'number' },
+    ]);
+    if (r) actions.array(Math.round(Number(r.count) || 0), [Number(r.dx) || 0, Number(r.dz) || 0]);
+  };
   useShortcuts(store, setMode);
   const tt = useCallback((k: string, v?: Record<string, string | number>) => t(k, v), [t]);
 
+  /** 拖放資產：2D 以畫布座標、3D 以地面射線（FE-V3D-02）；壁掛物與靠牆家具自動貼牆 */
   const onDrop = (e: React.DragEvent) => {
+    // 材質拖到 3D 表面（FE-V3D-05）
+    const matId = e.dataTransfer.getData('application/x-interiorai-material');
+    if (matId && view === '3d') {
+      e.preventDefault();
+      const hit = viewer3dApi.get()?.pickSurface(e.clientX, e.clientY);
+      const s = store.getState();
+      const lvl = activeLevel(s);
+      if (!hit) return;
+      if (hit.kind === 'wall')
+        s.exec(setMaterial(s.levelId, { kind: 'wall', id: hit.id, side: hit.side }, matId));
+      else if (hit.kind === 'floor' || hit.kind === 'ceiling')
+        s.exec(setMaterial(s.levelId, { kind: hit.kind, roomId: hit.id }, matId));
+      else if (hit.kind === 'object') {
+        const o = lvl.objects.find((x) => x.id === hit.id);
+        const slot = o && catalog.get(o.catalogId)?.materialSlots[0]?.name;
+        if (slot) s.exec(setMaterial(s.levelId, { kind: 'object', id: hit.id, slot }, matId));
+      }
+      return;
+    }
     const catId = e.dataTransfer.getData('application/x-interiorai-catalog');
     const entry = catalog.get(catId);
-    const api = plan2dApi.get();
-    if (!entry || !api || view !== '2d') return;
+    if (!entry || (entry.model.kind === 'parametric' && ['door', 'window'].includes(entry.model.type)))
+      return;
+    const pt =
+      view === '2d'
+        ? plan2dApi.get()?.clientToWorld([e.clientX, e.clientY])
+        : viewer3dApi.get()?.clientToFloor(e.clientX, e.clientY);
+    if (!pt) return;
     e.preventDefault();
-    const [x, z] = api.clientToWorld([e.clientX, e.clientY]);
     const s = store.getState();
     const lvl = activeLevel(s);
     const y = defaultElevation(entry, lvl.height);
-    s.exec(
-      addObject(s.levelId, {
-        catalogId: entry.id,
-        position: [Math.round(x), y, Math.round(z)],
-        rotationY: 0,
-      }),
-    );
+    let pos: [number, number] = [Math.round(pt[0]), Math.round(pt[1])];
+    let rot = 0;
+    const dims = objectDims(entry);
+    if (s.snapEnabled && entry.anchor !== 'ceiling') {
+      const sn = snapToWall(lvl, pos, dims.d, entry.anchor === 'wall' ? 1500 : 250);
+      if (sn) [pos, rot] = [sn.pos, sn.rotationY];
+    }
+    const before = new Set(lvl.objects.map((o) => o.id));
+    if (
+      s.exec(addObject(s.levelId, { catalogId: entry.id, position: [pos[0], y, pos[1]], rotationY: rot }))
+    ) {
+      const added = activeLevel(store.getState()).objects.find((o) => !before.has(o.id));
+      if (added) s.select([added.id]);
+      recordRecent(entry.id);
+    }
   };
 
   return (
@@ -185,6 +259,15 @@ function EditorShell() {
                 lengthUnit={lengthUnit}
                 areaUnit={areaUnit}
                 theme={theme}
+                ghostLevel={ghost}
+                onContextMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, world: e.world })}
+                requestText={async (initial) =>
+                  (
+                    await prompt.ask(t('tools.text'), [
+                      { key: 'text', label: t('tools.textPrompt'), value: initial },
+                    ])
+                  )?.text ?? null
+                }
               />
             ) : (
               <Viewer3D
@@ -199,10 +282,21 @@ function EditorShell() {
                 lighting={lighting}
                 graphics={graphics}
                 catalogVersion={catalogVersion}
+                onContextMenu={(e) => setMenu({ x: e.clientX, y: e.clientY, world: e.world })}
               />
             )}
           </CanvasBoundary>
           {view === '3d' && <ViewportHud showCeiling={showCeiling} setShowCeiling={setShowCeiling} />}
+          <LevelBar ask={prompt.ask} />
+          {menu && (
+            <ContextMenu
+              state={menu}
+              actions={actions}
+              onClose={() => setMenu(null)}
+              onArray={() => void askArray()}
+            />
+          )}
+          {prompt.node}
         </main>
         <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
       </div>
@@ -351,6 +445,18 @@ function ViewportHud({
       role="toolbar"
       aria-label={t('top.view3d')}
     >
+      <IconButton
+        label={t('top.walk')}
+        testId="walk-toggle"
+        onClick={() => {
+          const api = viewer3dApi.get();
+          api?.walk(!api.isWalking());
+          store.getState().notify('info', t('top.walkHint'));
+        }}
+      >
+        <Footprints size={18} aria-hidden />
+      </IconButton>
+      <BookmarksMenu />
       <IconButton label={t('top.personView')} onClick={() => viewer3dApi.get()?.personView()}>
         <Eye size={18} aria-hidden />
       </IconButton>

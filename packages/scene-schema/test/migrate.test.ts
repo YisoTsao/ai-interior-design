@@ -13,13 +13,23 @@ describe('migrate', () => {
     expect(out).toEqual(s);
     expect(out).not.toBe(s);
   });
-  it('1.0.0 → 1.1.0：新欄位皆選填，只升版號', () => {
+  it('1.0.0 → 目前版本：新欄位皆選填，只升版號', () => {
     const s = sampleScene();
     expect(s.schemaVersion).toBe('1.0.0');
-    expect(migrate(s)).toEqual({ ...s, schemaVersion: '1.1.0' });
+    expect(migrate(s)).toEqual({ ...s, schemaVersion: CURRENT_SCHEMA_VERSION });
+  });
+  it('1.2.0 門窗樣式、鋪貼、房間用途、群組通過驗證', () => {
+    const s = structuredClone({ ...sampleScene(), schemaVersion: '1.2.0' });
+    s.levels[0]!.rooms[0]!.floorTiling = { pattern: 'herringbone', tileW: 600, tileH: 120, grout: 2 };
+    s.levels[0]!.rooms[0]!.kind = 'living';
+    s.levels[0]!.objects[0]!.groupId = 'grp_1';
+    if (s.levels[0]!.openings[0]) s.levels[0]!.openings[0]!.style = 'sliding';
+    expect(validateScene(s).ok).toBe(true);
+    s.levels[0]!.rooms[0]!.floorTiling = { pattern: 'herringbone', tileW: 5, tileH: 120 };
+    expect(validateScene(s).ok).toBe(false);
   });
   it('1.1.0 外觀／光源／環境欄位通過驗證，超出範圍被拒', () => {
-    const s = structuredClone({ ...sampleScene(), schemaVersion: '1.1.0' });
+    const s = structuredClone({ ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION });
     s.environment = { sky: 'city', exposureEv: 0.5 };
     s.levels[0]!.walls[0]!.height = 1200;
     s.levels[0]!.walls[0]!.appearance = { color: '#aabbcc', roughness: 0.4 };
@@ -38,7 +48,7 @@ describe('migrate', () => {
     expect(validateScene(out).ok).toBe(true);
   });
   it('較新或未知版本 → SCHEMA_UNSUPPORTED', () => {
-    for (const v of ['2.0.0', '1.2.0', 'abc']) {
+    for (const v of ['2.0.0', '1.9.0', 'abc']) {
       expect(() => migrate({ ...sampleScene(), schemaVersion: v })).toThrow(SchemaUnsupportedError);
     }
     expect(() => migrate(null)).toThrow(SchemaUnsupportedError);

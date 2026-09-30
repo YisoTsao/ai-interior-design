@@ -85,3 +85,13 @@ describe('params', () => {
     expect(objectDims(wardrobe).w).toBe(1800);
   });
 });
+
+describe('擴充材質庫（FE-FIN-07）', () => {
+  it('全部通過 schema、id 不重複、數量 > 150', async () => {
+    const { GENERATED_MATERIALS } = await import('../src/index.js');
+    const all = [...SEED_MATERIALS, ...GENERATED_MATERIALS];
+    expect(all.length).toBeGreaterThan(150);
+    expect(new Set(all.map((m) => m.id)).size).toBe(all.length);
+    expect(checkCatalog([], all)).toEqual([]);
+  });
+});

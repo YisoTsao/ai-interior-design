@@ -4,13 +4,14 @@ import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { OrbitControls, TransformControls } from '@react-three/drei';
 import type { OrbitControls as OrbitImpl } from 'three-stdlib';
 import { useStore } from 'zustand';
-import { DEFAULTS, activeLevel, transformObject, type EditorStore } from '@interiorai/app-state';
+import { DEFAULTS, activeLevel, setMaterial, transformObject, type EditorStore } from '@interiorai/app-state';
 import { materialMap, objectDims, type Catalog, type CatalogEntry, type Material } from '@interiorai/catalog';
 import {
   buildingFootprint,
   detectRooms,
   offsetPolygon,
   pointOnWall,
+  snapToWall,
   wallLength,
 } from '@interiorai/core-geometry';
 import type { Appearance, Level, SceneObject, Wall } from '@interiorai/scene-schema';
@@ -30,6 +31,7 @@ import {
   type LightingMode,
 } from './lighting.js';
 import { instantiateModel, useModel } from './models.js';
+import { WalkControls } from './walk.js';
 import { FixtureLights, Plinth } from './NightScene.js';
 import { MaterialCache, ResourceScope } from './resources.js';
 import {
@@ -68,6 +70,13 @@ export interface Viewer3DProps {
   graphics?: GraphicsSettings;
   /** 資產目錄版本（使用者上傳模型後遞增，觸發重新分組） */
   catalogVersion?: number;
+  /** 右鍵選單（hit＝點到的實體 id；world＝地面座標 x,z） */
+  onContextMenu?: (e: {
+    clientX: number;
+    clientY: number;
+    hit: string | null;
+    world: [number, number] | null;
+  }) => void;
 }
 
 const DH_CAMERA = {
@@ -88,6 +97,7 @@ export function Viewer3D(props: Viewer3DProps) {
       data-testid="viewer3d"
       data-style={dh ? 'dollhouse' : 'simple'}
       data-lighting={dh ? (night ? 'night' : 'day') : 'none'}
+      onContextMenu={(e) => e.preventDefault()}
       style={{ background: night ? NIGHT.background.edge : dh ? '#ddd5ca' : props.theme.bg }}
     >
       <Canvas
@@ -107,7 +117,10 @@ export function Viewer3D(props: Viewer3DProps) {
           gl.domElement.addEventListener('webglcontextrestored', () => setCtxKey((k) => k + 1));
         }}
         onPointerMissed={(e) => {
-          if (e.button === 0) props.store.getState().select([]);
+          if (e.type === 'contextmenu') {
+            const w = viewer3dApi.get()?.clientToFloor(e.clientX, e.clientY) ?? null;
+            props.onContextMenu?.({ clientX: e.clientX, clientY: e.clientY, hit: null, world: w });
+          } else if (e.button === 0) props.store.getState().select([]);
         }}
       >
         <SceneContent {...props} />
@@ -128,12 +141,18 @@ function SceneContent({
   lighting,
   graphics = DEFAULT_GRAPHICS,
   catalogVersion = 0,
+  onContextMenu,
 }: Viewer3DProps) {
   const dh = viewStyle === 'dollhouse';
   const night = dh && lighting === 'night';
   const scene = useStore(store, (s) => s.scene);
   const levelId = useStore(store, (s) => s.levelId);
   const selection = useStore(store, (s) => s.selection);
+  const tool = useStore(store, (s) => s.tool);
+  const paintId = useStore(store, (s) => s.placeCatalogId);
+  const snapOn = useStore(store, (s) => s.snapEnabled);
+  /** 第一人稱漫遊（FE-V3D-01） */
+  const [walking, setWalking] = useState(false);
   const layers = useStore(store, (s) => s.layers);
   const level = useMemo(() => activeLevel({ scene, levelId }), [scene, levelId]);
   const env = scene.environment;
@@ -299,7 +318,7 @@ function SceneContent({
   const ownHeight = (w: Wall) => Math.min(w.height ?? structure.height, structure.height);
   const wallHeight = (w: Wall) => {
     const own = ownHeight(w);
-    if (!dh || fullWalls.has(w.id)) return own;
+    if (!dh || walking || fullWalls.has(w.id)) return own;
     // 夜間（images1）：內牆全高（接收燈光的彩色溢光），靠近相機的外牆只留牆腳
     if (night) return sides.get(w.id)?.exterior ? Math.min(NIGHT.lipHeight, own) : own;
     return Math.min(DOLLHOUSE.cutHeight, own);
@@ -348,11 +367,34 @@ function SceneContent({
     () => () => rooms.forEach((r) => (scope.release(r.floor), scope.release(r.ceiling))),
     [rooms, scope],
   );
+  /** 波打線（FE-FIN-01）：地板外圈的收邊帶，放在鋪貼上方 1 mm */
+  const borders = useMemo(() => {
+    const out: { id: string; g: THREE.BufferGeometry; mat: string | undefined }[] = [];
+    const det = detectRooms(structure).rooms;
+    for (const r of structure.rooms) {
+      const bw = r.floorTiling?.borderWidth;
+      if (!bw) continue;
+      const d = det.find((x) => x.key === [...r.wallIds].sort().join('|'));
+      if (!d || d.floor.length < 3) continue;
+      const inner = offsetPolygon([d.floor], -bw)[0];
+      if (!inner || inner.length < 3) continue;
+      const shape = new THREE.Shape(d.floor.map(([x, z]) => new THREE.Vector2(x, -z)));
+      shape.holes.push(new THREE.Path(inner.map(([x, z]) => new THREE.Vector2(x, -z))));
+      const g = new THREE.ShapeGeometry(shape);
+      g.rotateX(-Math.PI / 2);
+      g.translate(0, 1, 0);
+      out.push({ id: r.id, g: scope.track(g), mat: r.floorTiling?.borderMaterialId });
+    }
+    return out;
+  }, [structure, scope]);
+  useEffect(() => () => borders.forEach((b) => scope.release(b.g)), [borders, scope]);
   const fills = useMemo(
     () =>
       level.openings.flatMap((o) => {
         const w = level.walls.find((x) => x.id === o.wallId);
-        const g = w ? buildOpeningFill(o.type, o.width, o.height, Math.min(w.thickness, 80)) : null;
+        const g = w
+          ? buildOpeningFill(o.type, o.width, o.height, Math.min(w.thickness, 80), o.style, o.openAngle ?? 0)
+          : null;
         if (!w || !g) return [];
         const c = pointOnWall(w, o.offset + o.width / 2);
         const len = wallLength(w);
@@ -591,7 +633,7 @@ function SceneContent({
   const preset = useRef<ViewPreset>('iso-se');
   /** 剖面模型下的人視角：放寬仰角限制（OrbitControls 每次 render 都會套用 props，所以要放 state） */
   const [eyeLevel, setEyeLevel] = useState(false);
-  const limited = dh && !eyeLevel;
+  const limited = dh && !eyeLevel && !walking;
   /** 剖面模型的相機限制：仰角 20°~70°，fov 22° */
   const dollhouseCamera = () => {
     const pc = camera as THREE.PerspectiveCamera;
@@ -747,13 +789,167 @@ function SceneContent({
         gl.render(scene3, camera);
         return gl.domElement.toDataURL('image/png');
       },
+      clientToFloor: (x, y) => floorHit(x, y, 0),
+      pickSurface: (x, y) => {
+        const r = gl.domElement.getBoundingClientRect();
+        raycaster.setFromCamera(
+          new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1),
+          camera,
+        );
+        const targets: THREE.Object3D[] = [];
+        scene3.traverse((o) => {
+          const k = o.userData.gkind as string | undefined;
+          if ((o as THREE.Mesh).isMesh && o.visible && k && k !== 'board') targets.push(o);
+        });
+        for (const hit of raycaster.intersectObjects(targets, false)) {
+          const u = hit.object.userData as { gkind: string; id?: string; ids?: string[] };
+          const id = u.ids && hit.instanceId !== undefined ? u.ids[hit.instanceId] : u.id;
+          if (!id) continue;
+          return { kind: u.gkind, id, side: hit.face?.materialIndex === 1 ? 'B' : 'A' };
+        }
+        return null;
+      },
+      setCamera: (c) => {
+        setEyeLevel(true);
+        const pc = camera as THREE.PerspectiveCamera;
+        pc.fov = c.fovDeg;
+        pc.updateProjectionMatrix();
+        if (controls.current) {
+          controls.current.minPolarAngle = 0;
+          controls.current.maxPolarAngle = Math.PI * 0.495;
+        }
+        camera.position.set(...c.position);
+        controls.current?.target.set(...c.target);
+        controls.current?.update();
+        updateCut();
+        invalidate();
+      },
+      walk: (on) => setWalking(on),
+      isWalking: () => walking,
     });
     return () => viewer3dApi.set(null);
   });
 
-  const select = (id: string | undefined) => (e: ThreeEvent<MouseEvent>) => {
+  /** 游標射線與水平面 y 的交點（世界 x,z） */
+  const raycaster = useMemo(() => new THREE.Raycaster(), []);
+  const floorHit = (clientX: number, clientY: number, y: number): [number, number] | null => {
+    const r = gl.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((clientX - r.left) / r.width) * 2 - 1,
+      -((clientY - r.top) / r.height) * 2 + 1,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.ray.intersectPlane(
+      new THREE.Plane(new THREE.Vector3(0, 1, 0), -y),
+      new THREE.Vector3(),
+    );
+    return hit ? [Math.round(hit.x), Math.round(hit.z)] : null;
+  };
+
+  /**
+   * 點擊表面：選取；油漆模式（FE-V3D-05）套用材質、Alt＋點擊＝滴管（吸取該面的材質）。
+   * 牆的 A/B 面由命中的幾何群組（materialIndex 0＝A、1＝B）決定。
+   */
+  const surface =
+    (kind: 'wall' | 'floor' | 'ceiling' | 'object' | 'opening', id: string | undefined) =>
+    (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation();
+      if (!id) return;
+      if (tool === 'paint') {
+        const side: 'A' | 'B' = e.face?.materialIndex === 1 ? 'B' : 'A';
+        if (e.nativeEvent.altKey) {
+          const mat = materialAt(kind, id, side);
+          if (mat) store.getState().setTool('paint', mat);
+          return;
+        }
+        if (!paintId) return;
+        const exec = store.getState().exec;
+        if (kind === 'wall') exec(setMaterial(level.id, { kind: 'wall', id, side }, paintId));
+        else if (kind === 'floor') exec(setMaterial(level.id, { kind: 'floor', roomId: id }, paintId));
+        else if (kind === 'ceiling') exec(setMaterial(level.id, { kind: 'ceiling', roomId: id }, paintId));
+        else if (kind === 'object') {
+          const o = level.objects.find((x) => x.id === id);
+          const slot = o && catalog.get(o.catalogId)?.materialSlots[0]?.name;
+          if (slot) exec(setMaterial(level.id, { kind: 'object', id, slot }, paintId));
+        }
+        return;
+      }
+      store.getState().select([id], e.nativeEvent.shiftKey);
+    };
+  const materialAt = (kind: string, id: string, side: 'A' | 'B'): string | undefined => {
+    if (kind === 'wall') {
+      const w = level.walls.find((x) => x.id === id);
+      return side === 'B' ? (w?.materialIdB ?? w?.materialId) : w?.materialId;
+    }
+    const r = level.rooms.find((x) => x.id === id);
+    if (kind === 'floor') return r?.floorMaterialId;
+    if (kind === 'ceiling') return r?.ceilingMaterialId ?? 'mat_ceiling_white';
+    const o = level.objects.find((x) => x.id === id);
+    const slot = o && catalog.get(o.catalogId)?.materialSlots[0];
+    return slot ? (o.materialOverrides?.[slot.name] ?? slot.defaultMaterialId) : undefined;
+  };
+  const select = (id: string | undefined) => surface('opening', id);
+  const ctx = (id: string | undefined) => (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (id) store.getState().select([id], e.nativeEvent.shiftKey);
+    e.nativeEvent.preventDefault();
+    if (id && !store.getState().selection.includes(id)) store.getState().select([id]);
+    onContextMenu?.({
+      clientX: e.nativeEvent.clientX,
+      clientY: e.nativeEvent.clientY,
+      hit: id ?? null,
+      world: [Math.round(e.point.x), Math.round(e.point.z)],
+    });
+  };
+
+  /** 沿地面拖曳家具（FE-V3D-03）：不需 gizmo；靠牆 20 cm 內自動貼齊並背靠牆 */
+  const [dragPos, setDragPos] = useState<{ id: string; pos: [number, number, number]; rot: number } | null>(
+    null,
+  );
+  const startDrag = (o: SceneObject, e: ThreeEvent<PointerEvent>) => {
+    if (tool !== 'select' || o.locked || e.nativeEvent.button !== 0 || walking || e.nativeEvent.shiftKey)
+      return;
+    e.stopPropagation();
+    const p = floorHit(e.nativeEvent.clientX, e.nativeEvent.clientY, o.position[1]);
+    if (!p) return;
+    if (!store.getState().selection.includes(o.id)) store.getState().select([o.id]);
+    const entry = catalog.get(o.catalogId);
+    const depth = entry ? objectDims(entry, o.params, o.scale).d : 500;
+    const off: [number, number] = [o.position[0] - p[0], o.position[2] - p[1]];
+    const sx = e.nativeEvent.clientX;
+    const sy = e.nativeEvent.clientY;
+    let moved = false;
+    let last: { pos: [number, number, number]; rot: number } | null = null;
+    if (controls.current) controls.current.enabled = false;
+    const move = (ev: PointerEvent) => {
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
+      moved = true;
+      quality.current.dragging = true;
+      const q = floorHit(ev.clientX, ev.clientY, o.position[1]);
+      if (!q) return;
+      let x = Math.round(q[0] + off[0]);
+      let z = Math.round(q[1] + off[1]);
+      let rot = o.rotationY;
+      if (snapOn && !ev.altKey && entry?.anchor !== 'ceiling') {
+        const sn = snapToWall(level, [x, z], depth, 200);
+        if (sn) [x, z, rot] = [sn.pos[0], sn.pos[1], sn.rotationY];
+        else [x, z] = [Math.round(x / 10) * 10, Math.round(z / 10) * 10];
+      }
+      last = { pos: [x, o.position[1], z], rot };
+      setDragPos({ id: o.id, ...last });
+      invalidate();
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (controls.current) controls.current.enabled = true;
+      quality.current.dragging = false;
+      if (moved && last)
+        store.getState().exec(transformObject(level.id, o.id, { position: last.pos, rotationY: last.rot }));
+      setDragPos(null);
+      invalidate();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   };
 
   const shadow = dh ? { castShadow: true, receiveShadow: true } : {};
@@ -793,9 +989,11 @@ function SceneContent({
           <directionalLight position={[8000, 12000, 6000]} intensity={1.4} />
         </>
       )}
+      {walking && <WalkControls level={level} onExit={() => setWalking(false)} />}
       <OrbitControls
         ref={controls}
         makeDefault
+        enabled={!walking}
         enableDamping={false}
         maxPolarAngle={limited ? ((90 - DOLLHOUSE.minElevationDeg) * Math.PI) / 180 : Math.PI * 0.495}
         minPolarAngle={limited ? ((90 - DOLLHOUSE.maxElevationDeg) * Math.PI) / 180 : 0}
@@ -814,11 +1012,12 @@ function SceneContent({
             receiveShadow={dh}
             geometry={geom}
             material={[
-              mats.styled(w.materialId, '#efece6', w.appearance),
-              mats.styled(w.materialIdB ?? w.materialId, '#efece6', w.appearanceB ?? w.appearance),
+              mats.tiled(w.materialId, '#efece6', w.appearance, w.tilingA),
+              mats.tiled(w.materialIdB ?? w.materialId, '#efece6', w.appearanceB ?? w.appearance, w.tilingB),
               selSet.has(w.id) ? selMat : capMat,
             ]}
-            onClick={select(w.id)}
+            onClick={surface('wall', w.id)}
+            onContextMenu={ctx(w.id)}
             userData={{ id: w.id, gkind: 'wall' }}
           />
         ))}
@@ -840,22 +1039,21 @@ function SceneContent({
             <group key={r.key}>
               <mesh
                 geometry={r.floor}
-                material={
-                  dh
-                    ? mats.styled(
-                        dollhouseFloorMaterial(room, DEFAULTS.floorMaterialId),
-                        '#d8d2c6',
-                        room?.floorAppearance,
-                      )
-                    : mats.styled(room?.floorMaterialId, '#d8d2c6', room?.floorAppearance)
-                }
+                material={mats.tiled(
+                  dh ? dollhouseFloorMaterial(room, DEFAULTS.floorMaterialId) : room?.floorMaterialId,
+                  '#d8d2c6',
+                  room?.floorAppearance,
+                  room?.floorTiling,
+                )}
                 receiveShadow={dh}
-                onClick={select(r.roomId)}
+                onClick={surface('floor', r.roomId)}
+                onContextMenu={ctx(r.roomId)}
                 userData={{ id: r.roomId, gkind: 'floor' }}
               />
               {showCeiling && (
                 <mesh
                   userData={{ gkind: 'ceiling', id: r.roomId }}
+                  onClick={surface('ceiling', r.roomId)}
                   geometry={r.ceiling}
                   material={mats.styled(
                     room?.ceilingMaterialId ?? 'mat_ceiling_white',
@@ -867,6 +1065,17 @@ function SceneContent({
             </group>
           );
         })}
+      {layers.structure &&
+        borders.map((b) => (
+          <mesh
+            key={`border-${b.id}`}
+            geometry={b.g}
+            material={mats.get(b.mat ?? 'mat_stone_marble', '#d5d0c6')}
+            receiveShadow={dh}
+            onClick={surface('floor', b.id)}
+            userData={{ id: b.id, gkind: 'floor' }}
+          />
+        ))}
       {layers.structure &&
         fills
           // 剖面牆上的門窗扇會突出矮牆 → 不畫，只留開口
@@ -881,6 +1090,7 @@ function SceneContent({
               position={f.pos as unknown as [number, number, number]}
               rotation={[0, f.rotY, 0]}
               onClick={select(f.o.id)}
+              onContextMenu={ctx(f.o.id)}
             />
           ))}
       {groups.map(([key, grp]) => (
@@ -893,7 +1103,9 @@ function SceneContent({
           selected={selSet}
           highlight={theme.primary}
           shadows={dh && grp.shadow}
-          onPick={(id, additive) => store.getState().select([id], additive)}
+          onPick={(o, e) => surface('object', o.id)(e)}
+          onDown={startDrag}
+          onMenu={(o, e) => ctx(o.id)(e)}
         />
       ))}
       {glbObjs.map((o) => (
@@ -902,7 +1114,9 @@ function SceneContent({
           position={[o.position[0], o.position[1], o.position[2]]}
           rotation={[0, o.rotationY, 0]}
           scale={(o.scale ?? [1, 1, 1]) as [number, number, number]}
-          onClick={select(o.id)}
+          onClick={surface('object', o.id)}
+          onContextMenu={ctx(o.id)}
+          onPointerDown={(e) => startDrag(o, e)}
         >
           <GlbModel obj={o} entry={catalog.get(o.catalogId)!} shadows={dh} />
         </group>
@@ -917,6 +1131,10 @@ function SceneContent({
           catalog={catalog}
           onDragging={(v) => (quality.current.dragging = v)}
           onCommit={commitTransform(single.id)}
+          override={dragPos?.id === single.id ? dragPos : null}
+          onBodyDown={(e) => startDrag(single, e)}
+          onBodyClick={surface('object', single.id)}
+          onBodyMenu={ctx(single.id)}
         >
           {singleEntry?.model.kind === 'glb' ? (
             <GlbModel obj={single} entry={singleEntry} shadows={dh} />
@@ -947,6 +1165,8 @@ function FurnitureInstances({
   highlight,
   shadows,
   onPick,
+  onDown,
+  onMenu,
 }: {
   geom: THREE.BufferGeometry;
   objs: SceneObject[];
@@ -955,7 +1175,9 @@ function FurnitureInstances({
   selected: Set<string>;
   highlight: string;
   shadows?: boolean;
-  onPick: (id: string, additive: boolean) => void;
+  onPick: (o: SceneObject, e: ThreeEvent<MouseEvent>) => void;
+  onDown?: (o: SceneObject, e: ThreeEvent<PointerEvent>) => void;
+  onMenu?: (o: SceneObject, e: ThreeEvent<MouseEvent>) => void;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const invalidate = useThree((s) => s.invalidate);
@@ -993,7 +1215,15 @@ function FurnitureInstances({
       onClick={(e) => {
         e.stopPropagation();
         const o = e.instanceId !== undefined ? objs[e.instanceId] : undefined;
-        if (o) onPick(o.id, e.nativeEvent.shiftKey);
+        if (o) onPick(o, e);
+      }}
+      onPointerDown={(e) => {
+        const o = e.instanceId !== undefined ? objs[e.instanceId] : undefined;
+        if (o) onDown?.(o, e);
+      }}
+      onContextMenu={(e) => {
+        const o = e.instanceId !== undefined ? objs[e.instanceId] : undefined;
+        if (o) onMenu?.(o, e);
       }}
     />
   );
@@ -1068,7 +1298,15 @@ function SelectedObject({
   onDragging,
   onCommit,
   children,
+  override,
+  onBodyDown,
+  onBodyClick,
+  onBodyMenu,
 }: {
+  override?: { pos: [number, number, number]; rot: number } | null;
+  onBodyDown?: (e: ThreeEvent<PointerEvent>) => void;
+  onBodyClick?: (e: ThreeEvent<MouseEvent>) => void;
+  onBodyMenu?: (e: ThreeEvent<MouseEvent>) => void;
   obj: SceneObject;
   level: Level;
   mode: Viewer3DProps['transformMode'];
@@ -1112,13 +1350,16 @@ function SelectedObject({
     <>
       <group
         ref={proxy}
-        position={[obj.position[0], obj.position[1], obj.position[2]]}
-        rotation={[0, obj.rotationY, 0]}
+        position={override ? override.pos : [obj.position[0], obj.position[1], obj.position[2]]}
+        rotation={[0, override ? override.rot : obj.rotationY, 0]}
         scale={[s[0], s[1], s[2]]}
+        onPointerDown={onBodyDown}
+        onClick={onBodyClick}
+        onContextMenu={onBodyMenu}
       >
         {children}
       </group>
-      {ready && proxy.current && !obj.locked && (
+      {ready && proxy.current && !obj.locked && !override && (
         <TransformControls
           object={proxy.current}
           mode={mode}

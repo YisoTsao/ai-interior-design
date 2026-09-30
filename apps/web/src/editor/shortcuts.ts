@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
-import { deleteEntities, duplicateObjects, updateObject, type EditorStore } from '@interiorai/app-state';
+import { type EditorStore } from '@interiorai/app-state';
 import { viewer3dApi } from '@interiorai/viewer-3d';
+import { editActions } from './actions';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
@@ -8,6 +9,7 @@ export type TransformMode = 'translate' | 'rotate' | 'scale';
 export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => void) {
   useEffect(() => {
     let spacePrev: ReturnType<EditorStore['getState']>['tool'] | null = null;
+    const act = editActions(store);
     const onDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const el = e.target as HTMLElement | null;
@@ -31,15 +33,13 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
       if (mod && k === 'y') return (e.preventDefault(), s.redo());
       if (mod && k === 'd') {
         e.preventDefault();
-        const objs = s.selection.filter((id) =>
-          s.scene.levels.some((l) => l.objects.some((o) => o.id === id)),
-        );
-        if (objs.length) {
-          const c = duplicateObjects(s.levelId, objs);
-          if (s.exec(c)) s.select(c.newIds);
-        }
-        return;
+        return act.duplicate();
       }
+      if (mod && k === 'c') return act.copy();
+      if (mod && k === 'x') return (e.preventDefault(), act.cut());
+      if (mod && k === 'v') return (e.preventDefault(), act.paste());
+      if (mod && k === 'a') return (e.preventDefault(), act.selectAll());
+      if (mod && k === 'g') return (e.preventDefault(), e.shiftKey ? act.ungroup() : act.group());
       if (mod || e.altKey) return;
       switch (k) {
         case 'v':
@@ -56,22 +56,22 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
           return setMode('rotate');
         case 's':
           return setMode('scale');
-        case 'h': {
-          // 隱藏／顯示選取的家具（外觀覆寫 hidden）
-          const lv = s.scene.levels.find((l) => l.id === s.levelId);
-          const objs = lv?.objects.filter((o) => s.selection.includes(o.id)) ?? [];
-          if (!objs.length) return;
-          const hide = objs.some((o) => !o.appearance?.hidden);
-          for (const o of objs) {
-            const next = { ...(o.appearance ?? {}) };
-            if (hide) next.hidden = true;
-            else delete next.hidden;
-            s.exec(
-              updateObject(s.levelId, o.id, { appearance: Object.keys(next).length ? next : undefined }),
-            );
-          }
-          return;
-        }
+        case 'h':
+          return act.toggleHide();
+        case 'l':
+          return act.toggleLock();
+        case 'e':
+          return act.rotate(90);
+        case 'q':
+          return act.rotate(-90);
+        case 'p':
+          return s.view === '2d' && s.setTool('polygon');
+        case 'm':
+          return s.view === '2d' && s.setTool('measure');
+        case 'k':
+          return s.view === '2d' && s.setTool('dimension');
+        case 't':
+          return s.view === '2d' && s.setTool('text');
         case 'f':
           return s.view === '3d' && viewer3dApi.get()?.frameAll();
         case 'tab':
@@ -81,7 +81,7 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
         case 'backspace':
           if (s.selection.length) {
             e.preventDefault();
-            s.exec(deleteEntities(s.levelId, s.selection));
+            act.del();
           }
           return;
         case 'escape':

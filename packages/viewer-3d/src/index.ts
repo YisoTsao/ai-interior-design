@@ -8,3 +8,5 @@ export * from './gbuffer.js';
 export * from './lighting.js';
 export * from './models.js';
 export * from './thumbnails.js';
+export * from './walk.js';
+export * from './tiling.js';

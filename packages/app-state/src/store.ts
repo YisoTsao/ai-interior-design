@@ -9,7 +9,19 @@ import {
   type HistoryState,
 } from './history.js';
 
-export type Tool = 'select' | 'wall' | 'rect' | 'door' | 'window' | 'place' | 'pan';
+export type Tool =
+  | 'select'
+  | 'wall'
+  | 'rect'
+  | 'polygon'
+  | 'door'
+  | 'window'
+  | 'place'
+  | 'pan'
+  | 'measure'
+  | 'dimension'
+  | 'text'
+  | 'paint';
 export type ViewMode = '2d' | '3d';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';
 export interface Notice {
@@ -55,6 +67,10 @@ export interface EditorActions {
   dismiss(id: number): void;
   load(p: { projectId: string; projectName: string; scene: Scene }): void;
   rename(name: string): void;
+  /** 切換作用中的樓層（UI 狀態） */
+  setLevel(levelId: string): void;
+  /** 跳到歷史中的某一步（負數＝往回幾步、正數＝往前幾步） */
+  jump(steps: number): void;
 }
 
 export type EditorStore = StoreApi<EditorState & EditorActions>;
@@ -117,6 +133,7 @@ export function createEditorStore(init?: {
           saveStatus: 'dirty',
           revision: s.revision + 1,
           selection: s.selection.filter((id) => ids.has(id)),
+          levelId: r.scene.levels.some((l) => l.id === s.levelId) ? s.levelId : r.scene.levels[0]!.id,
         });
         return true;
       } catch (e) {
@@ -139,13 +156,20 @@ export function createEditorStore(init?: {
         saveStatus: 'dirty',
         revision: s.revision + 1,
         selection: s.selection.filter((id) => ids.has(id)),
+        levelId: r.scene.levels.some((l) => l.id === s.levelId) ? s.levelId : r.scene.levels[0]!.id,
       });
     },
     redo() {
       const s = get();
       const r = redoH(s.scene, s.history);
       if (!r.entry) return;
-      set({ scene: r.scene, history: r.history, saveStatus: 'dirty', revision: s.revision + 1 });
+      set({
+        scene: r.scene,
+        history: r.history,
+        saveStatus: 'dirty',
+        revision: s.revision + 1,
+        levelId: r.scene.levels.some((l) => l.id === s.levelId) ? s.levelId : r.scene.levels[0]!.id,
+      });
     },
     select(ids, additive = false) {
       const cur = get().selection;
@@ -156,7 +180,15 @@ export function createEditorStore(init?: {
       });
     },
     setTool(tool, catalogId) {
-      set({ tool, placeCatalogId: tool === 'place' ? (catalogId ?? null) : null, preview: null });
+      // place：要放的家具；door／window：門窗樣式的目錄項；paint：要套用的材質 id
+      set({
+        tool,
+        placeCatalogId:
+          tool === 'place' || tool === 'door' || tool === 'window' || tool === 'paint'
+            ? (catalogId ?? null)
+            : null,
+        preview: null,
+      });
     },
     setView: (view) => set({ view }),
     toggleLayer: (k) => set({ layers: { ...get().layers, [k]: !get().layers[k] } }),
@@ -182,11 +214,19 @@ export function createEditorStore(init?: {
       });
     },
     rename: (projectName) => set({ projectName, saveStatus: 'dirty' }),
+    setLevel(levelId) {
+      if (get().scene.levels.some((l) => l.id === levelId)) set({ levelId, selection: [], preview: null });
+    },
+    jump(steps) {
+      for (let i = 0; i < Math.abs(steps); i++) (steps < 0 ? get().undo : get().redo)();
+    },
   }));
 }
 
 export function allIds(scene: Scene): string[] {
-  return scene.levels.flatMap((l) => [...l.walls, ...l.openings, ...l.rooms, ...l.objects].map((x) => x.id));
+  return scene.levels.flatMap((l) =>
+    [...l.walls, ...l.openings, ...l.rooms, ...l.objects, ...(l.annotations ?? [])].map((x) => x.id),
+  );
 }
 
 export const activeLevel = (s: Pick<EditorState, 'scene' | 'levelId'>): Level =>

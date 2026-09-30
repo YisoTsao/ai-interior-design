@@ -4,19 +4,25 @@ import type Konva from 'konva';
 import { useStore } from 'zustand';
 import {
   activeLevel,
+  addAnnotation,
   addObject,
   addOpening,
   addRectRoom,
   addWalls,
+  batch,
   DEFAULTS,
   moveWallVertex,
   resizeWall,
+  setMaterial,
   transformObject,
   translateWall,
+  updateAnnotation,
   updateOpening,
+  type DimensionData,
   type EditorStore,
+  type TextData,
 } from '@interiorai/app-state';
-import { defaultElevation, objectDims, type Catalog } from '@interiorai/catalog';
+import { defaultElevation, objectDims, resolveParams, type Catalog } from '@interiorai/catalog';
 import {
   closestOnSegment,
   detectRooms,
@@ -31,7 +37,7 @@ import {
   type SnapResult,
   type Vec2,
 } from '@interiorai/core-geometry';
-import type { Level, Opening } from '@interiorai/scene-schema';
+import type { Level, Opening, OpeningStyle } from '@interiorai/scene-schema';
 import { plan2dApi } from './api.js';
 import { collisionInputs, flat, footprintOf, openingEnds } from './model.js';
 import {
@@ -71,6 +77,12 @@ export interface Plan2DProps {
   lengthUnit: LengthUnit;
   areaUnit: AreaUnit;
   theme: Plan2DTheme;
+  /** 右鍵選單：hit＝點到的實體 id（沒有則 null）、world＝世界座標 */
+  onContextMenu?: (e: { clientX: number; clientY: number; hit: string | null; world: Vec2 }) => void;
+  /** 文字標註工具：請宿主提供輸入（回傳 null＝取消） */
+  requestText?: (initial: string) => Promise<string | null>;
+  /** 下層樓層（淡色參考，FE-LVL-02） */
+  ghostLevel?: Level | null;
 }
 
 type Preview = { level: Level; changed: Set<string>; invalid: boolean };
@@ -87,11 +99,25 @@ type Drag =
   | { kind: 'opening'; id: string; offset: number | null }
   | { kind: 'box'; start: Vec2; end: Vec2 }
   | { kind: 'rect'; start: Vec2; end: Vec2 }
+  | { kind: 'annotation'; id: string; start: Vec2; delta: Vec2 }
   | { kind: 'pan'; start: Vec2; view: ViewTransform };
+
+/** 物件拖曳的對齊參考線（世界座標；FE-PLAN-06 智慧參考線） */
+type Guide = { axis: 'x' | 'z'; value: number; from: number; to: number };
 
 const SNAP_PX = 10;
 
-export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2DProps) {
+export function Plan2D({
+  store,
+  catalog,
+  t,
+  lengthUnit,
+  areaUnit,
+  theme,
+  onContextMenu,
+  requestText,
+  ghostLevel,
+}: Plan2DProps) {
   const scene = useStore(store, (s) => s.scene);
   const levelId = useStore(store, (s) => s.levelId);
   const selection = useStore(store, (s) => s.selection);
@@ -112,6 +138,16 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
   const [lenBuf, setLenBuf] = useState('');
   const [altDown, setAltDown] = useState(false);
   const [editDim, setEditDim] = useState<{ wallId: string; x: number; y: number; text: string } | null>(null);
+  /** 測量工具的點（暫態，不入 Scene；FE-PLAN-09） */
+  const [measure, setMeasure] = useState<{ pts: Vec2[]; closed: boolean; done: boolean }>({
+    pts: [],
+    closed: false,
+    done: false,
+  });
+  /** 尺寸標註工具：a、b 兩點之後移動滑鼠決定偏移 */
+  const [dimDraft, setDimDraft] = useState<Vec2[]>([]);
+  const [guides, setGuides] = useState<Guide[]>([]);
+  const lastPointer = useRef<Vec2 | null>(null);
   const v = view ?? fitView(null, size);
 
   // 容器尺寸
@@ -149,6 +185,12 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
         return screenToWorld(v, [p[0] - r.left, p[1] - r.top]);
       },
       fit,
+      pointerWorld: () => lastPointer.current,
+      snapshot: (maxSide = 640) => {
+        const st = stageRef.current;
+        if (!st) return null;
+        return st.toDataURL({ pixelRatio: Math.min(1, maxSide / Math.max(st.width(), st.height())) });
+      },
     });
     return () => plan2dApi.set(null);
   }, [v, fit]);
@@ -158,7 +200,10 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
     setDraft([]);
     setLenBuf('');
     setHover(null);
+    setMeasure({ pts: [], closed: false, done: false });
+    setDimDraft([]);
   }, [tool]);
+  const drafting = tool === 'wall' || tool === 'polygon';
 
   const tol = SNAP_PX / v.scale;
   const doSnap = useCallback(
@@ -190,7 +235,18 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
     const onKey = (e: KeyboardEvent) => {
       setAltDown(e.altKey);
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (tool !== 'wall' || draft.length === 0) return;
+      if (tool === 'measure' && (e.key === 'Escape' || e.key === 'Enter')) {
+        setMeasure((m) =>
+          e.key === 'Escape' ? { pts: [], closed: false, done: false } : { ...m, done: true },
+        );
+        e.preventDefault();
+        return;
+      }
+      if (tool === 'dimension' && e.key === 'Escape') {
+        setDimDraft([]);
+        return;
+      }
+      if (!drafting || draft.length === 0) return;
       if (/^[0-9.]$/.test(e.key)) {
         setLenBuf((b) => b + e.key);
         e.preventDefault();
@@ -207,10 +263,10 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
           const l = Math.hypot(dx, dy) || 1;
           setDraft([...draft, [Math.round(last[0] + (dx / l) * len), Math.round(last[1] + (dy / l) * len)]]);
           setLenBuf('');
-        } else finishDraft(false);
+        } else finishDraft(tool === 'polygon');
         e.preventDefault();
       } else if (e.key === 'Escape') {
-        if (draft.length >= 2) finishDraft(false);
+        if (draft.length >= 2) finishDraft(tool === 'polygon');
         else setDraft([]);
         setLenBuf('');
         e.preventDefault();
@@ -223,7 +279,7 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('keyup', onUp);
     };
-  }, [tool, draft, lenBuf, hover, lengthUnit, finishDraft]);
+  }, [tool, draft, lenBuf, hover, lengthUnit, finishDraft, drafting]);
 
   // 門窗懸停預覽
   const openingType = tool === 'door' ? 'door' : tool === 'window' ? 'window' : null;
@@ -238,7 +294,12 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
     if (!best) return null;
     const w = level.walls.find((x) => x.id === best!.wallId)!;
     const len = wallLength(w);
-    const width = openingType === 'door' ? DEFAULTS.doorWidth : DEFAULTS.windowWidth;
+    // 從資產庫選的門窗樣式：尺寸、窗台、樣式取自目錄參數
+    const entry = placeId ? catalog.get(placeId) : undefined;
+    const pr = entry ? resolveParams(entry) : {};
+    const num = (k: string, d: number) => (typeof pr[k] === 'number' ? (pr[k] as number) : d);
+    const style = typeof pr.style === 'string' ? (pr.style as OpeningStyle) : undefined;
+    const width = num('w', openingType === 'door' ? DEFAULTS.doorWidth : DEFAULTS.windowWidth);
     if (len < width) return { invalid: true, o: null };
     const offset = Math.round(Math.min(len - width, Math.max(0, best.t * len - width / 2)));
     const o: Opening =
@@ -249,9 +310,17 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
             type: 'door',
             offset,
             width,
-            height: DEFAULTS.doorHeight,
+            height: num('h', DEFAULTS.doorHeight),
             sill: 0,
-            swing: 'left',
+            swing:
+              pr.swing === 'right'
+                ? 'right'
+                : pr.swing === 'double'
+                  ? 'double'
+                  : style === 'sliding'
+                    ? 'sliding'
+                    : 'left',
+            ...(style ? { style } : {}),
           }
         : {
             id: 'preview',
@@ -259,14 +328,15 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
             type: 'window',
             offset,
             width,
-            height: DEFAULTS.windowHeight,
-            sill: DEFAULTS.windowSill,
+            height: num('h', DEFAULTS.windowHeight),
+            sill: num('sill', DEFAULTS.windowSill),
+            ...(style ? { style } : {}),
           };
     const clash = level.openings.some(
       (x) => x.wallId === w.id && x.offset < offset + width && offset < x.offset + x.width,
     );
     return { invalid: clash, o };
-  }, [openingType, hover, level, tol]);
+  }, [openingType, hover, level, tol, placeId, catalog]);
 
   const onWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -290,11 +360,46 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
     if (e.evt.button !== 0) return;
     const { name, id } = hitInfo(e);
     const s = store.getState();
-    if (tool === 'wall') {
+    if (tool === 'measure') {
+      const q = doSnap(p);
+      setMeasure((m) => {
+        if (m.done) return { pts: [q], closed: false, done: false };
+        if (m.pts.length >= 3 && Math.hypot(q[0] - m.pts[0]![0], q[1] - m.pts[0]![1]) <= tol)
+          return { ...m, closed: true, done: true };
+        if (e.evt.detail >= 2) return { ...m, done: true };
+        return { ...m, pts: [...m.pts, q] };
+      });
+      return;
+    }
+    if (tool === 'dimension') {
+      const q = doSnap(p);
+      if (dimDraft.length < 2) setDimDraft([...dimDraft, q]);
+      else {
+        const [a, b] = dimDraft as [Vec2, Vec2];
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+        const off = ((q[0] - a[0]) * -(b[1] - a[1]) + (q[1] - a[1]) * (b[0] - a[0])) / L;
+        exec(addAnnotation(levelId, { type: 'dimension', data: { a, b, offset: Math.round(off) } }));
+        setDimDraft([]);
+      }
+      return;
+    }
+    if (tool === 'text') {
+      const q = doSnap(p);
+      void (requestText?.('') ?? Promise.resolve(window.prompt(t('tools.textPrompt')) ?? null)).then(
+        (text) => {
+          if (text && text.trim())
+            exec(
+              addAnnotation(levelId, { type: 'text', data: { position: q, text: text.trim(), size: 250 } }),
+            );
+        },
+      );
+      return;
+    }
+    if (drafting) {
       const q = doSnap(p, { angleFrom: draft[draft.length - 1] });
       if (draft.length >= 3 && Math.hypot(q[0] - draft[0]![0], q[1] - draft[0]![1]) <= tol)
         return finishDraft(true);
-      if (e.evt.detail >= 2 && draft.length >= 2) return finishDraft(false);
+      if (e.evt.detail >= 2 && draft.length >= 2) return finishDraft(tool === 'polygon');
       const last = draft[draft.length - 1];
       if (!last || last[0] !== q[0] || last[1] !== q[1]) setDraft([...draft, q]);
       return;
@@ -324,6 +429,31 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
       s.setTool('select');
       return;
     }
+    // 油漆模式（FE-V3D-05 的 2D 對應）：點房間＝地板、點牆＝兩面、點家具＝主材質；Alt＝滴管
+    if (tool === 'paint') {
+      const lv = level;
+      if (e.evt.altKey) {
+        const w = lv.walls.find((x) => x.id === id);
+        const r = lv.rooms.find((x) => x.id === id);
+        const o = lv.objects.find((x) => x.id === id);
+        const slot = o && catalog.get(o.catalogId)?.materialSlots[0];
+        const m =
+          w?.materialId ??
+          r?.floorMaterialId ??
+          (slot ? (o!.materialOverrides?.[slot.name] ?? slot.defaultMaterialId) : undefined);
+        if (m) s.setTool('paint', m);
+        return;
+      }
+      if (!placeId) return;
+      if (name === 'wall') exec(setMaterial(levelId, { kind: 'wall', id, side: 'both' }, placeId));
+      else if (name === 'room') exec(setMaterial(levelId, { kind: 'floor', roomId: id }, placeId));
+      else if (name === 'object') {
+        const o = lv.objects.find((x) => x.id === id);
+        const slot = o && catalog.get(o.catalogId)?.materialSlots[0]?.name;
+        if (slot) exec(setMaterial(levelId, { kind: 'object', id, slot }, placeId));
+      }
+      return;
+    }
     // select 工具
     if (name === 'vertex') {
       const [wallId, end] = id.split(':') as [string, 'a' | 'b'];
@@ -341,6 +471,11 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
       else setDrag({ kind: 'opening', id, offset: null });
       return;
     }
+    if (name === 'annotation') {
+      if (!s.selection.includes(id) || e.evt.shiftKey) s.select([id], e.evt.shiftKey);
+      if (!e.evt.shiftKey) setDrag({ kind: 'annotation', id, start: p, delta: [0, 0] });
+      return;
+    }
     if (name === 'room') {
       s.select([id], e.evt.shiftKey);
       return;
@@ -352,9 +487,11 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
   const onMove = () => {
     const p = pointer();
     if (!p) return;
+    lastPointer.current = p;
     if (!drag) {
-      if (tool === 'wall') setHover(doSnap(p, { angleFrom: draft[draft.length - 1] }));
-      else if (tool === 'place' || tool === 'rect') setHover(doSnap(p));
+      if (drafting) setHover(doSnap(p, { angleFrom: draft[draft.length - 1] }));
+      else if (tool === 'place' || tool === 'rect' || tool === 'measure' || tool === 'dimension')
+        setHover(doSnap(p));
       else setHover(p);
       return;
     }
@@ -415,12 +552,68 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
         break;
       }
       case 'object': {
-        const q = doSnap([drag.orig[0] + p[0] - drag.start[0], drag.orig[2] + p[1] - drag.start[1]], {
+        let q = doSnap([drag.orig[0] + p[0] - drag.start[0], drag.orig[2] + p[1] - drag.start[1]], {
           excludeWallIds: [],
         });
+        // 智慧參考線：與其他物件的中心／邊緣對齊（容差 8 px）
+        const g: Guide[] = [];
+        if (snapEnabled && !altDown) {
+          const o = level.objects.find((x) => x.id === drag.id)!;
+          const me = footprintOf({ ...o, position: [q[0], o.position[1], q[1]] }, catalog);
+          const mx = me.map((pp) => pp[0]);
+          const mz = me.map((pp) => pp[1]);
+          const mine = {
+            x: [Math.min(...mx), q[0], Math.max(...mx)],
+            z: [Math.min(...mz), q[1], Math.max(...mz)],
+          };
+          let bx: { d: number; v: number; o: Vec2 } | null = null;
+          let bz: { d: number; v: number; o: Vec2 } | null = null;
+          for (const other of level.objects) {
+            if (other.id === drag.id || other.appearance?.hidden) continue;
+            const fp = footprintOf(other, catalog);
+            const xs = fp.map((pp) => pp[0]);
+            const zs = fp.map((pp) => pp[1]);
+            const tx = [Math.min(...xs), other.position[0], Math.max(...xs)];
+            const tz = [Math.min(...zs), other.position[2], Math.max(...zs)];
+            for (const a of mine.x)
+              for (const b of tx) {
+                const d = Math.abs(a - b);
+                if (d <= 8 / v.scale && (!bx || d < bx.d)) bx = { d, v: b - a, o: [b, other.position[2]] };
+              }
+            for (const a of mine.z)
+              for (const b of tz) {
+                const d = Math.abs(a - b);
+                if (d <= 8 / v.scale && (!bz || d < bz.d)) bz = { d, v: b - a, o: [other.position[0], b] };
+              }
+          }
+          if (bx) {
+            q = [Math.round(q[0] + bx.v), q[1]];
+            const x = bx.o[0];
+            g.push({
+              axis: 'x',
+              value: x,
+              from: Math.min(q[1], bx.o[1]) - 300,
+              to: Math.max(q[1], bx.o[1]) + 300,
+            });
+          }
+          if (bz) {
+            q = [q[0], Math.round(q[1] + bz.v)];
+            const z = bz.o[1];
+            g.push({
+              axis: 'z',
+              value: z,
+              from: Math.min(q[0], bz.o[0]) - 300,
+              to: Math.max(q[0], bz.o[0]) + 300,
+            });
+          }
+        }
+        setGuides(g);
         setDrag({ ...drag, pos: [q[0], drag.orig[1], q[1]] });
         break;
       }
+      case 'annotation':
+        setDrag({ ...drag, delta: [Math.round(p[0] - drag.start[0]), Math.round(p[1] - drag.start[1])] });
+        break;
       case 'opening': {
         const o = level.openings.find((x) => x.id === drag.id)!;
         const w = level.walls.find((x) => x.id === o.wallId)!;
@@ -459,9 +652,40 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
         }
         break;
       case 'object':
-        if (drag.pos && (drag.pos[0] !== drag.orig[0] || drag.pos[2] !== drag.orig[2]))
-          exec(transformObject(levelId, drag.id, { position: drag.pos }));
+        if (drag.pos && (drag.pos[0] !== drag.orig[0] || drag.pos[2] !== drag.orig[2])) {
+          // 群組（FE-PLAN-07）或多選：一起移動
+          const o = level.objects.find((x) => x.id === drag.id)!;
+          const dx = drag.pos[0] - drag.orig[0];
+          const dz = drag.pos[2] - drag.orig[2];
+          const mates = level.objects.filter(
+            (x) =>
+              x.id !== o.id &&
+              !x.locked &&
+              ((o.groupId && x.groupId === o.groupId) ||
+                (s.selection.includes(x.id) && s.selection.includes(o.id))),
+          );
+          exec(
+            batch(
+              [
+                transformObject(levelId, drag.id, { position: drag.pos }),
+                ...mates.map((m) =>
+                  transformObject(levelId, m.id, {
+                    position: [m.position[0] + dx, m.position[1], m.position[2] + dz],
+                  }),
+                ),
+              ],
+              'command.transformObject',
+            ),
+          );
+        }
+        setGuides([]);
         break;
+      case 'annotation': {
+        const a = level.annotations?.find((x) => x.id === drag.id);
+        if (a && (drag.delta[0] || drag.delta[1]))
+          exec(updateAnnotation(levelId, a.id, moveAnnotation(a.data ?? {}, drag.delta)));
+        break;
+      }
       case 'opening':
         if (drag.offset !== null) exec(updateOpening(levelId, drag.id, { offset: drag.offset }));
         break;
@@ -476,6 +700,9 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
           const ids = [
             ...level.walls.filter((w) => inside([w.a, w.b])).map((w) => w.id),
             ...level.objects.filter((o) => inside(footprintOf(o, catalog))).map((o) => o.id),
+            ...(level.annotations ?? [])
+              .filter((a) => inside(annotationPoints(a.data ?? {})))
+              .map((a) => a.id),
           ];
           s.select(ids, true);
         }
@@ -525,10 +752,29 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerLeave={() => setHover(null)}
+        onContextMenu={(e) => {
+          e.evt.preventDefault();
+          const p = pointer();
+          if (!p || !onContextMenu) return;
+          const n = e.target;
+          const name = n.name();
+          const hit = ['wall', 'object', 'opening', 'room', 'annotation'].includes(name) ? n.id() : null;
+          if (hit && !store.getState().selection.includes(hit)) store.getState().select([hit]);
+          onContextMenu({ clientX: e.evt.clientX, clientY: e.evt.clientY, hit, world: p });
+        }}
       >
         <Layer listening={false}>
           <Grid v={v} size={size} theme={theme} />
         </Layer>
+        {ghostLevel && (
+          <Layer listening={false} opacity={0.22}>
+            <Group x={v.ox} y={v.oy} scaleX={v.scale} scaleY={v.scale}>
+              {ghostLevel.walls.map((w) => (
+                <Line key={w.id} points={flat(wallQuad(ghostLevel.walls, w))} closed fill={theme.wall} />
+              ))}
+            </Group>
+          </Layer>
+        )}
         <Layer>
           <Group x={v.ox} y={v.oy} scaleX={v.scale} scaleY={v.scale}>
             <StaticPlan
@@ -627,7 +873,7 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
                     ))
                   : [];
               })}
-            {tool === 'wall' && draft.length > 0 && (
+            {drafting && draft.length > 0 && (
               <>
                 <Line
                   points={flat(hover ? [...draft, hover] : draft)}
@@ -639,7 +885,11 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
                   listening={false}
                 />
                 <Line
-                  points={flat(hover ? [...draft, hover] : draft)}
+                  points={flat(
+                    hover
+                      ? [...draft, hover, ...(tool === 'polygon' && draft.length >= 2 ? [draft[0]!] : [])]
+                      : draft,
+                  )}
                   stroke={theme.primary}
                   strokeWidth={1.5}
                   strokeScaleEnabled={false}
@@ -721,6 +971,66 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
                 listening={false}
               />
             )}
+            {guides.map((g, i) => (
+              <Line
+                key={`g${i}`}
+                points={g.axis === 'x' ? [g.value, g.from, g.value, g.to] : [g.from, g.value, g.to, g.value]}
+                stroke={theme.warn}
+                strokeWidth={1}
+                strokeScaleEnabled={false}
+                dash={[6, 4]}
+                listening={false}
+              />
+            ))}
+            {drag?.kind === 'annotation' &&
+              (() => {
+                const a = level.annotations?.find((x) => x.id === drag.id);
+                return a ? (
+                  <AnnotationShape
+                    a={{ ...a, data: moveAnnotation(a.data ?? {}, drag.delta) }}
+                    px={px}
+                    unit={lengthUnit}
+                    theme={theme}
+                    selected
+                  />
+                ) : null;
+              })()}
+            {tool === 'measure' && measure.pts.length > 0 && (
+              <MeasureShape
+                pts={!measure.done && hover ? [...measure.pts, hover] : measure.pts}
+                closed={measure.closed}
+                px={px}
+                unit={lengthUnit}
+                areaUnit={areaUnit}
+                theme={theme}
+                t={t}
+              />
+            )}
+            {tool === 'dimension' && dimDraft.length > 0 && hover && (
+              <AnnotationShape
+                a={{
+                  id: 'preview',
+                  type: 'dimension',
+                  data:
+                    dimDraft.length === 1
+                      ? { a: dimDraft[0], b: hover, offset: 0 }
+                      : (() => {
+                          const [a, b] = dimDraft as [Vec2, Vec2];
+                          const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+                          return {
+                            a,
+                            b,
+                            offset:
+                              ((hover[0] - a[0]) * -(b[1] - a[1]) + (hover[1] - a[1]) * (b[0] - a[0])) / L,
+                          };
+                        })(),
+                }}
+                px={px}
+                unit={lengthUnit}
+                theme={theme}
+                selected
+              />
+            )}
             {snapInfo && snapInfo.kind !== 'none' && (tool !== 'select' || drag) && (
               <Circle
                 x={snapInfo.point[0]}
@@ -737,6 +1047,18 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
         {layers.annotation && (
           <Layer>
             <Group x={v.ox} y={v.oy} scaleX={v.scale} scaleY={v.scale}>
+              {(level.annotations ?? [])
+                .filter((a) => !(drag?.kind === 'annotation' && drag.id === a.id))
+                .map((a) => (
+                  <AnnotationShape
+                    key={a.id}
+                    a={a}
+                    px={px}
+                    unit={lengthUnit}
+                    theme={theme}
+                    selected={selSet.has(a.id)}
+                  />
+                ))}
               <Dimensions
                 level={dimLevel}
                 px={px}
@@ -779,12 +1101,14 @@ export function Plan2D({ store, catalog, t, lengthUnit, areaUnit, theme }: Plan2
         />
       )}
       <div
-        className="pointer-events-none absolute bottom-2 left-2 rounded px-2 py-1 font-mono text-xs"
+        className="pointer-events-none absolute right-2 bottom-2 rounded px-2 py-1 font-mono text-xs"
         style={{ background: theme.bg, color: theme.muted }}
         data-testid="snap-status"
       >
         {t(`snap.${snapEnabled && !altDown ? (snapInfo?.kind ?? 'none') : 'off'}`)}
-        {tool === 'wall' && ` · ${t('hint.wallTool')}`}
+        {drafting && ` · ${t(tool === 'polygon' ? 'hint.polygonTool' : 'hint.wallTool')}`}
+        {tool === 'measure' && ` · ${t('hint.measureTool')}`}
+        {tool === 'dimension' && ` · ${t('hint.dimensionTool')}`}
       </div>
     </div>
   );
@@ -975,14 +1299,15 @@ const StaticPlan = memo(function StaticPlan({
             const warn = collisions.has(o.id);
             const c = centroid(fp);
             const e = catalog.get(o.catalogId);
+            const ptype = e?.model.kind === 'parametric' ? e.model.type : '';
             return (
-              <Group key={o.id}>
+              <Group key={o.id} opacity={o.appearance?.hidden ? 0.35 : 1}>
                 <Line
                   id={o.id}
                   name="object"
                   points={flat(fp)}
                   closed
-                  fill={theme.object}
+                  fill={ptype === 'column' ? theme.wall : theme.object}
                   opacity={0.9}
                   stroke={sel.has(o.id) ? theme.primary : warn ? theme.warn : theme.wallStroke}
                   strokeWidth={sel.has(o.id) || warn ? 2.5 : 1}
@@ -990,6 +1315,7 @@ const StaticPlan = memo(function StaticPlan({
                   strokeScaleEnabled={false}
                   perfectDrawEnabled={false}
                 />
+                {ptype === 'stairs' && <StairSymbol o={o} catalog={catalog} theme={theme} />}
                 {e && (
                   <Text
                     x={c[0]}
@@ -997,7 +1323,7 @@ const StaticPlan = memo(function StaticPlan({
                     offsetX={50 * px}
                     width={100 * px}
                     align="center"
-                    text={e.nameZh}
+                    text={o.name || e.nameZh}
                     fontSize={10 * px}
                     fill={theme.text}
                     listening={false}
@@ -1050,43 +1376,9 @@ function OpeningShape({
         strokeScaleEnabled={false}
       />
       {o.type === 'door' ? (
-        <Shape
-          listening={false}
-          sceneFunc={(ctx, shape) => {
-            const hinge = o.swing === 'right' ? p1 : p0;
-            const other = o.swing === 'right' ? p0 : p1;
-            const ang = Math.atan2(other[1] - hinge[1], other[0] - hinge[0]);
-            const sgn = o.swing === 'right' ? -1 : 1;
-            const leafEnd: Vec2 = [
-              hinge[0] + Math.cos(ang + (sgn * Math.PI) / 2) * o.width,
-              hinge[1] + Math.sin(ang + (sgn * Math.PI) / 2) * o.width,
-            ];
-            ctx.beginPath();
-            ctx.moveTo(hinge[0], hinge[1]);
-            ctx.lineTo(leafEnd[0], leafEnd[1]);
-            ctx.arc(hinge[0], hinge[1], o.width, ang + (sgn * Math.PI) / 2, ang, sgn > 0);
-            ctx.strokeShape(shape);
-          }}
-          stroke={color}
-          strokeWidth={1}
-          strokeScaleEnabled={false}
-        />
+        <DoorSymbol o={o} p0={p0} p1={p1} n={n} h={h} color={color} px={px} />
       ) : (
-        [-0.35, 0, 0.35].map((k) => (
-          <Line
-            key={k}
-            listening={false}
-            points={[
-              p0[0] + n[0] * h * k * 2,
-              p0[1] + n[1] * h * k * 2,
-              p1[0] + n[0] * h * k * 2,
-              p1[1] + n[1] * h * k * 2,
-            ]}
-            stroke={color}
-            strokeWidth={1}
-            strokeScaleEnabled={false}
-          />
-        ))
+        <WindowSymbol o={o} p0={p0} p1={p1} n={n} h={h} color={color} />
       )}
       {o.type === 'passage' && (
         <Line points={flat([p0, p1])} stroke={color} dash={[4 * px, 4 * px]} listening={false} />
@@ -1165,4 +1457,399 @@ function centroid(poly: readonly Vec2[]): Vec2 {
     cy += (p[1] + q[1]) * f;
   }
   return [cx / (6 * a), cy / (6 * a)];
+}
+
+// ── 標註（FE-PLAN-10）─────────────────────────────────────────────
+
+type AnnData = Record<string, unknown>;
+const v2 = (x: unknown): Vec2 | null =>
+  Array.isArray(x) && typeof x[0] === 'number' && typeof x[1] === 'number' ? [x[0], x[1]] : null;
+
+/** 標註的所有參考點（框選用） */
+export function annotationPoints(d: AnnData): Vec2[] {
+  return [v2(d.a), v2(d.b), v2(d.position), v2(d.target)].filter((p): p is Vec2 => !!p);
+}
+
+/** 平移標註（所有座標欄位一起動） */
+export function moveAnnotation(d: AnnData, delta: Vec2): AnnData {
+  const out: AnnData = { ...d };
+  for (const k of ['a', 'b', 'position', 'target']) {
+    const p = v2(d[k]);
+    if (p) out[k] = [p[0] + delta[0], p[1] + delta[1]];
+  }
+  return out;
+}
+
+function AnnotationShape({
+  a,
+  px,
+  unit,
+  theme,
+  selected,
+}: {
+  a: { id: string; type: string; data?: AnnData };
+  px: number;
+  unit: LengthUnit;
+  theme: Plan2DTheme;
+  selected: boolean;
+}) {
+  const d = a.data ?? {};
+  const color = selected ? theme.primary : theme.text;
+  if (a.type === 'dimension') {
+    const dd = d as unknown as Partial<DimensionData>;
+    const A = v2(dd.a);
+    const B = v2(dd.b);
+    if (!A || !B) return null;
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    if (L < 1) return null;
+    const u: Vec2 = [(B[0] - A[0]) / L, (B[1] - A[1]) / L];
+    const n: Vec2 = [-u[1], u[0]];
+    const off = typeof dd.offset === 'number' ? dd.offset : 0;
+    const A2: Vec2 = [A[0] + n[0] * off, A[1] + n[1] * off];
+    const B2: Vec2 = [B[0] + n[0] * off, B[1] + n[1] * off];
+    const tick = 8 * px;
+    let ang = (Math.atan2(u[1], u[0]) * 180) / Math.PI;
+    if (ang > 90 || ang < -90) ang += 180;
+    const mid: Vec2 = [
+      (A2[0] + B2[0]) / 2 + n[0] * 12 * px * Math.sign(off || 1),
+      (A2[1] + B2[1]) / 2 + n[1] * 12 * px * Math.sign(off || 1),
+    ];
+    return (
+      <Group>
+        <Line
+          id={a.id}
+          name={a.id === 'preview' ? undefined : 'annotation'}
+          points={flat([A, A2, B2, B])}
+          stroke={color}
+          strokeWidth={1}
+          strokeScaleEnabled={false}
+          hitStrokeWidth={10}
+        />
+        {[A2, B2].map((p, i) => (
+          <Line
+            key={i}
+            listening={false}
+            points={[
+              p[0] - (u[0] + n[0]) * tick,
+              p[1] - (u[1] + n[1]) * tick,
+              p[0] + (u[0] + n[0]) * tick,
+              p[1] + (u[1] + n[1]) * tick,
+            ]}
+            stroke={color}
+            strokeWidth={1.5}
+            strokeScaleEnabled={false}
+          />
+        ))}
+        <Text
+          listening={false}
+          x={mid[0]}
+          y={mid[1]}
+          rotation={ang}
+          offsetX={50 * px}
+          offsetY={6 * px}
+          width={100 * px}
+          align="center"
+          text={formatLength(L, unit)}
+          fontSize={12 * px}
+          fontFamily="JetBrains Mono, ui-monospace, monospace"
+          fill={color}
+        />
+      </Group>
+    );
+  }
+  const td = d as unknown as Partial<TextData> & { target?: Vec2 };
+  const P = v2(td.position);
+  if (!P) return null;
+  const size = typeof td.size === 'number' ? td.size : 250;
+  const T = v2(td.target);
+  return (
+    <Group>
+      {a.type === 'note' && T && (
+        <Line
+          listening={false}
+          points={flat([P, T])}
+          stroke={color}
+          strokeWidth={1}
+          strokeScaleEnabled={false}
+        />
+      )}
+      <Text
+        id={a.id}
+        name={a.id === 'preview' ? undefined : 'annotation'}
+        x={P[0]}
+        y={P[1]}
+        rotation={typeof td.rotation === 'number' ? td.rotation : 0}
+        text={String(td.text ?? '')}
+        fontSize={size}
+        fill={typeof td.color === 'string' ? td.color : color}
+        padding={size * 0.15}
+        stroke={selected ? theme.primary : undefined}
+        strokeWidth={selected ? 0.5 : 0}
+        strokeScaleEnabled={false}
+      />
+    </Group>
+  );
+}
+
+// ── 測量（FE-PLAN-09）─────────────────────────────────────────────
+
+function MeasureShape({
+  pts,
+  closed,
+  px,
+  unit,
+  areaUnit,
+  theme,
+  t,
+}: {
+  pts: Vec2[];
+  closed: boolean;
+  px: number;
+  unit: LengthUnit;
+  areaUnit: AreaUnit;
+  theme: Plan2DTheme;
+  t: Plan2DProps['t'];
+}) {
+  const ring = closed ? [...pts, pts[0]!] : pts;
+  let total = 0;
+  const labels: { p: Vec2; text: string }[] = [];
+  for (let i = 1; i < ring.length; i++) {
+    const a = ring[i - 1]!;
+    const b = ring[i]!;
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    total += L;
+    labels.push({ p: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], text: formatLength(L, unit) });
+  }
+  const area = closed && pts.length >= 3 ? Math.abs(signedArea(pts)) : 0;
+  const last = pts[pts.length - 1]!;
+  return (
+    <Group listening={false}>
+      {closed && <Line points={flat(pts)} closed fill={theme.warn} opacity={0.15} />}
+      <Line
+        points={flat(ring)}
+        stroke={theme.warn}
+        strokeWidth={2}
+        strokeScaleEnabled={false}
+        dash={[8, 4]}
+      />
+      {pts.map((p, i) => (
+        <Circle key={i} x={p[0]} y={p[1]} radius={4 * px} fill={theme.warn} />
+      ))}
+      {labels.map((l, i) => (
+        <Text
+          key={i}
+          x={l.p[0]}
+          y={l.p[1] - 18 * px}
+          offsetX={50 * px}
+          width={100 * px}
+          align="center"
+          text={l.text}
+          fontSize={12 * px}
+          fill={theme.warn}
+          fontStyle="bold"
+        />
+      ))}
+      <Text
+        x={last[0] + 10 * px}
+        y={last[1] + 10 * px}
+        text={`${t('tools.measureTotal')} ${formatLength(total, unit)}${area ? `\n${t('tools.measureArea')} ${formatArea(area, areaUnit)}` : ''}`}
+        fontSize={12 * px}
+        fill={theme.text}
+        padding={4 * px}
+      />
+    </Group>
+  );
+}
+
+// ── 樓梯 2D 符號（踏階線＋上行箭頭）─────────────────────────────
+
+function StairSymbol({
+  o,
+  catalog,
+  theme,
+}: {
+  o: Level['objects'][number];
+  catalog: Catalog;
+  theme: Plan2DTheme;
+}) {
+  const e = catalog.get(o.catalogId);
+  if (!e) return null;
+  const d = objectDims(e, o.params, o.scale);
+  const pr = resolveParams(e, o.params);
+  const n = Math.max(3, Number(pr.steps ?? 16));
+  const shape = String(pr.shape ?? 'straight');
+  const local: Vec2[][] = [];
+  if (shape === 'straight') {
+    for (let i = 1; i < n; i++) {
+      const z = d.d / 2 - (d.d * i) / n;
+      local.push([
+        [-d.w / 2, z],
+        [d.w / 2, z],
+      ]);
+    }
+    local.push([
+      [0, d.d / 2 - 100],
+      [0, -d.d / 2 + 100],
+    ]);
+  } else if (shape === 'spiral') {
+    const r = Math.min(d.w, d.d) / 2;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 1.75;
+      local.push([
+        [Math.cos(a) * 60, Math.sin(a) * 60],
+        [Math.cos(a) * r, Math.sin(a) * r],
+      ]);
+    }
+  } else {
+    // L／U：簡化為外框對角線＋中線
+    local.push([
+      [-d.w / 2, d.d / 2],
+      [d.w / 2, -d.d / 2],
+    ]);
+  }
+  const c = Math.cos(o.rotationY);
+  const sn = Math.sin(o.rotationY);
+  const W = (p: Vec2): Vec2 => [o.position[0] + p[0] * c + p[1] * sn, o.position[2] - p[0] * sn + p[1] * c];
+  return (
+    <Group listening={false}>
+      {local.map((seg, i) => (
+        <Line
+          key={i}
+          points={flat(seg.map(W))}
+          stroke={theme.wallStroke}
+          strokeWidth={1}
+          strokeScaleEnabled={false}
+        />
+      ))}
+    </Group>
+  );
+}
+
+/** 門的 2D 符號（CNS 製圖慣例）：單開／雙開／子母＝門扇＋弧；推拉＝兩片錯位；折疊＝鋸齒；隱藏＝虛線入牆；拱門＝虛線 */
+function DoorSymbol({
+  o,
+  p0,
+  p1,
+  n,
+  h,
+  color,
+  px,
+}: {
+  o: Opening;
+  p0: Vec2;
+  p1: Vec2;
+  n: Vec2;
+  h: number;
+  color: string;
+  px: number;
+}) {
+  const style = o.style ?? (o.swing === 'double' ? 'double' : o.swing === 'sliding' ? 'sliding' : 'single');
+  const at = (t: number, k = 0): Vec2 => [
+    p0[0] + (p1[0] - p0[0]) * t + n[0] * h * k,
+    p0[1] + (p1[1] - p0[1]) * t + n[1] * h * k,
+  ];
+  const common = { stroke: color, strokeWidth: 1, strokeScaleEnabled: false, listening: false } as const;
+  if (style === 'sliding')
+    return (
+      <>
+        <Line points={flat([at(0, -0.4), at(0.55, -0.4)])} {...common} strokeWidth={2} />
+        <Line points={flat([at(0.45, 0.4), at(1, 0.4)])} {...common} strokeWidth={2} />
+      </>
+    );
+  if (style === 'folding') {
+    const k = Math.max(3, Math.round(o.width / 450));
+    const pts: Vec2[] = [];
+    for (let i = 0; i <= k; i++) pts.push(at(i / k, i % 2 ? 2.5 : 0.8));
+    return <Line points={flat(pts)} {...common} />;
+  }
+  if (style === 'pocket')
+    return (
+      <>
+        <Line points={flat([at(-0.95, 0), at(0.05, 0)])} {...common} dash={[6 * px, 4 * px]} />
+        <Line points={flat([at(0, -1), at(0, 1)])} {...common} />
+      </>
+    );
+  if (style === 'arch') return <Line points={flat([p0, p1])} {...common} dash={[4 * px, 4 * px]} />;
+  const leaves: { hinge: Vec2; other: Vec2; sgn: 1 | -1 }[] =
+    style === 'double'
+      ? [
+          { hinge: p0, other: at(0.5), sgn: 1 },
+          { hinge: p1, other: at(0.5), sgn: -1 },
+        ]
+      : style === 'unequal'
+        ? [
+            { hinge: p0, other: at(0.66), sgn: 1 },
+            { hinge: p1, other: at(0.66), sgn: -1 },
+          ]
+        : o.swing === 'right'
+          ? [{ hinge: p1, other: p0, sgn: -1 }]
+          : [{ hinge: p0, other: p1, sgn: 1 }];
+  return (
+    <>
+      {leaves.map((l, i) => (
+        <Shape
+          key={i}
+          listening={false}
+          sceneFunc={(ctx, shape) => {
+            const w = Math.hypot(l.other[0] - l.hinge[0], l.other[1] - l.hinge[1]);
+            const ang = Math.atan2(l.other[1] - l.hinge[1], l.other[0] - l.hinge[0]);
+            const leafEnd: Vec2 = [
+              l.hinge[0] + Math.cos(ang + (l.sgn * Math.PI) / 2) * w,
+              l.hinge[1] + Math.sin(ang + (l.sgn * Math.PI) / 2) * w,
+            ];
+            ctx.beginPath();
+            ctx.moveTo(l.hinge[0], l.hinge[1]);
+            ctx.lineTo(leafEnd[0], leafEnd[1]);
+            ctx.arc(l.hinge[0], l.hinge[1], w, ang + (l.sgn * Math.PI) / 2, ang, l.sgn > 0);
+            ctx.strokeShape(shape);
+          }}
+          stroke={color}
+          strokeWidth={1}
+          strokeScaleEnabled={false}
+        />
+      ))}
+    </>
+  );
+}
+
+/** 窗的 2D 符號：推拉＝三線；固定／轉角＝單線加粗；推射／上懸＝兩線＋中梃；凸窗＝外凸框 */
+function WindowSymbol({
+  o,
+  p0,
+  p1,
+  n,
+  h,
+  color,
+}: {
+  o: Opening;
+  p0: Vec2;
+  p1: Vec2;
+  n: Vec2;
+  h: number;
+  color: string;
+}) {
+  const style = o.style ?? 'sliding';
+  const off = (k: number): Vec2[] => [
+    [p0[0] + n[0] * h * k * 2, p0[1] + n[1] * h * k * 2],
+    [p1[0] + n[0] * h * k * 2, p1[1] + n[1] * h * k * 2],
+  ];
+  const common = { stroke: color, strokeWidth: 1, strokeScaleEnabled: false, listening: false } as const;
+  if (style === 'fixed' || style === 'corner')
+    return <Line points={flat(off(0))} {...common} strokeWidth={2.5} />;
+  if (style === 'bay') {
+    const depth = 450;
+    const q0: Vec2 = [p0[0] - n[0] * (h + depth), p0[1] - n[1] * (h + depth)];
+    const q1: Vec2 = [p1[0] - n[0] * (h + depth), p1[1] - n[1] * (h + depth)];
+    const e0: Vec2 = [p0[0] - n[0] * h, p0[1] - n[1] * h];
+    const e1: Vec2 = [p1[0] - n[0] * h, p1[1] - n[1] * h];
+    return <Line points={flat([e0, q0, q1, e1])} {...common} strokeWidth={1.5} />;
+  }
+  const lines = style === 'casement' || style === 'awning' ? [-0.25, 0.25] : [-0.35, 0, 0.35];
+  return (
+    <>
+      {lines.map((k) => (
+        <Line key={k} points={flat(off(k))} {...common} />
+      ))}
+    </>
+  );
 }

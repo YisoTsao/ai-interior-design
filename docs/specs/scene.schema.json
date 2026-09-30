@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://interiorai.local/schemas/scene-1.1.0.json",
-  "title": "Scene Graph v1.1.0",
+  "$id": "https://interiorai.local/schemas/scene-1.2.0.json",
+  "title": "Scene Graph v1.2.0",
   "description": "唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。",
   "type": "object",
   "required": [
@@ -133,6 +133,11 @@
           "items": {
             "$ref": "#/$defs/annotation"
           }
+        },
+        "slabThickness": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
         }
       }
     },
@@ -194,6 +199,12 @@
         },
         "appearanceB": {
           "$ref": "#/$defs/appearance"
+        },
+        "tilingA": {
+          "$ref": "#/$defs/tiling"
+        },
+        "tilingB": {
+          "$ref": "#/$defs/tiling"
         }
       }
     },
@@ -256,6 +267,27 @@
         },
         "appearance": {
           "$ref": "#/$defs/appearance"
+        },
+        "style": {
+          "enum": [
+            "single",
+            "double",
+            "unequal",
+            "sliding",
+            "folding",
+            "pocket",
+            "casement",
+            "fixed",
+            "awning",
+            "bay",
+            "corner",
+            "arch"
+          ]
+        },
+        "openAngle": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 180
         }
       }
     },
@@ -296,6 +328,23 @@
         },
         "ceilingAppearance": {
           "$ref": "#/$defs/appearance"
+        },
+        "floorTiling": {
+          "$ref": "#/$defs/tiling"
+        },
+        "kind": {
+          "enum": [
+            "living",
+            "dining",
+            "bedroom",
+            "kitchen",
+            "bath",
+            "study",
+            "entry",
+            "balcony",
+            "storage",
+            "other"
+          ]
         }
       }
     },
@@ -356,6 +405,12 @@
         },
         "light": {
           "$ref": "#/$defs/lightOverride"
+        },
+        "groupId": {
+          "$ref": "#/$defs/id"
+        },
+        "mirrored": {
+          "type": "boolean"
         }
       }
     },
@@ -568,6 +623,76 @@
           "type": "number",
           "minimum": 0,
           "maximum": 10
+        }
+      }
+    },
+    "tiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pattern",
+        "tileW",
+        "tileH"
+      ],
+      "description": "鋪貼設計（v1.2）",
+      "properties": {
+        "pattern": {
+          "enum": [
+            "straight",
+            "running",
+            "diagonal",
+            "herringbone",
+            "chevron",
+            "basketweave",
+            "hexagon",
+            "versailles"
+          ]
+        },
+        "tileW": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 3000
+        },
+        "tileH": {
+          "type": "integer",
+          "minimum": 20,
+          "maximum": 3000
+        },
+        "grout": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        },
+        "groutColor": {
+          "$ref": "#/$defs/hex"
+        },
+        "rotationDeg": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "offset": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": -10000,
+            "maximum": 10000
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "borderWidth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1500
+        },
+        "borderMaterialId": {
+          "$ref": "#/$defs/id"
+        },
+        "waste": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.5
         }
       }
     }

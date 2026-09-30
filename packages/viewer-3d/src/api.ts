@@ -45,6 +45,19 @@ export interface Viewer3DApi {
   cutWalls(): string[];
   /** 以目前畫面（含後處理）輸出 PNG dataURL */
   screenshot(): string | null;
+  /** 螢幕座標 → 地面（y=0）世界座標 x,z（拖放資產用） */
+  clientToFloor(clientX: number, clientY: number): [number, number] | null;
+  /** 螢幕座標下的表面（牆面 A/B、地板、天花、物件、門窗） */
+  pickSurface(clientX: number, clientY: number): { kind: string; id: string; side: 'A' | 'B' } | null;
+  /** 套用相機書籤 */
+  setCamera(c: {
+    position: [number, number, number];
+    target: [number, number, number];
+    fovDeg: number;
+  }): void;
+  /** 第一人稱漫遊開關 */
+  walk(on: boolean): void;
+  isWalking(): boolean;
   currentCamera(): { position: [number, number, number]; target: [number, number, number]; fovDeg: number };
 }
 let current: Viewer3DApi | null = null;

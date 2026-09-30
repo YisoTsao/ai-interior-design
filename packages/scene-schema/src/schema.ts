@@ -11,7 +11,7 @@ export const LIMITS = {
   minWallLength: 100,
 } as const;
 
-export const CURRENT_SCHEMA_VERSION = '1.1.0';
+export const CURRENT_SCHEMA_VERSION = '1.2.0';
 
 const id = z
   .string()
@@ -55,6 +55,47 @@ export const LightOverrideSchema = z.strictObject({
   rangeMm: z.int().min(0).max(100_000).optional(),
 });
 
+/** 門窗樣式（v1.2，FE-PLAN-04）：決定 2D 符號與 3D 門扇／窗框造型 */
+export const OPENING_STYLES = [
+  'single',
+  'double',
+  'unequal',
+  'sliding',
+  'folding',
+  'pocket',
+  'casement',
+  'fixed',
+  'awning',
+  'bay',
+  'corner',
+  'arch',
+] as const;
+
+/** 鋪貼設計（v1.2，FE-FIN-01）：磚尺寸、拼法、縫寬與縫色、旋轉、起鋪點、波打線 */
+export const TilingSchema = z.strictObject({
+  pattern: z.enum([
+    'straight',
+    'running',
+    'diagonal',
+    'herringbone',
+    'chevron',
+    'basketweave',
+    'hexagon',
+    'versailles',
+  ]),
+  tileW: z.int().min(20).max(3000),
+  tileH: z.int().min(20).max(3000),
+  grout: z.int().min(0).max(30).optional(),
+  groutColor: hex.optional(),
+  rotationDeg: z.number().min(-180).max(180).optional(),
+  offset: z.tuple([z.int().min(-10000).max(10000), z.int().min(-10000).max(10000)]).optional(),
+  /** 波打線（沿房間周邊的收邊帶）寬度 mm 與材質 */
+  borderWidth: z.int().min(0).max(1500).optional(),
+  borderMaterialId: id.optional(),
+  /** 損耗率（估料用，0–0.5） */
+  waste: z.number().min(0).max(0.5).optional(),
+});
+
 /** 場景環境（v1.1）：室外天空、曝光、環境光、太陽；夜間天空亮度依物理量（cd/m²）對應 */
 export const EnvironmentSchema = z.strictObject({
   sky: z.enum(['moonless', 'moonlit', 'city', 'dusk']).optional(),
@@ -80,6 +121,9 @@ export const WallSchema = z.strictObject({
   baseboard: z.int().min(0).max(300).optional(),
   appearance: AppearanceSchema.optional(),
   appearanceB: AppearanceSchema.optional(),
+  /** 牆面鋪貼（v1.2；A／B 面，例：浴室壁磚） */
+  tilingA: TilingSchema.optional(),
+  tilingB: TilingSchema.optional(),
 });
 
 export const OpeningSchema = z.strictObject({
@@ -94,6 +138,9 @@ export const OpeningSchema = z.strictObject({
   swing: z.enum(['left', 'right', 'double', 'sliding', 'none']).optional(),
   confidence: confidence.optional(),
   appearance: AppearanceSchema.optional(),
+  style: z.enum(OPENING_STYLES).optional(),
+  /** 門扇開啟角度（度，3D 呈現；0＝關閉） */
+  openAngle: z.number().min(0).max(180).optional(),
 });
 
 export const RoomSchema = z.strictObject({
@@ -105,6 +152,11 @@ export const RoomSchema = z.strictObject({
   confidence: confidence.optional(),
   floorAppearance: AppearanceSchema.optional(),
   ceilingAppearance: AppearanceSchema.optional(),
+  floorTiling: TilingSchema.optional(),
+  /** 房間用途（v1.2；影響自動佈置、照度建議與房名） */
+  kind: z
+    .enum(['living', 'dining', 'bedroom', 'kitchen', 'bath', 'study', 'entry', 'balcony', 'storage', 'other'])
+    .optional(),
 });
 
 export const ObjectSchema = z.strictObject({
@@ -122,6 +174,10 @@ export const ObjectSchema = z.strictObject({
   name: z.string().max(60).optional(),
   appearance: AppearanceSchema.optional(),
   light: LightOverrideSchema.optional(),
+  /** 群組（v1.2，FE-PLAN-07）：同 groupId 的物件一起選取／移動 */
+  groupId: id.optional(),
+  /** 左右鏡像（v1.2） */
+  mirrored: z.boolean().optional(),
 });
 
 export const AnnotationSchema = z.looseObject({
@@ -135,6 +191,8 @@ export const LevelSchema = z.strictObject({
   name: z.string().optional(),
   elevation: mm,
   height: z.int().min(1800).max(6000),
+  /** 樓板厚 mm（v1.2，樓層堆疊用） */
+  slabThickness: z.int().min(0).max(1000).optional(),
   walls: z.array(WallSchema).max(LIMITS.wallsPerLevel),
   openings: z.array(OpeningSchema).max(LIMITS.openingsPerLevel),
   rooms: z.array(RoomSchema).max(LIMITS.roomsPerLevel),
@@ -178,5 +236,8 @@ export type Scene = z.infer<typeof SceneSchema>;
 export type Appearance = z.infer<typeof AppearanceSchema>;
 export type LightOverride = z.infer<typeof LightOverrideSchema>;
 export type Environment = z.infer<typeof EnvironmentSchema>;
+export type Tiling = z.infer<typeof TilingSchema>;
+export type OpeningStyle = (typeof OPENING_STYLES)[number];
+export type RoomKind = NonNullable<Room['kind']>;
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];

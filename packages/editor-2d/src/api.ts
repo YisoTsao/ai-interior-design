@@ -5,6 +5,10 @@ export interface Plan2DApi {
   worldToClient(p: Vec2): Vec2;
   clientToWorld(p: Vec2): Vec2;
   fit(): void;
+  /** 游標最後所在的世界座標（貼上位置用） */
+  pointerWorld(): Vec2 | null;
+  /** 2D 畫面 PNG（專案縮圖、匯出） */
+  snapshot(maxSide?: number): string | null;
 }
 let current: Plan2DApi | null = null;
 export const plan2dApi = {

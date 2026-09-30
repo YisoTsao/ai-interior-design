@@ -61,7 +61,9 @@
     "lighting": "Lighting",
     "lightingNight": "Evening mood",
     "lightingDay": "Daylight",
-    "screenshot": "Screenshot (PNG)"
+    "screenshot": "Screenshot (PNG)",
+    "walk": "Walk mode (WASD)",
+    "walkHint": "WASD/arrows to move, Shift to run, drag or double-click to look, Esc to exit"
   },
   "tools": {
     "title": "Tools",
@@ -74,7 +76,15 @@
     "translate": "Move (G)",
     "rotate": "Rotate (R)",
     "scale": "Scale (S)",
-    "place": "Place item"
+    "place": "Place item",
+    "polygon": "Polygon room (P)",
+    "measure": "Measure (M)",
+    "dimension": "Dimension (K)",
+    "text": "Text (T)",
+    "textPrompt": "Annotation text",
+    "measureTotal": "Total",
+    "measureArea": "Area",
+    "paint": "Paint"
   },
   "layers": {
     "title": "Layers",
@@ -102,12 +112,51 @@
       "lighting": "Lighting",
       "decor": "Decor",
       "openings": "Doors & windows",
-      "storage": "Storage"
+      "storage": "Storage",
+      "structure": "Structure"
     },
     "mine": "My uploads {{n}}",
     "count": "{{n}} items",
     "userBadge": "Upload",
-    "price": "NT$ {{n}}"
+    "price": "NT$ {{n}}",
+    "filters": "Filters",
+    "color": "Colour",
+    "maxWidth": "Max width",
+    "any": "Any",
+    "dragHint": "In 3D, drag the item onto the view to place it",
+    "favorite": "Favourite {{name}}",
+    "unfavorite": "Unfavourite {{name}}",
+    "special": {
+      "fav": "Favourites",
+      "recent": "Recent",
+      "used": "In this project"
+    },
+    "styles": {
+      "modern": "Modern",
+      "nordic": "Nordic",
+      "japandi": "Japandi",
+      "industrial": "Industrial",
+      "classic": "Classic",
+      "luxury": "Luxury",
+      "midcentury": "Mid-century",
+      "minimal": "Minimal"
+    },
+    "colors": {
+      "white": "White",
+      "grey": "Grey",
+      "black": "Black",
+      "beige": "Beige",
+      "brown": "Brown",
+      "green": "Green",
+      "blue": "Blue",
+      "red": "Red/orange"
+    },
+    "prices": {
+      "p1": "< 5k",
+      "p2": "5k–20k",
+      "p3": "20k–50k",
+      "p4": "> 50k"
+    }
   },
   "outline": {
     "title": "Outline",
@@ -195,7 +244,8 @@
     "doorColor": "Door color",
     "frameColor": "Frame color",
     "glassOpacity": "Glass opacity",
-    "tint": "Tint"
+    "tint": "Tint",
+    "openAngle": "Door open angle"
   },
   "param": {
     "width": "Width",
@@ -207,10 +257,14 @@
     "sill": "Sill",
     "panes": "Panes",
     "lightColor": "Light color",
-    "dimmer": "Brightness %"
+    "dimmer": "Brightness %",
+    "style": "Style",
+    "shape": "Shape",
+    "steps": "Steps"
   },
   "room": {
-    "unnamed": "Unnamed room"
+    "unnamed": "Unnamed room",
+    "kind": "Room type"
   },
   "snap": {
     "endpoint": "Snap: endpoint",
@@ -223,7 +277,10 @@
   "hint": {
     "openingNeedsWall": "Move the cursor onto a wall to place a door or window",
     "badLength": "Couldn't read that length. Try 3200 or 3.2m",
-    "wallTool": "Click to add points, double-click or Enter to finish, type a length, Esc to cancel"
+    "wallTool": "Click to add points, double-click or Enter to finish, type a length, Esc to cancel",
+    "polygonTool": "Click points; click the first point or press Enter to close",
+    "measureTool": "Click to measure; click the start to get area; Enter to finish, Esc to clear",
+    "dimensionTool": "Click two points, then move and click to place the line"
   },
   "warn": {
     "title": "Warnings",
@@ -244,7 +301,10 @@
     "notFound": "Project not found",
     "requestId": "Error code {{id}}",
     "dismiss": "Dismiss",
-    "WALL_HEIGHT_OUT_OF_RANGE": "Wall height must be between 10 cm and the level height, and above its openings"
+    "WALL_HEIGHT_OUT_OF_RANGE": "Wall height must be between 10 cm and the level height, and above its openings",
+    "LEVEL_HEIGHT_INVALID": "Level height must be 1.8–6 m and above openings and walls",
+    "LAST_LEVEL": "At least one level is required",
+    "ARRAY_INVALID": "Array count must be 1–200"
   },
   "units": {
     "length": "Length unit",
@@ -276,7 +336,24 @@
     "autoDecorate": "auto-decorate",
     "importPlan": "import floor plan",
     "updateRoom": "Edit room",
-    "environment": "Edit environment"
+    "environment": "Edit environment",
+    "addAnnotation": "Add annotation",
+    "updateAnnotation": "Edit annotation",
+    "align": "Align",
+    "distribute": "Distribute",
+    "paste": "Paste",
+    "group": "Group",
+    "ungroup": "Ungroup",
+    "mirror": "Mirror",
+    "arrayCopy": "Array copy",
+    "addLevel": "Add level",
+    "updateLevel": "Edit level",
+    "deleteLevel": "Delete level",
+    "duplicateLevel": "Duplicate level",
+    "updateCamera": "Edit view",
+    "deleteCamera": "Delete view",
+    "quote": "Edit quote",
+    "batch": "Batch edit"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -526,5 +603,152 @@
       "TRIANGLES": "More than {{max}} triangles; the 3D view may slow down.",
       "SIZE_ODD": "Size looks unusual for meters; check the file units."
     }
+  },
+  "ctx": {
+    "title": "Edit menu",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste here",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "rotate90": "Rotate 90°",
+    "mirrorX": "Mirror horizontally",
+    "mirrorZ": "Mirror vertically",
+    "array": "Array copy…",
+    "arrayCount": "Copies",
+    "arrayDx": "X spacing (mm)",
+    "arrayDz": "Z spacing (mm)",
+    "group": "Group",
+    "ungroup": "Ungroup",
+    "alignLeft": "Align left",
+    "alignCenterX": "Align centers (X)",
+    "alignTop": "Align top",
+    "distributeX": "Distribute horizontally",
+    "distributeZ": "Distribute vertically",
+    "lock": "Lock / unlock",
+    "hide": "Hide / show",
+    "selectSame": "Select same type",
+    "selectAll": "Select all"
+  },
+  "prompt": {
+    "ok": "OK"
+  },
+  "level": {
+    "title": "Levels",
+    "add": "Add level (copy exterior walls)",
+    "unnamed": "Unnamed level",
+    "settings": "Level settings",
+    "name": "Name",
+    "height": "Height (mm)",
+    "slab": "Slab thickness (mm)",
+    "duplicate": "Duplicate level",
+    "delete": "Delete level",
+    "confirmDelete": "Delete level \"{{name}}\" and everything on it?"
+  },
+  "bookmarks": {
+    "title": "Saved views",
+    "save": "Save view",
+    "empty": "No saved views yet",
+    "rename": "Rename",
+    "delete": "Delete"
+  },
+  "paint": {
+    "title": "Materials",
+    "hint": "Pick a material, then click walls, floors, ceilings or furniture in 2D/3D; or drag it onto a 3D surface.",
+    "active": "Paint mode: click to apply, Alt+click to pick, Esc to exit.",
+    "use": "Use material {{name}}",
+    "categories": {
+      "floor": "Floor",
+      "wall": "Wall",
+      "wood": "Wood",
+      "stone": "Stone",
+      "fabric": "Fabric",
+      "metal": "Metal",
+      "ceiling": "Ceiling"
+    },
+    "search": "Search materials…"
+  },
+  "multi": {
+    "counts": "{{o}} objects, {{w}} walls",
+    "mixed": "(mixed)",
+    "walls": "Walls",
+    "arrange": "Arrange",
+    "align": {
+      "left": "Left",
+      "centerX": "Center X",
+      "right": "Right",
+      "top": "Top",
+      "centerZ": "Center Z",
+      "bottom": "Bottom"
+    }
+  },
+  "openingStyles": {
+    "single": "Single",
+    "double": "Double",
+    "unequal": "Unequal pair",
+    "sliding": "Sliding",
+    "folding": "Folding",
+    "pocket": "Pocket",
+    "arch": "Arch",
+    "casement": "Casement",
+    "fixed": "Fixed",
+    "awning": "Awning",
+    "bay": "Bay",
+    "corner": "Corner"
+  },
+  "roomKinds": {
+    "living": "Living",
+    "dining": "Dining",
+    "bedroom": "Bedroom",
+    "kitchen": "Kitchen",
+    "bath": "Bathroom",
+    "study": "Study",
+    "entry": "Entry",
+    "balcony": "Balcony",
+    "storage": "Storage",
+    "other": "Other"
+  },
+  "tiling": {
+    "title": "Tile layout",
+    "enable": "Use tile layout",
+    "pattern": "Pattern",
+    "patterns": {
+      "straight": "Straight",
+      "running": "Running bond",
+      "diagonal": "Diagonal",
+      "herringbone": "Herringbone",
+      "chevron": "Chevron",
+      "basketweave": "Basketweave",
+      "hexagon": "Hexagon",
+      "versailles": "Versailles"
+    },
+    "tileW": "Tile width",
+    "tileH": "Tile length",
+    "grout": "Grout width",
+    "groutColor": "Grout colour",
+    "rotation": "Rotation",
+    "offsetX": "Start offset X",
+    "offsetZ": "Start offset Z",
+    "border": "Border width",
+    "borderMaterial": "Border material",
+    "waste": "Waste",
+    "quantity": "Estimate",
+    "pieces": "{{n}} pieces (~{{m2}} m²)"
+  },
+  "annotation": {
+    "text": "Text",
+    "size": "Text height",
+    "rotation": "Rotation",
+    "offset": "Line offset",
+    "dimension": "Dimension",
+    "note": "Note"
+  },
+  "shapes": {
+    "square": "Square",
+    "round": "Round",
+    "straight": "Straight",
+    "l": "L-shaped",
+    "u": "U-shaped",
+    "spiral": "Spiral"
   }
 }

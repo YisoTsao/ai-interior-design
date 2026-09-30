@@ -79,6 +79,12 @@ function lamp(
   );
 }
 
+/** 門窗樣式參數（FE-PLAN-04） */
+const styleParam = (def: string, values: string[]) =>
+  ({ type: 'enum', values, default: def, labelKey: 'param.style' }) as const;
+const DOOR_STYLES = ['single', 'double', 'unequal', 'sliding', 'folding', 'pocket', 'arch'];
+const WINDOW_STYLES = ['sliding', 'casement', 'fixed', 'awning', 'bay', 'corner', 'arch'];
+
 const ENTRIES: CatalogEntry[] = [
   // 門窗（依附牆）
   e(
@@ -656,6 +662,299 @@ const ENTRIES: CatalogEntry[] = [
     size: { w: 3000, h: 16 },
     facing: 'up',
   }),
+
+  // ── v1.2 門窗樣式庫（FE-PLAN-04）──────────────────────────
+  e(
+    'door_sliding_1800',
+    '推拉門 180',
+    'Sliding door 180',
+    'openings',
+    [1800, 40, 2200],
+    pm('door', {
+      w: int(1200, 3600, 1800, 'param.width'),
+      h: int(1800, 2600, 2200, 'param.height'),
+      style: styleParam('sliding', DOOR_STYLES),
+    }),
+    { anchor: 'wall', tags: ['door', '門', '推拉'] },
+  ),
+  e(
+    'door_folding_2400',
+    '折疊門 240',
+    'Folding door 240',
+    'openings',
+    [2400, 40, 2200],
+    pm('door', {
+      w: int(1200, 4800, 2400, 'param.width'),
+      h: int(1800, 2600, 2200, 'param.height'),
+      style: styleParam('folding', DOOR_STYLES),
+    }),
+    { anchor: 'wall', tags: ['door', '門', '折疊'] },
+  ),
+  e(
+    'door_pocket_900',
+    '隱藏式拉門 90',
+    'Pocket door 90',
+    'openings',
+    [900, 40, 2100],
+    pm('door', {
+      w: int(600, 1500, 900, 'param.width'),
+      h: int(1800, 2600, 2100, 'param.height'),
+      style: styleParam('pocket', DOOR_STYLES),
+    }),
+    { anchor: 'wall', tags: ['door', '門'] },
+  ),
+  e(
+    'door_unequal_1200',
+    '子母門 120',
+    'Unequal double door',
+    'openings',
+    [1200, 40, 2100],
+    pm('door', {
+      w: int(1000, 1600, 1200, 'param.width'),
+      h: int(1800, 2600, 2100, 'param.height'),
+      style: styleParam('unequal', DOOR_STYLES),
+    }),
+    { anchor: 'wall', tags: ['door', '門', '大門'] },
+  ),
+  e(
+    'door_arch_900',
+    '拱門（無門扇）',
+    'Arched passage',
+    'openings',
+    [900, 40, 2200],
+    pm('door', {
+      w: int(600, 2400, 900, 'param.width'),
+      h: int(1800, 2800, 2200, 'param.height'),
+      style: styleParam('arch', DOOR_STYLES),
+    }),
+    { anchor: 'wall', tags: ['door', '拱門'] },
+  ),
+  e(
+    'window_casement_900',
+    '推射窗 90',
+    'Casement window 90',
+    'openings',
+    [900, 80, 1200],
+    pm('window', {
+      w: int(400, 2000, 900, 'param.width'),
+      h: int(400, 2000, 1200, 'param.height'),
+      sill: int(0, 1500, 900, 'param.sill'),
+      style: styleParam('casement', WINDOW_STYLES),
+    }),
+    { anchor: 'wall', tags: ['window', '窗'] },
+  ),
+  e(
+    'window_fixed_1500',
+    '固定景觀窗 150',
+    'Fixed picture window',
+    'openings',
+    [1500, 80, 1500],
+    pm('window', {
+      w: int(400, 4000, 1500, 'param.width'),
+      h: int(400, 2600, 1500, 'param.height'),
+      sill: int(0, 1500, 600, 'param.sill'),
+      style: styleParam('fixed', WINDOW_STYLES),
+    }),
+    { anchor: 'wall', tags: ['window', '窗'] },
+  ),
+  e(
+    'window_awning_800',
+    '上懸窗 80',
+    'Awning window',
+    'openings',
+    [800, 80, 600],
+    pm('window', {
+      w: int(400, 1800, 800, 'param.width'),
+      h: int(300, 1200, 600, 'param.height'),
+      sill: int(0, 2000, 1500, 'param.sill'),
+      style: styleParam('awning', WINDOW_STYLES),
+    }),
+    { anchor: 'wall', tags: ['window', '窗', '浴室'] },
+  ),
+  e(
+    'window_bay_2000',
+    '凸窗 200',
+    'Bay window 200',
+    'openings',
+    [2000, 500, 1600],
+    pm('window', {
+      w: int(1200, 4000, 2000, 'param.width'),
+      h: int(800, 2400, 1600, 'param.height'),
+      sill: int(0, 1200, 500, 'param.sill'),
+      style: styleParam('bay', WINDOW_STYLES),
+    }),
+    { anchor: 'wall', tags: ['window', '窗', '凸窗'] },
+  ),
+  e(
+    'window_corner_1500',
+    '轉角窗',
+    'Corner window',
+    'openings',
+    [1500, 80, 1800],
+    pm('window', {
+      w: int(600, 3000, 1500, 'param.width'),
+      h: int(600, 2600, 1800, 'param.height'),
+      sill: int(0, 1500, 500, 'param.sill'),
+      style: styleParam('corner', WINDOW_STYLES),
+    }),
+    { anchor: 'wall', tags: ['window', '窗'] },
+  ),
+  // ── v1.2 結構元件（FE-PLAN-03）────────────────────────────
+  e(
+    'column_square_400',
+    '方柱 40',
+    'Square column',
+    'structure',
+    [400, 400, 2800],
+    pm('column', {
+      w: int(150, 1500, 400, 'param.width'),
+      d: int(150, 1500, 400, 'param.depth'),
+      h: int(1000, 6000, 2800, 'param.height'),
+      shape: { type: 'enum', values: ['square', 'round'], default: 'square', labelKey: 'param.shape' },
+    }),
+    {
+      tags: ['柱', 'column'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_paint_white' }],
+    },
+  ),
+  e(
+    'column_round_400',
+    '圓柱 Ø40',
+    'Round column',
+    'structure',
+    [400, 400, 2800],
+    pm('column', {
+      w: int(150, 1500, 400, 'param.width'),
+      d: int(150, 1500, 400, 'param.depth'),
+      h: int(1000, 6000, 2800, 'param.height'),
+      shape: { type: 'enum', values: ['square', 'round'], default: 'round', labelKey: 'param.shape' },
+    }),
+    {
+      tags: ['柱', 'column'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_stone_concrete' }],
+    },
+  ),
+  e('beam_300', '樑', 'Beam', 'structure', [3000, 300, 500], pm('beam', sizeParams(3000, 300, 500)), {
+    anchor: 'ceiling',
+    tags: ['樑', 'beam'],
+    materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_paint_white' }],
+  }),
+  e(
+    'stairs_straight',
+    '直梯',
+    'Straight stairs',
+    'structure',
+    [1000, 3600, 2950],
+    pm('stairs', {
+      w: int(600, 2400, 1000, 'param.width'),
+      d: int(1500, 8000, 3600, 'param.depth'),
+      h: int(1000, 6000, 2950, 'param.height'),
+      steps: int(3, 30, 16, 'param.steps'),
+      shape: {
+        type: 'enum',
+        values: ['straight', 'l', 'u', 'spiral'],
+        default: 'straight',
+        labelKey: 'param.shape',
+      },
+    }),
+    {
+      tags: ['樓梯', 'stairs'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_wood_oak' }],
+    },
+  ),
+  e(
+    'stairs_l',
+    'L 型梯',
+    'L-shaped stairs',
+    'structure',
+    [2000, 2800, 2950],
+    pm('stairs', {
+      w: int(1400, 4000, 2000, 'param.width'),
+      d: int(1400, 6000, 2800, 'param.depth'),
+      h: int(1000, 6000, 2950, 'param.height'),
+      steps: int(6, 30, 16, 'param.steps'),
+      shape: {
+        type: 'enum',
+        values: ['straight', 'l', 'u', 'spiral'],
+        default: 'l',
+        labelKey: 'param.shape',
+      },
+    }),
+    {
+      tags: ['樓梯', 'stairs'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_wood_oak' }],
+    },
+  ),
+  e(
+    'stairs_u',
+    'U 型梯',
+    'U-shaped stairs',
+    'structure',
+    [2100, 2800, 2950],
+    pm('stairs', {
+      w: int(1400, 4000, 2100, 'param.width'),
+      d: int(1400, 6000, 2800, 'param.depth'),
+      h: int(1000, 6000, 2950, 'param.height'),
+      steps: int(6, 30, 18, 'param.steps'),
+      shape: {
+        type: 'enum',
+        values: ['straight', 'l', 'u', 'spiral'],
+        default: 'u',
+        labelKey: 'param.shape',
+      },
+    }),
+    {
+      tags: ['樓梯', 'stairs'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_wood_oak' }],
+    },
+  ),
+  e(
+    'stairs_spiral',
+    '旋轉梯',
+    'Spiral stairs',
+    'structure',
+    [1800, 1800, 2950],
+    pm('stairs', {
+      w: int(1200, 3000, 1800, 'param.width'),
+      d: int(1200, 3000, 1800, 'param.depth'),
+      h: int(1000, 6000, 2950, 'param.height'),
+      steps: int(8, 30, 14, 'param.steps'),
+      shape: {
+        type: 'enum',
+        values: ['straight', 'l', 'u', 'spiral'],
+        default: 'spiral',
+        labelKey: 'param.shape',
+      },
+    }),
+    {
+      tags: ['樓梯', 'stairs'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_metal_black' }],
+    },
+  ),
+  e(
+    'platform_1800',
+    '和室架高地板',
+    'Raised platform',
+    'structure',
+    [1800, 1800, 400],
+    pm('platform', sizeParams(1800, 1800, 400)),
+    {
+      tags: ['架高', '和室', 'platform'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_wood_oak' }],
+    },
+  ),
+  e(
+    'railing_1200',
+    '欄杆 120',
+    'Railing',
+    'structure',
+    [1200, 50, 1000],
+    pm('railing', sizeParams(1200, 50, 1000)),
+    {
+      tags: ['欄杆', 'railing'],
+      materialSlots: [{ name: 'body', swappable: true, defaultMaterialId: 'mat_metal_black' }],
+    },
+  ),
   // 草稿示範：授權未確認 → 不得 published（07、B5）
   e(
     'sofa_vendor_x',
@@ -720,6 +1019,25 @@ export const ASSUMED_PRICES_TWD: Readonly<Record<string, number>> = {
   monitor_27: 7500,
   curtain_pair: 6500,
   plant_a: 1500,
+  door_sliding_1800: 22000,
+  door_folding_2400: 32000,
+  door_pocket_900: 16000,
+  door_unequal_1200: 26000,
+  door_arch_900: 9000,
+  window_casement_900: 8500,
+  window_fixed_1500: 12000,
+  window_awning_800: 6800,
+  window_bay_2000: 38000,
+  window_corner_1500: 24000,
+  column_square_400: 0,
+  column_round_400: 0,
+  beam_300: 0,
+  stairs_straight: 68000,
+  stairs_l: 88000,
+  stairs_u: 98000,
+  stairs_spiral: 120000,
+  platform_1800: 36000,
+  railing_1200: 7200,
   sofa_l_2700: 52000,
   sofa_leather_3: 46000,
   armchair_velvet: 12000,
@@ -776,11 +1094,47 @@ export const ASSUMED_PRICES_TWD: Readonly<Record<string, number>> = {
   led_strip_3000: 1100,
 };
 
-export const SEED_CATALOG: CatalogEntry[] = ENTRIES.map((x) =>
-  x.status === 'published' && x.unitPriceTwd === undefined && ASSUMED_PRICES_TWD[x.id] !== undefined
-    ? { ...x, unitPriceTwd: ASSUMED_PRICES_TWD[x.id] }
-    : x,
-);
+/** 風格標籤（資產篩選用，FE-AST-02）：依預設材質推定；〔假設〕人工標註前的初值 */
+export const STYLE_TAGS = [
+  'modern',
+  'nordic',
+  'japandi',
+  'industrial',
+  'classic',
+  'luxury',
+  'midcentury',
+  'minimal',
+] as const;
+const STYLE_BY_MATERIAL: Record<string, string[]> = {
+  mat_wood_oak: ['nordic', 'japandi', 'modern'],
+  mat_wood_walnut: ['midcentury', 'modern'],
+  mat_wood_dark: ['midcentury', 'classic'],
+  mat_metal_black: ['industrial', 'modern', 'minimal'],
+  mat_metal_brass: ['luxury', 'classic'],
+  mat_metal_steel: ['modern', 'minimal'],
+  mat_fabric_beige: ['nordic', 'japandi'],
+  mat_fabric_grey: ['modern', 'minimal', 'nordic'],
+  mat_fabric_charcoal: ['modern', 'industrial'],
+  mat_velvet_green: ['luxury', 'classic', 'midcentury'],
+  mat_velvet_rust: ['midcentury', 'classic'],
+  mat_leather_cognac: ['industrial', 'midcentury'],
+  mat_stone_marble: ['luxury', 'modern'],
+  mat_stone_concrete: ['industrial', 'minimal'],
+  mat_paint_white: ['modern', 'minimal', 'nordic'],
+  mat_lacquer_black: ['luxury', 'classic'],
+  mat_ceramic_white: ['minimal', 'nordic'],
+  mat_ceramic_terracotta: ['japandi', 'midcentury'],
+};
+
+export const SEED_CATALOG: CatalogEntry[] = ENTRIES.map((x) => {
+  const priced =
+    x.status === 'published' && x.unitPriceTwd === undefined && ASSUMED_PRICES_TWD[x.id] !== undefined
+      ? { ...x, unitPriceTwd: ASSUMED_PRICES_TWD[x.id] }
+      : x;
+  const mat = priced.materialSlots[0]?.defaultMaterialId ?? '';
+  const styles = STYLE_BY_MATERIAL[mat] ?? ['modern'];
+  return { ...priced, styleTags: [...new Set([...styles, ...priced.styleTags])] };
+});
 
 const OWN = OWN_LICENSE;
 export const SEED_MATERIALS: Material[] = [

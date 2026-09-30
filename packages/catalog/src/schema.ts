@@ -83,6 +83,12 @@ export const PARAMETRIC_TYPES = [
   'floor_cushion',
   'pet_bed',
   'treadmill',
+  // v1.2 結構元件（FE-PLAN-03）
+  'column',
+  'beam',
+  'stairs',
+  'platform',
+  'railing',
 ] as const;
 export type ParametricType = (typeof PARAMETRIC_TYPES)[number];
 
@@ -159,6 +165,7 @@ export const CatalogEntrySchema = z.object({
     'decor',
     'openings',
     'storage',
+    'structure',
   ]),
   tags: z.array(z.string()).default([]),
   styleTags: z.array(z.string()).default([]),

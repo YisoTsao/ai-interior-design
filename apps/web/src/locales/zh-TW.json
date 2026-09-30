@@ -61,7 +61,9 @@
     "lighting": "光線",
     "lightingNight": "夜間氛圍",
     "lightingDay": "日光",
-    "screenshot": "截圖（PNG）"
+    "screenshot": "截圖（PNG）",
+    "walk": "第一人稱漫遊（WASD）",
+    "walkHint": "WASD／方向鍵移動、Shift 奔跑、拖曳或雙擊鎖定滑鼠轉頭、Esc 離開"
   },
   "tools": {
     "title": "工具",
@@ -74,7 +76,15 @@
     "translate": "移動 (G)",
     "rotate": "旋轉 (R)",
     "scale": "縮放 (S)",
-    "place": "放置家具"
+    "place": "放置家具",
+    "polygon": "多邊形房間 (P)",
+    "measure": "測量 (M)",
+    "dimension": "尺寸標註 (K)",
+    "text": "文字標註 (T)",
+    "textPrompt": "輸入標註文字",
+    "measureTotal": "總長",
+    "measureArea": "面積",
+    "paint": "油漆"
   },
   "layers": {
     "title": "圖層",
@@ -102,12 +112,51 @@
       "lighting": "燈具",
       "decor": "裝飾",
       "openings": "門窗",
-      "storage": "收納"
+      "storage": "收納",
+      "structure": "結構"
     },
     "mine": "我的上傳 {{n}}",
     "count": "{{n}} 件",
     "userBadge": "上傳",
-    "price": "NT$ {{n}}"
+    "price": "NT$ {{n}}",
+    "filters": "篩選",
+    "color": "主色",
+    "maxWidth": "最大寬度",
+    "any": "不限",
+    "dragHint": "在 3D 中請把資產拖曳到畫面上放置",
+    "favorite": "收藏 {{name}}",
+    "unfavorite": "取消收藏 {{name}}",
+    "special": {
+      "fav": "收藏",
+      "recent": "最近使用",
+      "used": "本專案已使用"
+    },
+    "styles": {
+      "modern": "現代",
+      "nordic": "北歐",
+      "japandi": "日式／侘寂",
+      "industrial": "工業",
+      "classic": "古典",
+      "luxury": "輕奢",
+      "midcentury": "中古世紀",
+      "minimal": "極簡"
+    },
+    "colors": {
+      "white": "白",
+      "grey": "灰",
+      "black": "黑",
+      "beige": "米",
+      "brown": "棕",
+      "green": "綠",
+      "blue": "藍",
+      "red": "紅／橘"
+    },
+    "prices": {
+      "p1": "< 5 千",
+      "p2": "5 千–2 萬",
+      "p3": "2–5 萬",
+      "p4": "> 5 萬"
+    }
   },
   "outline": {
     "title": "物件清單",
@@ -195,7 +244,8 @@
     "doorColor": "門片顏色",
     "frameColor": "窗框顏色",
     "glassOpacity": "玻璃不透明度",
-    "tint": "染色"
+    "tint": "染色",
+    "openAngle": "門扇開啟角度"
   },
   "param": {
     "width": "寬",
@@ -207,10 +257,14 @@
     "sill": "窗台高",
     "panes": "分割數",
     "lightColor": "光色",
-    "dimmer": "亮度 %"
+    "dimmer": "亮度 %",
+    "style": "樣式",
+    "shape": "形狀",
+    "steps": "階數"
   },
   "room": {
-    "unnamed": "未命名房間"
+    "unnamed": "未命名房間",
+    "kind": "房間用途"
   },
   "snap": {
     "endpoint": "吸附：端點",
@@ -223,7 +277,10 @@
   "hint": {
     "openingNeedsWall": "請把游標移到牆上再放門窗",
     "badLength": "看不懂這個長度，請輸入例如 3200 或 3.2m",
-    "wallTool": "點擊加點、雙擊或 Enter 完成、可直接輸入長度、Esc 取消"
+    "wallTool": "點擊加點、雙擊或 Enter 完成、可直接輸入長度、Esc 取消",
+    "polygonTool": "逐點點擊繪製房間，點回起點或 Enter 封閉",
+    "measureTool": "點擊量測，點回起點量面積，Enter 完成、Esc 清除",
+    "dimensionTool": "點兩點，再移動滑鼠決定尺寸線位置後點擊"
   },
   "warn": {
     "title": "警示",
@@ -244,7 +301,10 @@
     "notFound": "找不到這個專案",
     "requestId": "錯誤代碼 {{id}}",
     "dismiss": "關閉",
-    "WALL_HEIGHT_OUT_OF_RANGE": "牆高需介於 10 公分與樓層高度之間，且不能低於牆上的門窗"
+    "WALL_HEIGHT_OUT_OF_RANGE": "牆高需介於 10 公分與樓層高度之間，且不能低於牆上的門窗",
+    "LEVEL_HEIGHT_INVALID": "樓高需介於 180–600 公分且不低於門窗與牆高",
+    "LAST_LEVEL": "至少要保留一個樓層",
+    "ARRAY_INVALID": "陣列數量需介於 1–200"
   },
   "units": {
     "length": "長度單位",
@@ -276,7 +336,24 @@
     "autoDecorate": "自動點綴軟裝",
     "importPlan": "匯入平面圖",
     "updateRoom": "修改房間",
-    "environment": "修改環境"
+    "environment": "修改環境",
+    "addAnnotation": "新增標註",
+    "updateAnnotation": "修改標註",
+    "align": "對齊",
+    "distribute": "等距分佈",
+    "paste": "貼上",
+    "group": "群組",
+    "ungroup": "解散群組",
+    "mirror": "鏡像",
+    "arrayCopy": "陣列複製",
+    "addLevel": "新增樓層",
+    "updateLevel": "修改樓層",
+    "deleteLevel": "刪除樓層",
+    "duplicateLevel": "複製樓層",
+    "updateCamera": "修改視角",
+    "deleteCamera": "刪除視角",
+    "quote": "修改報價",
+    "batch": "批次修改"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -526,5 +603,152 @@
       "TRIANGLES": "面數超過 {{max}}，可能影響 3D 流暢度。",
       "SIZE_ODD": "尺寸看起來不像公尺單位，請確認檔案單位。"
     }
+  },
+  "ctx": {
+    "title": "編輯選單",
+    "cut": "剪下",
+    "copy": "複製",
+    "paste": "貼上到這裡",
+    "duplicate": "原地複製",
+    "delete": "刪除",
+    "rotate90": "旋轉 90°",
+    "mirrorX": "左右鏡像",
+    "mirrorZ": "前後鏡像",
+    "array": "陣列複製…",
+    "arrayCount": "份數",
+    "arrayDx": "X 間距（mm）",
+    "arrayDz": "Z 間距（mm）",
+    "group": "群組",
+    "ungroup": "解散群組",
+    "alignLeft": "靠左對齊",
+    "alignCenterX": "水平置中對齊",
+    "alignTop": "靠上對齊",
+    "distributeX": "水平等距",
+    "distributeZ": "垂直等距",
+    "lock": "鎖定／解鎖",
+    "hide": "隱藏／顯示",
+    "selectSame": "選取同類型",
+    "selectAll": "全選"
+  },
+  "prompt": {
+    "ok": "確定"
+  },
+  "level": {
+    "title": "樓層",
+    "add": "新增樓層（複製外牆）",
+    "unnamed": "未命名樓層",
+    "settings": "樓層設定",
+    "name": "名稱",
+    "height": "樓高（mm）",
+    "slab": "樓板厚（mm）",
+    "duplicate": "複製整層",
+    "delete": "刪除樓層",
+    "confirmDelete": "刪除樓層「{{name}}」與其所有內容？"
+  },
+  "bookmarks": {
+    "title": "視角書籤",
+    "save": "儲存目前視角",
+    "empty": "還沒有儲存的視角",
+    "rename": "重新命名",
+    "delete": "刪除"
+  },
+  "paint": {
+    "title": "材質",
+    "hint": "點選材質後，點擊 2D／3D 的牆、地板、天花或家具套用；也可以把材質拖到 3D 表面。",
+    "active": "油漆模式：點擊表面套用，Alt＋點擊吸取材質，Esc 結束。",
+    "use": "使用材質 {{name}}",
+    "categories": {
+      "floor": "地板",
+      "wall": "牆面",
+      "wood": "木作",
+      "stone": "石材／陶瓷",
+      "fabric": "布料",
+      "metal": "金屬",
+      "ceiling": "天花"
+    },
+    "search": "搜尋材質…"
+  },
+  "multi": {
+    "counts": "家具 {{o}} 件、牆 {{w}} 道",
+    "mixed": "（混合值）",
+    "walls": "牆",
+    "arrange": "排列",
+    "align": {
+      "left": "靠左",
+      "centerX": "水平中",
+      "right": "靠右",
+      "top": "靠上",
+      "centerZ": "垂直中",
+      "bottom": "靠下"
+    }
+  },
+  "openingStyles": {
+    "single": "單開",
+    "double": "雙開",
+    "unequal": "子母門",
+    "sliding": "推拉",
+    "folding": "折疊",
+    "pocket": "隱藏拉門",
+    "arch": "拱門",
+    "casement": "推射",
+    "fixed": "固定",
+    "awning": "上懸",
+    "bay": "凸窗",
+    "corner": "轉角窗"
+  },
+  "roomKinds": {
+    "living": "客廳",
+    "dining": "餐廳",
+    "bedroom": "臥室",
+    "kitchen": "廚房",
+    "bath": "衛浴",
+    "study": "書房",
+    "entry": "玄關",
+    "balcony": "陽台",
+    "storage": "儲藏室",
+    "other": "其他"
+  },
+  "tiling": {
+    "title": "鋪貼設計",
+    "enable": "使用鋪貼",
+    "pattern": "拼法",
+    "patterns": {
+      "straight": "正鋪",
+      "running": "工字鋪",
+      "diagonal": "斜鋪 45°",
+      "herringbone": "人字拼",
+      "chevron": "魚骨拼",
+      "basketweave": "編籃拼",
+      "hexagon": "六角磚",
+      "versailles": "凡爾賽拼"
+    },
+    "tileW": "磚寬",
+    "tileH": "磚長",
+    "grout": "縫寬",
+    "groutColor": "縫色",
+    "rotation": "旋轉",
+    "offsetX": "起鋪點 X",
+    "offsetZ": "起鋪點 Z",
+    "border": "波打線寬",
+    "borderMaterial": "波打線材質",
+    "waste": "損耗率",
+    "quantity": "估料",
+    "pieces": "{{n}} 片（約 {{m2}} m²）"
+  },
+  "annotation": {
+    "text": "內容",
+    "size": "字高",
+    "rotation": "旋轉",
+    "offset": "尺寸線偏移",
+    "dimension": "尺寸標註",
+    "note": "引線備註"
+  },
+  "shapes": {
+    "square": "方形",
+    "round": "圓形",
+    "straight": "直梯",
+    "l": "L 型",
+    "u": "U 型",
+    "spiral": "旋轉"
   }
 }

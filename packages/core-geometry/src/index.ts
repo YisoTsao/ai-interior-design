@@ -6,3 +6,4 @@ export * from './snap.js';
 export * from './edit.js';
 export * from './bom.js';
 export * from './collision.js';
+export * from './place.js';

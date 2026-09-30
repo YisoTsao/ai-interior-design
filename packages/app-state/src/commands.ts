@@ -217,6 +217,8 @@ export function updateWall(
       | 'baseboard'
       | 'appearance'
       | 'appearanceB'
+      | 'tilingA'
+      | 'tilingB'
     >
   >,
 ): Command {
@@ -350,7 +352,18 @@ export function updateObject(
   levelId: string,
   objectId: string,
   patch: Partial<
-    Pick<SceneObject, 'params' | 'materialOverrides' | 'locked' | 'roomId' | 'name' | 'appearance' | 'light'>
+    Pick<
+      SceneObject,
+      | 'params'
+      | 'materialOverrides'
+      | 'locked'
+      | 'roomId'
+      | 'name'
+      | 'appearance'
+      | 'light'
+      | 'groupId'
+      | 'mirrored'
+    >
   >,
 ): Command {
   return {
@@ -368,7 +381,7 @@ export function updateObject(
 export function updateRoom(
   levelId: string,
   roomId: string,
-  patch: Partial<Pick<Room, 'floorAppearance' | 'ceilingAppearance'>>,
+  patch: Partial<Pick<Room, 'floorAppearance' | 'ceilingAppearance' | 'floorTiling' | 'kind'>>,
 ): Command {
   return {
     id: cid('updateRoom'),
@@ -407,6 +420,8 @@ export function deleteEntities(levelId: string, ids: readonly string[]): Command
       lv.walls = lv.walls.filter((w) => !set.has(w.id));
       lv.openings = lv.openings.filter((o) => !set.has(o.id) && !set.has(o.wallId));
       lv.objects = lv.objects.filter((o) => !set.has(o.id));
+      if (lv.annotations?.some((a) => set.has(a.id)))
+        lv.annotations = lv.annotations.filter((a) => !set.has(a.id));
       if (wallsRemoved) withRooms(lv);
     },
   };

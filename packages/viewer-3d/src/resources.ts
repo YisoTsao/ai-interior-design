@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Material as CatalogMaterial } from '@interiorai/catalog';
-import type { Appearance } from '@interiorai/scene-schema';
+import type { Appearance, Tiling } from '@interiorai/scene-schema';
+import { tilingTexture } from './tiling.js';
 
 /** 追蹤本 viewer 建立的 GPU 資源；卸載/切換專案時一次 dispose（B5、03 §3） */
 export class ResourceScope {
@@ -233,6 +234,31 @@ export class MaterialCache {
       m.opacity = a.opacity;
       m.depthWrite = false;
     }
+    this.cache.set(key, m);
+    return m;
+  }
+  /** 鋪貼（FE-FIN-01）：以底材質的顏色與粗糙度產生拼法貼圖；外觀覆寫仍可套用 */
+  tiled(
+    id: string | undefined,
+    fallback: string,
+    a: Appearance | undefined,
+    tiling: Tiling | undefined,
+  ): THREE.MeshStandardMaterial {
+    if (!tiling) return this.styled(id, fallback, a);
+    const key = `tile|${id}|${JSON.stringify(tiling)}|${JSON.stringify(a ?? {})}`;
+    let m = this.cache.get(key);
+    if (m) return m;
+    const def = id ? this.lib.get(id) : undefined;
+    const tex = tilingTexture({ color: def?.color ?? fallback, pattern: def?.pattern ?? 'plain' }, tiling);
+    if (tex) this.scope.track(tex);
+    m = this.scope.track(
+      new THREE.MeshStandardMaterial({
+        color: a?.color ?? '#ffffff',
+        map: tex,
+        roughness: a?.roughness ?? Math.min(def?.roughness ?? 0.5, this.opts.floorRoughness ?? 1),
+        metalness: a?.metalness ?? def?.metalness ?? 0,
+      }),
+    );
     this.cache.set(key, m);
     return m;
   }

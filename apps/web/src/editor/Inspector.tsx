@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Camera, Copy, Lock, Trash2, Unlock } from 'lucide-react';
 import {
   activeLevel,
+  batch,
+  updateAnnotation,
   deleteEntities,
   duplicateObjects,
   renameRoom,
@@ -18,7 +20,17 @@ import {
 import { objectDims, resolveParams, type CatalogEntry } from '@interiorai/catalog';
 import { detectRooms, wallLength } from '@interiorai/core-geometry';
 import { formatArea } from '@interiorai/editor-2d';
-import type { Appearance, Level, LightOverride, Opening, SceneObject, Wall } from '@interiorai/scene-schema';
+import type {
+  Appearance,
+  Level,
+  LightOverride,
+  Opening,
+  OpeningStyle,
+  RoomKind,
+  SceneObject,
+  Tiling,
+  Wall,
+} from '@interiorai/scene-schema';
 import {
   DEFAULT_SKY,
   SUN_DEFAULT,
@@ -28,6 +40,7 @@ import {
   kelvinToHex,
   pointIntensity,
   spotIntensity,
+  tileQuantity,
   viewer3dApi,
   type GraphicsQuality,
   type SkyPreset,
@@ -46,6 +59,7 @@ import {
 } from './fields';
 import { mergeLook } from './look';
 import { MaterialPicker } from './MaterialPicker';
+import { editActions } from './actions';
 import { useThumbnail } from './thumbs';
 
 export function Inspector({
@@ -56,30 +70,23 @@ export function Inspector({
   setUniformScale: (v: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const store = useEditorStore();
   const scene = useEditor((s) => s.scene);
   const levelId = useEditor((s) => s.levelId);
   const selection = useEditor((s) => s.selection);
   const level = activeLevel({ scene, levelId });
-  const exec = store.getState().exec;
 
   let body: React.ReactNode = <ScenePanel level={level} />;
   if (selection.length > 1) {
-    body = (
-      <div className="space-y-2">
-        <p className="text-sm">{t('inspector.multi', { n: selection.length })}</p>
-        <button className="btn btn-danger" onClick={() => exec(deleteEntities(levelId, selection))}>
-          <Trash2 size={14} aria-hidden /> {t('inspector.delete')}
-        </button>
-      </div>
-    );
+    body = <MultiPanel ids={selection} level={level} />;
   } else if (selection.length === 1) {
     const id = selection[0]!;
     const w = level.walls.find((x) => x.id === id);
     const o = level.openings.find((x) => x.id === id);
     const obj = level.objects.find((x) => x.id === id);
     const room = level.rooms.find((x) => x.id === id);
-    if (w) body = <WallPanel w={w} level={level} />;
+    const ann = level.annotations?.find((x) => x.id === id);
+    if (ann) body = <AnnotationPanel id={ann.id} type={ann.type} data={ann.data ?? {}} levelId={levelId} />;
+    else if (w) body = <WallPanel w={w} level={level} />;
     else if (o) body = <OpeningPanel o={o} levelId={levelId} />;
     else if (room) {
       const d = detectRooms(level).rooms.find((x) => x.key === [...room.wallIds].sort().join('|'));
@@ -229,7 +236,9 @@ function ObjectPanel({
                 value={String(params[k])}
                 options={(spec.values ?? []).map((v) => ({
                   value: v,
-                  label: t(k === 'color' ? `lightColors.${v}` : `inspector.swings.${v}`),
+                  label: t(ENUM_LABEL[k] ? `${ENUM_LABEL[k]}.${v}` : `inspector.swings.${v}`, {
+                    defaultValue: v,
+                  }),
                 }))}
                 onChange={(v) =>
                   exec(updateObject(levelId, id, { params: { ...(obj.params ?? {}), [k]: v } }))
@@ -601,6 +610,12 @@ function WallPanel({ w, level }: { w: Wall; level: Level }) {
           onChange={(v) => lookA({ hidden: v || undefined })}
         />
       </Section>
+      <TilingSection
+        tiling={w.tilingA}
+        area={wallLength(w) * (w.height ?? level.height)}
+        onChange={(tl) => exec(updateWall(levelId, w.id, { tilingA: tl, tilingB: tl }))}
+        defaults={{ pattern: 'straight', tileW: 300, tileH: 600, grout: 2 }}
+      />
       <Section title={t('inspector.materials')} defaultOpen={false}>
         <MaterialPicker
           name="wallA"
@@ -661,6 +676,28 @@ function OpeningPanel({ o, levelId }: { o: Opening; levelId: string }) {
             mm={o.sill ?? 0}
             unit={unit}
             onCommit={(mm) => exec(updateOpening(levelId, o.id, { sill: mm }))}
+          />
+        )}
+        {o.type !== 'passage' && (
+          <SelectField<string>
+            label={t('param.style')}
+            value={o.style ?? (o.type === 'door' ? 'single' : 'sliding')}
+            onChange={(v) => exec(updateOpening(levelId, o.id, { style: v as OpeningStyle }))}
+            options={(o.type === 'door' ? DOOR_STYLES : WINDOW_STYLES).map((v) => ({
+              value: v,
+              label: t(`openingStyles.${v}`),
+            }))}
+          />
+        )}
+        {o.type === 'door' && !['sliding', 'folding', 'pocket', 'arch'].includes(o.style ?? '') && (
+          <SliderField
+            label={t('inspector.openAngle')}
+            value={o.openAngle ?? 0}
+            min={0}
+            max={110}
+            step={5}
+            suffix="°"
+            onCommit={(v) => exec(updateOpening(levelId, o.id, { openAngle: v || undefined }))}
           />
         )}
         {o.type === 'door' && (
@@ -736,6 +773,20 @@ function RoomPanel({ room, area, levelId }: { room: Level['rooms'][number]; area
         <span>{t('inspector.area')}</span>
         <b>{formatArea(area, areaUnit)}</b>
       </p>
+      <SelectField<string>
+        label={t('room.kind')}
+        value={room.kind ?? 'other'}
+        onChange={(v) =>
+          exec(updateRoom(levelId, room.id, { kind: v === 'other' ? undefined : (v as RoomKind) }))
+        }
+        options={ROOM_KINDS.map((k) => ({ value: k, label: t(`roomKinds.${k}`) }))}
+      />
+      <TilingSection
+        tiling={room.floorTiling}
+        area={area}
+        onChange={(tl) => exec(updateRoom(levelId, room.id, { floorTiling: tl }))}
+        withBorder
+      />
       <Section title={t('inspector.floor')}>
         <MaterialPicker
           name="floor"
@@ -942,6 +993,390 @@ function ScenePanel({ level }: { level: Level }) {
           <Camera size={14} aria-hidden /> {t('top.screenshot')}
         </button>
       )}
+    </div>
+  );
+}
+
+// ── 多選批次編輯（FE-PROP-02）──────────────────────────────────────
+
+function MultiPanel({ ids, level }: { ids: string[]; level: Level }) {
+  const { t } = useTranslation();
+  const store = useEditorStore();
+  const exec = store.getState().exec;
+  const act = useMemo(() => editActions(store), [store]);
+  const objs = level.objects.filter((o) => ids.includes(o.id));
+  const walls = level.walls.filter((w) => ids.includes(w.id));
+  /** 共同值：全部相同才顯示，否則為「混合」 */
+  const common = <T,>(xs: T[]): T | undefined =>
+    xs.length && xs.every((x) => x === xs[0]) ? xs[0] : undefined;
+  const color = common(objs.map((o) => o.appearance?.color));
+  const rough = common(objs.map((o) => o.appearance?.roughness));
+  const allHidden = objs.length > 0 && objs.every((o) => o.appearance?.hidden);
+  const shadowOff = objs.length > 0 && objs.every((o) => o.appearance?.castShadow === false);
+  const looks = (p: Partial<Appearance>) =>
+    exec(
+      batch(
+        objs.map((o) => updateObject(level.id, o.id, { appearance: mergeLook(o.appearance, p) })),
+        'command.batch',
+      ),
+    );
+  const wallLooks = (p: Partial<Appearance>) =>
+    exec(
+      batch(
+        walls.map((w) => updateWall(level.id, w.id, { appearance: mergeLook(w.appearance, p) })),
+        'command.batch',
+      ),
+    );
+  return (
+    <div className="space-y-2" data-testid="inspector-multi">
+      <p className="text-sm">{t('inspector.multi', { n: ids.length })}</p>
+      <p className="text-[11px] text-muted">{t('multi.counts', { o: objs.length, w: walls.length })}</p>
+      {objs.length > 0 && (
+        <Section title={t('inspector.appearance')}>
+          <ColorField
+            label={t('inspector.color')}
+            value={color}
+            fallback="#c8b8a0"
+            onCommit={(c) => looks({ color: c })}
+            onReset={() => looks({ color: undefined })}
+            testId="multi-color"
+          />
+          {color === undefined && objs.some((o) => o.appearance?.color) && (
+            <p className="text-[10px] text-muted">{t('multi.mixed')}</p>
+          )}
+          <SliderField
+            label={t('inspector.roughness')}
+            value={rough ?? 0.8}
+            min={0}
+            max={1}
+            step={0.05}
+            onCommit={(v) => looks({ roughness: v })}
+          />
+          <ToggleField
+            label={t('inspector.castShadow')}
+            checked={!shadowOff}
+            onChange={(v) => looks({ castShadow: v ? undefined : false })}
+          />
+          <ToggleField
+            label={t('inspector.hidden')}
+            checked={allHidden}
+            onChange={(v) => looks({ hidden: v || undefined })}
+          />
+        </Section>
+      )}
+      {walls.length > 0 && (
+        <Section title={t('multi.walls')}>
+          <ColorField
+            label={t('inspector.color')}
+            value={common(walls.map((w) => w.appearance?.color))}
+            fallback="#f2f0eb"
+            onCommit={(c) => wallLooks({ color: c })}
+            onReset={() => wallLooks({ color: undefined })}
+          />
+          <SliderField
+            label={t('inspector.baseboard')}
+            value={common(walls.map((w) => w.baseboard ?? 0)) ?? 0}
+            min={0}
+            max={300}
+            step={10}
+            suffix="mm"
+            onCommit={(v) =>
+              exec(
+                batch(
+                  walls.map((w) => updateWall(level.id, w.id, { baseboard: v || undefined })),
+                  'command.batch',
+                ),
+              )
+            }
+          />
+        </Section>
+      )}
+      {objs.length > 1 && (
+        <Section title={t('multi.arrange')}>
+          <div className="grid grid-cols-3 gap-1">
+            {(['left', 'centerX', 'right', 'top', 'centerZ', 'bottom'] as const).map((m) => (
+              <button
+                key={m}
+                className="btn justify-center px-1 py-1 text-[11px]"
+                onClick={() => act.align(m)}
+                data-testid={`align-${m}`}
+              >
+                {t(`multi.align.${m}`)}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              className="btn justify-center text-[11px]"
+              disabled={objs.length < 3}
+              onClick={() => act.distribute('x')}
+            >
+              {t('ctx.distributeX')}
+            </button>
+            <button
+              className="btn justify-center text-[11px]"
+              disabled={objs.length < 3}
+              onClick={() => act.distribute('z')}
+            >
+              {t('ctx.distributeZ')}
+            </button>
+            <button className="btn justify-center text-[11px]" onClick={act.group} data-testid="multi-group">
+              {t('ctx.group')}
+            </button>
+            <button className="btn justify-center text-[11px]" onClick={act.ungroup}>
+              {t('ctx.ungroup')}
+            </button>
+            <button className="btn justify-center text-[11px]" onClick={() => act.rotate(90)}>
+              {t('ctx.rotate90')}
+            </button>
+            <button className="btn justify-center text-[11px]" onClick={() => act.mirror('x')}>
+              {t('ctx.mirrorX')}
+            </button>
+          </div>
+        </Section>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button className="btn" onClick={act.toggleLock}>
+          <Lock size={14} aria-hidden /> {t('inspector.locked')}
+        </button>
+        <button className="btn btn-danger" onClick={() => exec(deleteEntities(level.id, ids))}>
+          <Trash2 size={14} aria-hidden /> {t('inspector.delete')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** 列舉參數的顯示名稱來源 */
+const ENUM_LABEL: Record<string, string> = {
+  color: 'lightColors',
+  swing: 'inspector.swings',
+  style: 'openingStyles',
+  shape: 'shapes',
+};
+const DOOR_STYLES = ['single', 'double', 'unequal', 'sliding', 'folding', 'pocket', 'arch'];
+const WINDOW_STYLES = ['sliding', 'casement', 'fixed', 'awning', 'bay', 'corner'];
+const ROOM_KINDS = [
+  'living',
+  'dining',
+  'bedroom',
+  'kitchen',
+  'bath',
+  'study',
+  'entry',
+  'balcony',
+  'storage',
+  'other',
+];
+const PATTERNS: Tiling['pattern'][] = [
+  'straight',
+  'running',
+  'diagonal',
+  'herringbone',
+  'chevron',
+  'basketweave',
+  'hexagon',
+  'versailles',
+];
+
+/** 鋪貼設計（FE-FIN-01）：拼法、磚尺寸、縫寬／縫色、旋轉、起鋪點、波打線、損耗與估料 */
+function TilingSection({
+  tiling,
+  area,
+  onChange,
+  withBorder,
+  defaults = { pattern: 'straight', tileW: 600, tileH: 600, grout: 2 },
+}: {
+  tiling: Tiling | undefined;
+  area: number;
+  onChange: (t: Tiling | undefined) => void;
+  withBorder?: boolean;
+  defaults?: Tiling;
+}) {
+  const { t } = useTranslation();
+  const tl = tiling;
+  const set = (p: Partial<Tiling>) => onChange({ ...(tl ?? defaults), ...p });
+  const q = tl ? tileQuantity(area, tl) : null;
+  return (
+    <Section title={t('tiling.title')} defaultOpen={!!tl} testId="section-tiling">
+      <ToggleField
+        label={t('tiling.enable')}
+        checked={!!tl}
+        onChange={(v) => onChange(v ? defaults : undefined)}
+        testId="tiling-enable"
+      />
+      {tl && (
+        <>
+          <SelectField<string>
+            label={t('tiling.pattern')}
+            value={tl.pattern}
+            onChange={(v) => set({ pattern: v as Tiling['pattern'] })}
+            options={PATTERNS.map((p) => ({ value: p, label: t(`tiling.patterns.${p}`) }))}
+          />
+          <NumberField
+            label={t('tiling.tileW')}
+            value={tl.tileW}
+            suffix="mm"
+            onCommit={(v) => set({ tileW: Math.max(20, Math.round(v)) })}
+          />
+          <NumberField
+            label={t('tiling.tileH')}
+            value={tl.tileH}
+            suffix="mm"
+            onCommit={(v) => set({ tileH: Math.max(20, Math.round(v)) })}
+          />
+          <SliderField
+            label={t('tiling.grout')}
+            value={tl.grout ?? 2}
+            min={0}
+            max={20}
+            step={1}
+            suffix="mm"
+            onCommit={(v) => set({ grout: v })}
+          />
+          <ColorField
+            label={t('tiling.groutColor')}
+            value={tl.groutColor}
+            fallback="#bdb8ae"
+            onCommit={(c) => set({ groutColor: c })}
+            onReset={() => set({ groutColor: undefined })}
+          />
+          <SliderField
+            label={t('tiling.rotation')}
+            value={tl.rotationDeg ?? 0}
+            min={-90}
+            max={90}
+            step={5}
+            suffix="°"
+            onCommit={(v) => set({ rotationDeg: v || undefined })}
+          />
+          <NumberField
+            label={t('tiling.offsetX')}
+            value={tl.offset?.[0] ?? 0}
+            suffix="mm"
+            onCommit={(v) => set({ offset: [Math.round(v), tl.offset?.[1] ?? 0] })}
+          />
+          <NumberField
+            label={t('tiling.offsetZ')}
+            value={tl.offset?.[1] ?? 0}
+            suffix="mm"
+            onCommit={(v) => set({ offset: [tl.offset?.[0] ?? 0, Math.round(v)] })}
+          />
+          {withBorder && (
+            <>
+              <SliderField
+                label={t('tiling.border')}
+                value={tl.borderWidth ?? 0}
+                min={0}
+                max={600}
+                step={10}
+                suffix="mm"
+                onCommit={(v) => set({ borderWidth: v || undefined })}
+              />
+              {!!tl.borderWidth && (
+                <MaterialPicker
+                  name="tile-border"
+                  label={t('tiling.borderMaterial')}
+                  value={tl.borderMaterialId ?? 'mat_stone_marble'}
+                  categories={['floor', 'stone']}
+                  onPick={(m) => set({ borderMaterialId: m })}
+                />
+              )}
+            </>
+          )}
+          <SliderField
+            label={t('tiling.waste')}
+            value={Math.round((tl.waste ?? 0.08) * 100)}
+            min={0}
+            max={30}
+            step={1}
+            suffix="%"
+            onCommit={(v) => set({ waste: v / 100 })}
+          />
+          {q && (
+            <p className="hud-stat" data-testid="tiling-quantity">
+              <span>{t('tiling.quantity')}</span>
+              <b>{t('tiling.pieces', { n: q.pieces, m2: q.m2 })}</b>
+            </p>
+          )}
+        </>
+      )}
+    </Section>
+  );
+}
+
+/** 標註（FE-PLAN-10）：文字內容／字高／顏色；尺寸線偏移 */
+function AnnotationPanel({
+  id,
+  type,
+  data,
+  levelId,
+}: {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+  levelId: string;
+}) {
+  const { t } = useTranslation();
+  const exec = useEditorStore().getState().exec;
+  const [text, setText] = useState(String(data.text ?? ''));
+  const upd = (p: Record<string, unknown>) => exec(updateAnnotation(levelId, id, p));
+  return (
+    <div className="space-y-2" data-testid="inspector-annotation">
+      <h3 className="font-medium">{t(`annotation.${type}`)}</h3>
+      {type !== 'dimension' ? (
+        <>
+          <label className="grid gap-1 text-xs">
+            <span>{t('annotation.text')}</span>
+            <textarea
+              className="field font-sans"
+              rows={3}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onBlur={() => text !== data.text && upd({ text })}
+              data-testid="annotation-text"
+            />
+          </label>
+          <SliderField
+            label={t('annotation.size')}
+            value={Number(data.size ?? 250)}
+            min={50}
+            max={1500}
+            step={10}
+            suffix="mm"
+            onCommit={(v) => upd({ size: v })}
+          />
+          <ColorField
+            label={t('inspector.color')}
+            value={typeof data.color === 'string' ? data.color : undefined}
+            fallback="#1b1d21"
+            onCommit={(c) => upd({ color: c })}
+            onReset={() => upd({ color: undefined })}
+          />
+          <SliderField
+            label={t('annotation.rotation')}
+            value={Number(data.rotation ?? 0)}
+            min={-180}
+            max={180}
+            step={5}
+            suffix="°"
+            onCommit={(v) => upd({ rotation: v })}
+          />
+        </>
+      ) : (
+        <SliderField
+          label={t('annotation.offset')}
+          value={Number(data.offset ?? 0)}
+          min={-3000}
+          max={3000}
+          step={50}
+          suffix="mm"
+          onCommit={(v) => upd({ offset: v })}
+        />
+      )}
+      <button className="btn btn-danger" onClick={() => exec(deleteEntities(levelId, [id]))}>
+        <Trash2 size={14} aria-hidden /> {t('inspector.delete')}
+      </button>
     </div>
   );
 }

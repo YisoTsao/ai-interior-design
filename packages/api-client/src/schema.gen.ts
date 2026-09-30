@@ -2047,6 +2047,20 @@ export interface components {
             castShadow?: boolean;
             hidden?: boolean;
         };
+        /** @description 鋪貼設計（v1.2） */
+        tiling: {
+            /** @enum {unknown} */
+            pattern: "straight" | "running" | "diagonal" | "herringbone" | "chevron" | "basketweave" | "hexagon" | "versailles";
+            tileW: number;
+            tileH: number;
+            grout?: number;
+            groutColor?: components["schemas"]["hex"];
+            rotationDeg?: number;
+            offset?: number[];
+            borderWidth?: number;
+            borderMaterialId?: components["schemas"]["id"];
+            waste?: number;
+        };
         wall: {
             id: components["schemas"]["id"];
             a: components["schemas"]["vec2"];
@@ -2061,6 +2075,8 @@ export interface components {
             baseboard?: number;
             appearance?: components["schemas"]["appearance"];
             appearanceB?: components["schemas"]["appearance"];
+            tilingA?: components["schemas"]["tiling"];
+            tilingB?: components["schemas"]["tiling"];
         };
         opening: {
             id: components["schemas"]["id"];
@@ -2077,6 +2093,9 @@ export interface components {
             swing?: "left" | "right" | "double" | "sliding" | "none";
             confidence?: number;
             appearance?: components["schemas"]["appearance"];
+            /** @enum {unknown} */
+            style?: "single" | "double" | "unequal" | "sliding" | "folding" | "pocket" | "casement" | "fixed" | "awning" | "bay" | "corner" | "arch";
+            openAngle?: number;
         };
         room: {
             id: components["schemas"]["id"];
@@ -2087,6 +2106,9 @@ export interface components {
             confidence?: number;
             floorAppearance?: components["schemas"]["appearance"];
             ceilingAppearance?: components["schemas"]["appearance"];
+            floorTiling?: components["schemas"]["tiling"];
+            /** @enum {unknown} */
+            kind?: "living" | "dining" | "bedroom" | "kitchen" | "bath" | "study" | "entry" | "balcony" | "storage" | "other";
         };
         vec3: number[];
         /** @description 燈具光源覆寫（v1.1，ADR-023） */
@@ -2120,6 +2142,8 @@ export interface components {
             name?: string;
             appearance?: components["schemas"]["appearance"];
             light?: components["schemas"]["lightOverride"];
+            groupId?: components["schemas"]["id"];
+            mirrored?: boolean;
         };
         annotation: {
             id: components["schemas"]["id"];
@@ -2137,6 +2161,7 @@ export interface components {
             rooms: components["schemas"]["room"][];
             objects: components["schemas"]["object"][];
             annotations?: components["schemas"]["annotation"][];
+            slabThickness?: number;
         };
         camera: {
             id: components["schemas"]["id"];
@@ -2167,7 +2192,7 @@ export interface components {
             sunIntensity?: number;
         };
         /**
-         * Scene Graph v1.1.0
+         * Scene Graph v1.2.0
          * @description 唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。
          */
         "scene.schema": {
@@ -2195,6 +2220,7 @@ export interface components {
                     rooms: components["schemas"]["room"][];
                     objects: components["schemas"]["object"][];
                     annotations?: components["schemas"]["annotation"][];
+                    slabThickness?: number;
                 };
                 wall: {
                     id: components["schemas"]["id"];
@@ -2210,6 +2236,8 @@ export interface components {
                     baseboard?: number;
                     appearance?: components["schemas"]["appearance"];
                     appearanceB?: components["schemas"]["appearance"];
+                    tilingA?: components["schemas"]["tiling"];
+                    tilingB?: components["schemas"]["tiling"];
                 };
                 opening: {
                     id: components["schemas"]["id"];
@@ -2226,6 +2254,9 @@ export interface components {
                     swing?: "left" | "right" | "double" | "sliding" | "none";
                     confidence?: number;
                     appearance?: components["schemas"]["appearance"];
+                    /** @enum {unknown} */
+                    style?: "single" | "double" | "unequal" | "sliding" | "folding" | "pocket" | "casement" | "fixed" | "awning" | "bay" | "corner" | "arch";
+                    openAngle?: number;
                 };
                 room: {
                     id: components["schemas"]["id"];
@@ -2236,6 +2267,9 @@ export interface components {
                     confidence?: number;
                     floorAppearance?: components["schemas"]["appearance"];
                     ceilingAppearance?: components["schemas"]["appearance"];
+                    floorTiling?: components["schemas"]["tiling"];
+                    /** @enum {unknown} */
+                    kind?: "living" | "dining" | "bedroom" | "kitchen" | "bath" | "study" | "entry" | "balcony" | "storage" | "other";
                 };
                 object: {
                     id: components["schemas"]["id"];
@@ -2254,6 +2288,8 @@ export interface components {
                     name?: string;
                     appearance?: components["schemas"]["appearance"];
                     light?: components["schemas"]["lightOverride"];
+                    groupId?: components["schemas"]["id"];
+                    mirrored?: boolean;
                 };
                 annotation: {
                     id: components["schemas"]["id"];
@@ -2312,6 +2348,20 @@ export interface components {
                     sunAzimuthDeg?: number;
                     sunElevationDeg?: number;
                     sunIntensity?: number;
+                };
+                /** @description 鋪貼設計（v1.2） */
+                tiling: {
+                    /** @enum {unknown} */
+                    pattern: "straight" | "running" | "diagonal" | "herringbone" | "chevron" | "basketweave" | "hexagon" | "versailles";
+                    tileW: number;
+                    tileH: number;
+                    grout?: number;
+                    groutColor?: components["schemas"]["hex"];
+                    rotationDeg?: number;
+                    offset?: number[];
+                    borderWidth?: number;
+                    borderMaterialId?: components["schemas"]["id"];
+                    waste?: number;
                 };
             };
         };

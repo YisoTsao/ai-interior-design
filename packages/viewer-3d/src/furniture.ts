@@ -599,6 +599,30 @@ function parts(type: string, w: number, d: number, h: number, p: Record<string, 
         box(30, 30, 500, -w * 0.4, h - 350, -d / 2 + 430),
         box(30, 30, 500, w * 0.4, h - 350, -d / 2 + 430),
       ];
+    case 'column':
+      return p.shape === 'round'
+        ? [
+            (() => {
+              const c = cyl(w / 2, w / 2, h, 0, 0, 0, BODY, 32);
+              c.g.scale(1, 1, d / w);
+              return c;
+            })(),
+          ]
+        : [box(w, h, d, 0, 0, 0)];
+    case 'beam':
+      return [box(w, h, d, 0, 0, 0)];
+    case 'platform':
+      return [box(w, h - 20, d, 0, 0, 0, ACCENT), box(w + 20, 20, d + 20, 0, h - 20, 0)];
+    case 'railing': {
+      const out: Part[] = [box(w, 40, Math.max(40, d), 0, h - 40, 0)];
+      const n = Math.max(2, Math.round(w / 110));
+      for (let i = 0; i <= n; i++)
+        out.push(box(18, h - 40, 18, -w / 2 + 20 + ((w - 40) * i) / n, 0, 0, DARK));
+      out.push(box(w, 20, 20, 0, 80, 0, DARK));
+      return out;
+    }
+    case 'stairs':
+      return stairsParts(String(p.shape ?? 'straight'), w, d, h, Math.max(3, Number(p.steps ?? 16)));
     case 'rug':
       return [box(w, Math.max(4, h), d, 0, 0, 0)];
     case 'plant': {
@@ -612,6 +636,58 @@ function parts(type: string, w: number, d: number, h: number, p: Record<string, 
     default:
       return [box(w, h, d, 0, 0, 0)];
   }
+}
+
+/**
+ * 樓梯（FE-PLAN-03）：原點＝底部中心、往 −Z（後方）上升。直梯；L 型（左側上行 → 後方平台 → 往 +X）；
+ * U 型（左側上行 → 後方平台 → 右側往前上行）；旋轉梯（中柱＋扇形踏板）。實心踏階（階底到地面）。
+ */
+function stairsParts(shape: string, w: number, d: number, h: number, n: number): Part[] {
+  const rise = h / n;
+  const out: Part[] = [];
+  const step = (x: number, z: number, sw: number, sd: number, i: number) =>
+    out.push(box(sw, rise * (i + 1), sd, x, 0, z, i % 2 ? BODY : BODY));
+  if (shape === 'spiral') {
+    const r = Math.min(w, d) / 2;
+    out.push(cyl(60, 60, h + 900, 0, 0, 0, DARK, 16));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 1.75;
+      const tread = new THREE.BoxGeometry(r - 60, 40, Math.max(120, ((2 * Math.PI * r) / n) * 0.9));
+      tread.translate((r - 60) / 2 + 60, 0, 0);
+      tread.rotateY(-a);
+      out.push({ g: tread, x: 0, y: rise * (i + 1) - 20, z: 0, color: BODY });
+      // 扶手立柱
+      out.push(cyl(12, 12, 900, Math.cos(a) * (r - 30), rise * (i + 1), Math.sin(a) * (r - 30), DARK, 6));
+    }
+    return out;
+  }
+  if (shape === 'l') {
+    const fw = Math.min(w * 0.5, 1100);
+    const n1 = Math.ceil(n / 2);
+    const n2 = n - n1 - 1;
+    const t1 = (d - fw) / n1;
+    for (let i = 0; i < n1; i++) step(-w / 2 + fw / 2, d / 2 - t1 * (i + 0.5), fw, t1, i);
+    step(-w / 2 + fw / 2, -d / 2 + fw / 2, fw, fw, n1); // 平台
+    const t2 = (w - fw) / Math.max(1, n2);
+    for (let i = 0; i < n2; i++) step(-w / 2 + fw + t2 * (i + 0.5), -d / 2 + fw / 2, t2, fw, n1 + 1 + i);
+    return out;
+  }
+  if (shape === 'u') {
+    const fw = Math.min((w - 100) / 2, 1100);
+    const n1 = Math.ceil((n - 1) / 2);
+    const n2 = n - n1 - 1;
+    const run = d - fw;
+    const t1 = run / n1;
+    for (let i = 0; i < n1; i++) step(-w / 2 + fw / 2, d / 2 - t1 * (i + 0.5), fw, t1, i);
+    step(0, -d / 2 + fw / 2, w, fw, n1); // 平台（全寬）
+    const t2 = run / Math.max(1, n2);
+    for (let i = 0; i < n2; i++) step(w / 2 - fw / 2, -d / 2 + fw + t2 * (i + 0.5), fw, t2, n1 + 1 + i);
+    out.push(box(60, h, run, 0, 0, d / 2 - run / 2, DARK)); // 中間隔牆
+    return out;
+  }
+  const t = d / n;
+  for (let i = 0; i < n; i++) step(0, d / 2 - t * (i + 0.5), w, t, i);
+  return out;
 }
 
 /** 剖面模型：分件組合＋倒角＋軟裝；未列出的類型用簡易分件並把方塊換成圓角 */
@@ -785,34 +861,111 @@ export function buildFurnitureGeometry(
 /** 幾何是否含自發光部件 */
 export const hasEmissive = (g: THREE.BufferGeometry) => g.groups.some((x) => x.materialIndex === 1);
 
-/** 開口內的門扇/窗框（僅視覺，幾何挖洞由 CSG 處理） */
+/**
+ * 開口內的門扇／窗框（僅視覺，牆洞由牆幾何處理）；style 決定造型（FE-PLAN-04）：
+ * 門：single／double／unequal（子母）／sliding（兩片錯位）／folding（折疊多片）／pocket（隱藏，只留門框）／arch（無門扇）；
+ * 窗：sliding（兩扇）／casement（推射，中梃）／fixed（單片大玻璃）／awning（上懸）／bay（凸窗盒）／corner。
+ */
 export function buildOpeningFill(
   type: 'door' | 'window' | 'passage',
   width: number,
   height: number,
   thickness: number,
+  style?: string,
+  openAngle = 0,
 ): THREE.BufferGeometry | null {
   if (type === 'passage') return null;
-  const ps: Part[] =
-    type === 'door'
-      ? [
-          box(width - 20, height - 10, 40, 0, 0, 0, '#b89a78'),
-          box(20, 20, 60, width / 2 - 90, height * 0.47, 0, DARK),
-        ]
-      : [
-          box(width, 50, thickness, 0, 0, 0, LIGHT),
-          box(width, 50, thickness, 0, height - 50, 0, LIGHT),
-          box(50, height, thickness, -width / 2 + 25, 0, 0, LIGHT),
-          box(50, height, thickness, width / 2 - 25, 0, 0, LIGHT),
-          box(width - 100, height - 100, 10, 0, 50, 0, GLASS),
-        ];
+  const LEAF = '#b89a78';
+  const FRAME = LIGHT;
+  let ps: Part[];
+  if (type === 'door') {
+    const st = style ?? 'single';
+    const frame = [
+      box(40, height, thickness, -width / 2 + 20, 0, 0, FRAME),
+      box(40, height, thickness, width / 2 - 20, 0, 0, FRAME),
+      box(width, 40, thickness, 0, height - 40, 0, FRAME),
+    ];
+    const leaf = (w: number, x: number, z = 0, hinge: 'l' | 'r' = 'l'): Part[] => {
+      const a = (openAngle * Math.PI) / 180;
+      const g = new THREE.BoxGeometry(Math.max(1, w), height - 50, 40);
+      // 以鉸鏈邊為軸旋轉
+      g.translate(hinge === 'l' ? w / 2 : -w / 2, 0, 0);
+      g.rotateY(hinge === 'l' ? -a : a);
+      const hx = hinge === 'l' ? x - w / 2 : x + w / 2;
+      const handle = box(20, 20, 60, x + (hinge === 'l' ? w / 2 - 80 : -w / 2 + 80), height * 0.47, z, DARK);
+      return [{ g, x: hx, y: (height - 50) / 2, z, color: LEAF }, ...(openAngle ? [] : [handle])];
+    };
+    const inner = width - 80;
+    if (st === 'arch' || st === 'pocket') ps = [...frame];
+    else if (st === 'double')
+      ps = [...frame, ...leaf(inner / 2, -inner / 4, 0, 'l'), ...leaf(inner / 2, inner / 4, 0, 'r')];
+    else if (st === 'unequal')
+      ps = [
+        ...frame,
+        ...leaf(inner * 0.66, -inner * 0.17, 0, 'l'),
+        ...leaf(inner * 0.34, inner * 0.33, 0, 'r'),
+      ];
+    else if (st === 'sliding')
+      ps = [
+        ...frame,
+        box(inner / 2 + 40, height - 50, 30, -inner / 4 + 20, 0, -18, LEAF),
+        box(inner / 2 + 40, height - 50, 30, inner / 4 - 20, 0, 18, LEAF),
+        box(inner * 0.4, height * 0.6, 32, -inner / 4 + 20, height * 0.2, -18, GLASS),
+      ];
+    else if (st === 'folding') {
+      const k = Math.max(3, Math.round(inner / 450));
+      ps = [...frame];
+      for (let i = 0; i < k; i++) {
+        const pw = inner / k;
+        ps.push(box(pw - 6, height - 50, 30, -inner / 2 + pw * (i + 0.5), 0, i % 2 ? 10 : -10, LEAF));
+      }
+    } else ps = [...frame, ...leaf(inner, 0, 0, 'l')];
+  } else {
+    const st = style ?? 'sliding';
+    const t = thickness;
+    const frame = [
+      box(width, 50, t, 0, 0, 0, FRAME),
+      box(width, 50, t, 0, height - 50, 0, FRAME),
+      box(50, height, t, -width / 2 + 25, 0, 0, FRAME),
+      box(50, height, t, width / 2 - 25, 0, 0, FRAME),
+    ];
+    if (st === 'bay') {
+      const depth = 450;
+      ps = [
+        ...frame,
+        box(width, 60, depth + t, 0, -60, -(depth / 2), FRAME), // 窗台板（外凸）
+        box(width, 60, depth + t, 0, height, -(depth / 2), FRAME),
+        box(50, height, depth, -width / 2 + 25, 0, -depth / 2 - t / 2, FRAME),
+        box(50, height, depth, width / 2 - 25, 0, -depth / 2 - t / 2, FRAME),
+        box(width - 100, height - 100, 10, 0, 50, -depth - t / 2 + 5, GLASS),
+        box(10, height - 100, depth - 60, -width / 2 + 30, 50, -depth / 2 - t / 2, GLASS),
+        box(10, height - 100, depth - 60, width / 2 - 30, 50, -depth / 2 - t / 2, GLASS),
+      ];
+    } else if (st === 'fixed' || st === 'corner')
+      ps = [...frame, box(width - 100, height - 100, 10, 0, 50, 0, GLASS)];
+    else if (st === 'casement' || st === 'awning')
+      ps = [
+        ...frame,
+        st === 'casement'
+          ? box(40, height - 100, t * 0.8, 0, 50, 0, FRAME)
+          : box(width - 100, 40, t * 0.8, 0, height * 0.5, 0, FRAME),
+        box(width - 100, height - 100, 10, 0, 50, 0, GLASS),
+      ];
+    else
+      ps = [
+        ...frame,
+        box(40, height - 100, t * 0.8, 0, 50, 0, FRAME),
+        box((width - 100) / 2, height - 100, 10, -(width - 100) / 4, 50, -t * 0.15, GLASS),
+        box((width - 100) / 2, height - 100, 10, (width - 100) / 4, 50, t * 0.15, GLASS),
+      ];
+  }
   // 玻璃排在最後並自成 group 1（剖面模型用半透明材質；單一材質時 group 會被忽略）
   ps.sort((x, y) => Number(x.color === GLASS) - Number(y.color === GLASS));
   const color = new THREE.Color();
   let opaque = 0;
   const geoms = ps.map((pt) => {
-    const g = pt.g.toNonIndexed();
-    pt.g.dispose();
+    const g = pt.g.index ? pt.g.toNonIndexed() : pt.g;
+    if (g !== pt.g) pt.g.dispose();
     g.translate(pt.x, pt.y, pt.z);
     color.set(pt.color).convertSRGBToLinear();
     const n = g.getAttribute('position').count;
