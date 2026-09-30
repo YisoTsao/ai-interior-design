@@ -17,6 +17,7 @@
     "@interiorai/core-geometry": "workspace:^",
     "@interiorai/editor-2d": "workspace:^",
     "@interiorai/image-ops": "workspace:^",
+    "@interiorai/plan-recognition": "workspace:^",
     "@interiorai/scene-schema": "workspace:^",
     "@interiorai/viewer-3d": "workspace:^",
     "@radix-ui/react-dialog": "^1.1.23",

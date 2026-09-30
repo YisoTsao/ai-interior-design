@@ -12,7 +12,7 @@ import {
 import type { Scene } from '@interiorai/scene-schema';
 import type { Db } from '../db/db.js';
 import { jobs, projectVersions, renders, uploads } from '../db/schema.js';
-import type { Storage } from '../infra/storage.js';
+import type { ObjectStorage } from '../infra/storage.js';
 import { JobFailure, type Processor, type ProcessorContext } from '../worker/runtime.js';
 import type { ModelsConfig, Strictness } from './models.js';
 import { decodePng, encodePng } from './png.js';
@@ -46,7 +46,7 @@ export interface InpaintJobInput {
 
 export interface AiDeps {
   db: Db;
-  storage: Storage;
+  storage: ObjectStorage;
   models: ModelsConfig;
   router: ProviderRouter;
   /** 呼叫層退避基準（測試可縮短） */

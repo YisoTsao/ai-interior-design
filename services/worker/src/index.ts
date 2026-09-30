@@ -6,7 +6,7 @@ import {
   LedgerService,
   QUEUE_NAME,
   MockVisionProvider,
-  Storage,
+  createStorage,
   createAiRuntime,
   createPlanImportProcessor,
   createRedis,
@@ -31,7 +31,7 @@ const events = new JobEvents(connection, connection.duplicate());
 const queue = new Queue(QUEUE_NAME, { connection });
 const jobs = new JobsService(db, new LedgerService(db), queue, events);
 
-const storage = new Storage(config.s3);
+const storage = createStorage(config);
 const ai = await createAiRuntime({ db, storage });
 const processors: Record<string, Processor> = {
   render: ai.processors.render,

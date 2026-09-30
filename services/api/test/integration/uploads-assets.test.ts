@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { SEED_CATALOG } from '@interiorai/catalog';
 import { createStack, register, type Stack, putObject } from '../support/stack.js';
 
 let s: Stack;
@@ -89,7 +90,9 @@ describe('資產庫', () => {
   it('搜尋只回 published、支援分類與分頁；draft 資產看不到', async () => {
     const u = await register(s.api);
     const all = await s.api('GET', '/assets?limit=100', { token: u.token });
-    expect(all.body.items.length).toBe(47);
+    // 種子目錄中 published 的件數（上限為本次查詢的 limit）
+    const published = SEED_CATALOG.filter((e) => e.status === 'published').length;
+    expect(all.body.items.length).toBe(Math.min(100, published));
     expect(all.body.items.every((a: { status: string }) => a.status === 'published')).toBe(true);
     expect(all.body.items.some((a: { slug: string }) => a.slug === 'sofa_vendor_x')).toBe(false);
     const decor = await s.api('GET', '/assets?category=decor', { token: u.token });

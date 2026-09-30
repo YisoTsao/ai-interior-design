@@ -163,3 +163,40 @@ export function joinEndpoints(walls: ImportWall[]) {
     }
   }
 }
+
+/**
+ * 沒有房名（瀏覽器辨識沒有 OCR）時依面積推測：最大＝客廳、≤ 4.5 m²＝衛浴、其餘＝臥室 N。
+ * 只補缺的名稱（labelSource='heuristic'），使用者可在編輯器改名。
+ */
+export function labelRoomsHeuristic(
+  r: PlanResult,
+  mmPerUnit: number,
+  names: { living: string; bath: string; bedroom: (n: number) => string },
+): PlanResult {
+  const rooms = r.rooms ?? [];
+  if (!rooms.length || rooms.every((x) => x.label) || (r.labels ?? []).length) return r;
+  const area = (poly: number[][]) => {
+    let s = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i]!;
+      const b = poly[(i + 1) % poly.length]!;
+      s += a[0]! * b[1]! - b[0]! * a[1]!;
+    }
+    return (Math.abs(s) / 2) * (mmPerUnit * mmPerUnit) * 1e-6;
+  };
+  const areas = rooms.map((x) => area(x.polygon));
+  const largest = areas.indexOf(Math.max(...areas));
+  let n = 0;
+  return {
+    ...r,
+    rooms: rooms.map((x, i) =>
+      x.label
+        ? x
+        : {
+            ...x,
+            label: i === largest ? names.living : areas[i]! <= 4.5 ? names.bath : names.bedroom(++n),
+            labelSource: 'heuristic',
+          },
+    ),
+  };
+}

@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/db.js';
 import { planImports, uploads } from '../db/schema.js';
-import type { Storage } from '../infra/storage.js';
+import type { ObjectStorage } from '../infra/storage.js';
 import { JobFailure, type Processor } from '../worker/runtime.js';
 import type { VisionProvider } from './vision.js';
 
@@ -31,7 +31,7 @@ const polyAreaM2 = (poly: [number, number][]) => {
  */
 export function createPlanImportProcessor(deps: {
   db: Db;
-  storage: Storage;
+  storage: ObjectStorage;
   cvServiceUrl: string;
   vision: VisionProvider;
   fetchImpl?: typeof fetch;

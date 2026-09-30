@@ -1,7 +1,8 @@
 import { grayToRGBA, maskToRGBA, type RGBA } from '@interiorai/image-ops';
 import { toPng, type GBuffer } from '@interiorai/viewer-3d';
 import type { Schemas } from '@interiorai/api-client';
-import { API_URL, api, useAuth } from './client';
+import { API_URL, api } from './client';
+import { blobStore } from './storage';
 
 export type RenderSettings = Schemas['RenderRequest']['settings'];
 export type Job = Schemas['Job'];
@@ -16,13 +17,7 @@ export function gbufferSize(viewW: number, viewH: number, long = 1024) {
 
 async function uploadPng(img: RGBA, name: string): Promise<string> {
   const blob = await toPng(img);
-  const t = await api.post('/uploads', {
-    body: { kind: 'gbuffer', filename: `${name}.png`, mime: 'image/png', sizeBytes: blob.size },
-  });
-  const put = await fetch(t.putUrl, { method: 'PUT', headers: t.headers, body: blob });
-  if (!put.ok) throw new Error(`upload ${name} failed: ${put.status}`);
-  await api.post('/uploads/{id}/complete', { params: { id: t.upload.id } });
-  return t.upload.id;
+  return blobStore.upload('gbuffer', blob, `${name}.png`, 'image/png');
 }
 
 /** 上傳 G-buffer（05 §3-1：送出前產生並存檔以便重現）並建立渲染任務 */
@@ -60,7 +55,6 @@ export async function watchJob(jobId: string, onEvent: (j: Job) => void, signal:
   let last: Job | null = null;
   try {
     const r = await fetch(`${API_URL}/jobs/${jobId}/events`, {
-      headers: { authorization: `Bearer ${useAuth.getState().token ?? ''}` },
       signal,
     });
     if (r.ok && r.body) {

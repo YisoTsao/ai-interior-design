@@ -1,5 +1,5 @@
 import type { Db } from '../db/db.js';
-import type { Storage } from '../infra/storage.js';
+import type { ObjectStorage } from '../infra/storage.js';
 import { log } from '../common/log.js';
 import { loadModels } from './models.js';
 import { FluxImageProvider } from './providers/flux.js';
@@ -14,7 +14,7 @@ import { createAiProcessors } from './render.processor.js';
  * AI_PROVIDER=mock（預設，CI/E2E）→ 所有路線走確定性 mock；AI_MOCK_MODE 選 ok/break_structure/slow/fail。
  */
 export async function createAiRuntime(
-  deps: { db: Db; storage: Storage },
+  deps: { db: Db; storage: ObjectStorage },
   env: NodeJS.ProcessEnv = process.env,
   opts: { mockMode?: () => MockMode; backoffMs?: number; mockCostUsd?: number } = {},
 ) {

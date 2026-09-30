@@ -7,6 +7,7 @@ import type { AppConfig } from '../config.js';
 import type { Db } from '../db/db.js';
 import { memberships } from '../db/schema.js';
 import { verifyAccess } from '../modules/auth/tokens.js';
+import { LocalIdentity } from '../modules/auth/local-identity.js';
 import { ROLE_RANK, type AuthContext, type Req } from './context.js';
 import { ApiError } from './errors.js';
 import type { OpenApiContract } from './openapi.js';
@@ -31,6 +32,7 @@ export class RequestGuard implements CanActivate {
     @Inject(DB) private readonly db: Db,
     @Inject(RATE_LIMITER) private readonly limiter: TokenBucket,
     @Inject(Reflector) private readonly reflector: Reflector,
+    @Inject(LocalIdentity) private readonly local: LocalIdentity,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -55,6 +57,12 @@ export class RequestGuard implements CanActivate {
     }
 
     const m = /^Bearer (.+)$/.exec(req.header('authorization') ?? '');
+    // 不需登入模式：沒有帶 token 的請求以本機使用者身分處理
+    if (!m && this.config.authMode === 'none') {
+      await this.limit(res, `ip:${ip}`, this.config.rateLimit.capacity, this.config.rateLimit.refillPerSec);
+      req.auth = await this.local.get();
+      return true;
+    }
     const claims = m ? await verifyAccess(m[1]!, this.config.jwtSecret) : null;
     if (!claims) throw new ApiError('AUTH_REQUIRED', '請先登入');
     await this.limit(

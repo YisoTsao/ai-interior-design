@@ -30,6 +30,14 @@ export interface AppConfig {
   openapiPath: string;
   /** cv-service（Python，平面圖辨識） */
   cvServiceUrl: string;
+  /**
+   * 身分驗證模式：jwt＝需登入（Bearer JWT）；none＝不需登入，所有請求以固定的本機使用者／工作區處理。
+   * 預設：development → none；test／production → jwt。之後改用 Supabase Auth 時新增 'supabase'。
+   */
+  authMode: 'none' | 'jwt';
+  /** 物件儲存供應者：s3（S3 相容，含 MinIO）；supabase（介面已定義，尚未實作） */
+  storageProvider: 's3' | 'supabase';
+  supabase: { url: string | null; serviceRoleKey: string | null; bucket: string };
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -83,5 +91,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jobTimeoutMs: Number(env.JOB_TIMEOUT_MS ?? 5 * 60_000),
     openapiPath: env.OPENAPI_PATH ?? path.join(REPO_ROOT, 'docs/specs/openapi.yaml'),
     cvServiceUrl: env.CV_SERVICE_URL ?? 'http://localhost:8100',
+    authMode:
+      env.AUTH_MODE === 'none' || env.AUTH_MODE === 'jwt'
+        ? env.AUTH_MODE
+        : prod || env.NODE_ENV === 'test'
+          ? 'jwt'
+          : 'none',
+    storageProvider: env.STORAGE_PROVIDER === 'supabase' ? 'supabase' : 's3',
+    supabase: {
+      url: env.SUPABASE_URL ?? null,
+      serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY ?? null,
+      bucket: env.SUPABASE_BUCKET ?? 'interiorai',
+    },
   };
 }

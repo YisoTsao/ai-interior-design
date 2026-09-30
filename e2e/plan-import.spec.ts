@@ -2,20 +2,16 @@ import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * P5 Gate E2E：上傳平面圖 → 辨識 → 校正（兩點＋實際長度 / 確認 DXF 單位）→ 建立 3D。
- * 後端＝真實 API＋worker＋cv-service（services/api/scripts/e2e-backend.mjs）。
+ * 上傳平面圖 → 瀏覽器辨識 → 校正（兩點＋實際長度 / 確認 DXF 單位）→ 建立 2D/3D 專案。
+ * 不需要登入、不需要後端（辨識在瀏覽器；@interiorai/plan-recognition）。
  */
 const FX = 'fixtures/plans';
 const meta = JSON.parse(readFileSync(`${FX}/synth-filled.json`, 'utf8'));
 
-async function signIn(page: Page) {
+async function openImport(page: Page) {
   await page.goto('/');
   await page.getByTestId('import-plan').click();
-  await page.getByTestId('auth-toggle').click();
-  await page.getByTestId('auth-email').fill(`plan${Date.now()}@test.local`);
-  await page.getByTestId('auth-password').fill('password-123');
-  await page.getByTestId('auth-submit').click();
-  await expect(page.getByTestId('import-file')).toBeVisible();
+  await expect(page.getByTestId('import-file')).toBeAttached();
 }
 
 /** 原圖像素 → 螢幕座標（SVG viewBox＝影像尺寸，preserveAspectRatio 預設 xMidYMid meet） */
@@ -54,7 +50,7 @@ async function expect3d(page: Page) {
 
 test('點陣平面圖：上傳 → 待確認清單 → 兩點校正 → 建立 3D（尺寸誤差 ≤ 3%）', async ({ page }) => {
   test.setTimeout(180_000);
-  await signIn(page);
+  await openImport(page);
   await page.getByTestId('import-file').setInputFiles(`${FX}/synth-filled.png`);
   await page.waitForURL(/\/import\//);
   await expect(page.getByTestId('plan-canvas')).toBeVisible({ timeout: 60_000 });
@@ -86,7 +82,7 @@ test('點陣平面圖：上傳 → 待確認清單 → 兩點校正 → 建立 3
 
 test('DXF：單位來自檔案，確認尺度 → 建立 3D（牆數與門窗完全一致）', async ({ page }) => {
   test.setTimeout(180_000);
-  await signIn(page);
+  await openImport(page);
   await page.getByTestId('import-file').setInputFiles(`${FX}/synth-mm.dxf`);
   await page.waitForURL(/\/import\//);
   await expect(page.getByTestId('scale-confirm')).toBeVisible({ timeout: 60_000 });
@@ -97,4 +93,29 @@ test('DXF：單位來自檔案，確認尺度 → 建立 3D（牆數與門窗完
   expect(r.openings).toBe(gt.openings.length);
   expect(r.labels).toBe(gt.rooms.length);
   expect(Math.abs(r.width - gt.width) / gt.width).toBeLessThan(0.01);
+});
+
+test('尺度可由門寬推估預填；建立後 2D 也有對應的牆與房間', async ({ page }) => {
+  test.setTimeout(180_000);
+  await openImport(page);
+  await page.getByTestId('import-file').setInputFiles(`${FX}/synth-filled.png`);
+  await page.waitForURL(/\/import\//);
+  await expect(page.getByTestId('plan-engine')).toBeVisible();
+  await page.getByTestId('scale-suggested').click();
+  await page.getByTestId('scale-confirm').click();
+  await page.getByTestId('build-3d').click();
+  const r = await expect3d(page);
+  expect(r.rooms).toBeGreaterThanOrEqual(meta.gt.rooms.length - 2);
+  // 誤差較大（門寬推估），但比例正確
+  expect(r.width / r.depth).toBeCloseTo(meta.gt.width / meta.gt.depth, 1);
+  await page.getByTestId('view-2d').click();
+  await expect(page.getByTestId('plan2d')).toBeVisible();
+});
+
+test('不支援的格式會提示', async ({ page }) => {
+  await openImport(page);
+  await page
+    .getByTestId('import-file')
+    .setInputFiles({ name: 'plan.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 x') });
+  await expect(page.getByTestId('plan-failed')).toContainText('PDF');
 });

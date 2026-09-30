@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 // E2E 用完整後端（不需雲端與金鑰）：Testcontainers 起 Postgres/Redis/MinIO → 遷移/角色/種子 →
 // API（:3100）＋ 同程序 worker（AI_PROVIDER=mock）。Playwright 的 webServer 啟動它；程序結束時 Ryuk 會清掉容器。
 import { spawn } from 'node:child_process';
@@ -14,7 +15,7 @@ import {
   LedgerService,
   MockVisionProvider,
   QUEUE_NAME,
-  Storage,
+  createStorage,
   createAiRuntime,
   createApp,
   createPlanImportProcessor,
@@ -30,10 +31,14 @@ const port = Number(process.env.E2E_API_PORT ?? 3100);
 // cv-service（平面圖辨識，P5）：以 venv 的 uvicorn 啟動
 const cvDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../cv-service');
 const cvPort = Number(process.env.E2E_CV_PORT ?? 8101);
-const cv = spawn(path.join(cvDir, '.venv/bin/uvicorn'), ['app.main:app', '--host', '127.0.0.1', '--port', String(cvPort)], {
-  cwd: cvDir,
-  stdio: 'inherit',
-});
+// 前端的平面圖匯入已改在瀏覽器辨識；cv-service 只供 API 的 plan_import 任務使用 → venv 不存在時略過
+const uvicorn = path.join(cvDir, '.venv/bin/uvicorn');
+const cv = existsSync(uvicorn)
+  ? spawn(uvicorn, ['app.main:app', '--host', '127.0.0.1', '--port', String(cvPort)], {
+      cwd: cvDir,
+      stdio: 'inherit',
+    })
+  : (console.warn('[e2e-backend] cv-service venv 不存在，略過（API 平面圖匯入任務會失敗）'), null);
 const [pg, redis, minio] = await Promise.all([
   new PostgreSqlContainer('postgres:16-alpine').start(),
   new RedisContainer('redis:7-alpine').start(),
@@ -53,7 +58,8 @@ await ensureLoginRoles(owner, {
 const as = (u, p) => Object.assign(new URL(owner), { username: u, password: p }).toString();
 const s3 = `http://localhost:${minio.getMappedPort(9000)}`;
 const config = {
-  ...loadConfig({ NODE_ENV: 'test' }),
+  // 不需登入（前端已移除登入／註冊）
+  ...loadConfig({ NODE_ENV: 'test', AUTH_MODE: 'none' }),
   databaseUrl: as('app_login', 'app'),
   systemDatabaseUrl: as('system_login', 'system'),
   redisUrl: redis.getConnectionUrl(),
@@ -67,7 +73,7 @@ const config = {
   },
   strictResponses: true,
 };
-const storage = new Storage(config.s3);
+const storage = createStorage(config);
 await storage.ensureBucket();
 const db = new Db(config.databaseUrl);
 await seedCatalog(db);
@@ -85,14 +91,17 @@ const ai = await createAiRuntime(
   { AI_PROVIDER: 'mock', AI_MOCK_MODE: process.env.AI_MOCK_MODE ?? 'ok' },
 );
 const cvServiceUrl = `http://127.0.0.1:${cvPort}`;
-startWorker({ connection: conn, jobs, events, timeoutMs: config.jobTimeoutMs }, {
-  ...ai.processors,
-  plan_import: createPlanImportProcessor({ db, storage, cvServiceUrl, vision: new MockVisionProvider() }),
-});
+startWorker(
+  { connection: conn, jobs, events, timeoutMs: config.jobTimeoutMs },
+  {
+    ...ai.processors,
+    plan_import: createPlanImportProcessor({ db, storage, cvServiceUrl, vision: new MockVisionProvider() }),
+  },
+);
 console.log(`e2e backend ready on http://localhost:${port}/v1`);
 
 const stop = async () => {
-  cv.kill('SIGTERM');
+  cv?.kill('SIGTERM');
   await app.close().catch(() => undefined);
   await Promise.allSettled([pg.stop(), redis.stop(), minio.stop()]);
   process.exit(0);

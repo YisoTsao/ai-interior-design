@@ -3,7 +3,7 @@ import { and, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { DB, MODELS, STORAGE } from '../../tokens.js';
 import type { Db } from '../../db/db.js';
 import { creditLedger, jobs, orgs, projectVersions, projects, renders, uploads } from '../../db/schema.js';
-import type { Storage } from '../../infra/storage.js';
+import type { ObjectStorage } from '../../infra/storage.js';
 import { authOf, type Req as R } from '../../common/context.js';
 import { MinRole } from '../../common/guard.js';
 import { AuditService } from '../../common/audit.service.js';
@@ -25,7 +25,7 @@ type RenderRow = typeof renders.$inferSelect;
 export class RendersController {
   constructor(
     @Inject(DB) private readonly db: Db,
-    @Inject(STORAGE) private readonly storage: Storage,
+    @Inject(STORAGE) private readonly storage: ObjectStorage,
     @Inject(MODELS) private readonly models: ModelsConfig,
     @Inject(JobsService) private readonly jobs: JobsService,
     @Inject(LedgerService) private readonly ledger: LedgerService,

@@ -9,7 +9,7 @@ import type { AppConfig } from './config.js';
 import { AUTH_PROVIDER, CONFIG, CONTRACT, DB, MODELS, REDIS, STORAGE } from './tokens.js';
 import { Db } from './db/db.js';
 import { createRedis } from './infra/redis.js';
-import { Storage } from './infra/storage.js';
+import { createStorage } from './infra/storage.js';
 import { OpenApiContract } from './common/openapi.js';
 import { ApiExceptionFilter } from './common/exception.filter.js';
 import { ContractInterceptor } from './common/contract.interceptor.js';
@@ -20,6 +20,7 @@ import { AuditService } from './common/audit.service.js';
 import { requestId } from './common/request-id.js';
 import { LocalAuthProvider } from './modules/auth/local-auth.provider.js';
 import { AuthService } from './modules/auth/auth.service.js';
+import { LocalIdentity } from './modules/auth/local-identity.js';
 import { AuthController } from './modules/auth/auth.controller.js';
 import { LedgerService } from './modules/billing/ledger.service.js';
 import { BillingController } from './modules/billing/billing.controller.js';
@@ -86,7 +87,7 @@ export class AppModule {
         { provide: MODELS, useValue: models },
         { provide: DB, useFactory: () => new Db(config.databaseUrl) },
         { provide: REDIS, useFactory: () => createRedis(config.redisUrl) },
-        { provide: STORAGE, useFactory: () => new Storage(config.s3) },
+        { provide: STORAGE, useFactory: () => createStorage(config) },
         { provide: RATE_LIMITER, useFactory: (r: Redis) => new TokenBucket(r), inject: [REDIS] },
         {
           provide: JOB_QUEUE,
@@ -99,6 +100,7 @@ export class AppModule {
         AuditService,
         LedgerService,
         AuthService,
+        LocalIdentity,
         ProjectsService,
         JobsService,
         JobAccessGuard,

@@ -5,7 +5,7 @@ import { migrate, SchemaUnsupportedError, validateScene } from '@interiorai/scen
 import { DB, STORAGE } from '../../tokens.js';
 import type { Db, Tx } from '../../db/db.js';
 import { projects, projectVersions } from '../../db/schema.js';
-import type { Storage } from '../../infra/storage.js';
+import type { ObjectStorage } from '../../infra/storage.js';
 import { ApiError, notFound } from '../../common/errors.js';
 import type { AuthContext } from '../../common/context.js';
 import { stableStringify } from '../../common/idempotency.interceptor.js';
@@ -50,7 +50,7 @@ function decodeCursor(c: string): [Date, string] {
 export class ProjectsService {
   constructor(
     @Inject(DB) private readonly db: Db,
-    @Inject(STORAGE) private readonly storage: Storage,
+    @Inject(STORAGE) private readonly storage: ObjectStorage,
   ) {}
 
   async list(a: AuthContext, limit: number, cursor?: string) {

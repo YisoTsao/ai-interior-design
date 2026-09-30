@@ -72,6 +72,9 @@
   新增 35 種參數化類型／約 55 件家具、16 種材質（metalness）、`elevationMm`；GLB／glTF 上傳（本機 IndexedDB）。E2E 新增 `e2e/properties.spec.ts`。
   量測（M1 Pro、原生 arm64 Chrome、範例場景 bench 1.5 s）：夜間 59.7 FPS／458 draw calls，與改動前 457 相同；日光 59.8 FPS／151（改動前 150）。
   perf.spec（200 家具）：剖面模型 60.1 FPS（p95 18.1 ms）、draw calls 最大值 510（含旋轉時剖面牆切換觸發的陰影重算畫格；改動前同一量法亦同級）→ 列入未達標清單。
+- P5.6（使用者要求）：ADR-024——移除前端登入／註冊；API `AUTH_MODE=none`（開發預設，本機身分）；
+  平面圖辨識移到瀏覽器（`@interiorai/plan-recognition`：DXF＋點陣，Web Worker），上傳 → 校正 → 2D/3D 不需後端；
+  物件儲存介面 `ObjectStorage`（S3 實作＋Supabase 佔位）與前端 `BlobStore`。量測：合成點陣圖 8 房全部辨識、外框誤差 < 3%；DXF 門窗 15/15。
 - 已知：`@interiorai/assistant` 尚無測試檔，`pnpm test` 在該套件以「No test files」失敗（P6 進行中，非本次改動造成）。
 
 ## 阻礙與待人決策（⚠ 項須寫「解除條件」）

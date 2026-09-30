@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { DB, STORAGE } from '../../tokens.js';
 import type { Db } from '../../db/db.js';
 import { uploads } from '../../db/schema.js';
-import type { Storage } from '../../infra/storage.js';
+import type { ObjectStorage } from '../../infra/storage.js';
 import { authOf, type Req as R } from '../../common/context.js';
 import { MinRole } from '../../common/guard.js';
 import { ApiError, notFound } from '../../common/errors.js';
@@ -27,7 +27,7 @@ const PUT_TTL = 600;
 export class UploadsController {
   constructor(
     @Inject(DB) private readonly db: Db,
-    @Inject(STORAGE) private readonly storage: Storage,
+    @Inject(STORAGE) private readonly storage: ObjectStorage,
   ) {}
 
   @Post('uploads')

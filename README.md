@@ -7,7 +7,7 @@ InteriorAI 是以可編輯 Scene Graph 為核心的 AI 室內設計平台：2D �
 ## 目錄
 
 1. [五分鐘跑起來（只跑前端）](#1-五分鐘跑起來只跑前端)
-2. [完整後端一起跑（登入、雲端儲存、AI 渲染、平面圖辨識）](#2-完整後端一起跑)
+2. [完整後端一起跑（AI 渲染、雲端版本、伺服器端平面圖辨識）](#2-完整後端一起跑)
 3. [專案結構](#3-專案結構)
 4. [常用指令](#4-常用指令)
 5. [如何 Debug](#5-如何-debug)
@@ -20,7 +20,7 @@ InteriorAI 是以可編輯 Scene Graph 為核心的 AI 室內設計平台：2D �
 
 ## 1. 五分鐘跑起來（只跑前端）
 
-前端編輯器**不需要**資料庫、API 或任何金鑰：專案存在瀏覽器 IndexedDB，AI 渲染與登入按鈕在沒有後端時會提示無法連線，其他功能都能用。
+前端編輯器**不需要**資料庫、API、任何金鑰，也**不需要登入**：專案存在瀏覽器 IndexedDB；**上傳平面圖（DXF／PNG／JPG／WEBP）在瀏覽器內辨識**，校正尺度後直接產生 2D＋3D 專案。只有 AI 渲染需要啟動後端（未啟動時面板會顯示「渲染服務未啟動」）。
 
 ### 需求
 
@@ -84,6 +84,15 @@ pnpm --filter @interiorai/web dev
 | MinIO Console | http://localhost:9001 | `minio / minio12345` |
 | cv-service | http://localhost:8100 | `POST /v1/parse` |
 
+### 不需登入（AUTH_MODE）
+
+目前**沒有登入／註冊功能**。API 在開發模式預設 `AUTH_MODE=none`：沒有帶 token 的請求一律以「本機使用者」處理（第一次請求時自動建立本機使用者、工作區與 1000 點開發用點數；此帳號沒有密碼，無法登入）。
+`NODE_ENV=test` 與 `production` 預設 `AUTH_MODE=jwt`（原本的 JWT 流程與其整合測試保留，之後改用 Supabase Auth 時替換）。
+
+### 物件儲存介面（STORAGE_PROVIDER）
+
+所有用到 S3 的地方都只依賴介面：後端 `services/api/src/infra/storage.ts` 的 `ObjectStorage`（`S3Storage` 為目前實作，`SupabaseStorage` 為尚未實作的佔位），前端 `apps/web/src/cloud/storage.ts` 的 `BlobStore`。改用 Supabase 時只需補上 Supabase 實作並設定 `STORAGE_PROVIDER=supabase`（前端 `VITE_STORAGE_PROVIDER=supabase`）。資料庫改用 Supabase Postgres 時只需把 `DATABASE_URL` 指向 Supabase。
+
 ### 環境變數
 
 開發模式下 API 所有連線都有預設值（見 `services/api/src/config.ts`），**不需要 `.env`**；API 不會自動讀 `.env` 檔，要覆寫請在指令前加變數或用 `export`。`NODE_ENV=production` 時所有值都必須明確提供。
@@ -97,7 +106,10 @@ pnpm --filter @interiorai/web dev
 | `S3_ENDPOINT`、`S3_BUCKET`、`S3_ACCESS_KEY_ID`、`S3_SECRET_ACCESS_KEY` | 物件儲存 | MinIO 預設 |
 | `AI_PROVIDER` | `mock`／`openai`／`flux` | `mock` |
 | `OPENAI_API_KEY`、`BFL_API_KEY` | 只在真實供應商驗證時使用，**不可提交、不可進前端 bundle** | — |
-| `CV_SERVICE_URL` | 平面圖辨識服務 | `http://localhost:8100` |
+| `CV_SERVICE_URL` | 平面圖辨識服務（API 的 plan_import 任務） | `http://localhost:8100` |
+| `AUTH_MODE` | `none`（不需登入）／`jwt` | development＝none；test／production＝jwt |
+| `STORAGE_PROVIDER` | `s3`／`supabase`（尚未實作） | `s3` |
+| `VITE_CV_URL` | 前端平面圖辨識改用 cv-service（有 OCR 尺度與房名）；未設定＝瀏覽器辨識 | 未設定 |
 
 `.env.example` 列出上述變數，可複製成 `.env` 後用 `set -a; source .env; set +a` 載入目前的 shell。
 
@@ -232,6 +244,7 @@ E2E 截圖存在 `e2e/results/*.png`（剖面模型、夜間光線的對照圖�
 | **上傳 3D 模型** | 資產庫搜尋框旁的上傳鈕：GLB／自含式 glTF，選單位、分類、放置方式 → 加入「我的上傳」 |
 | 隱藏／鎖定 | 物件清單每列的眼睛／鎖頭；H 隱藏選取物件 |
 | 截圖 | 3D HUD 相機鈕（含後處理的 PNG） |
+| **平面圖 → 2D/3D** | 專案列表「匯入平面圖」：選檔或拖入 DXF／PNG／JPG／WEBP → 瀏覽器辨識 → 校正尺度（兩點＋實際長度，或「以門寬推估」）→ 刪除誤判 → 建立專案，自動開啟 3D |
 | 快捷鍵 | Tab 2D/3D、F 全景、Ctrl/Cmd+Z/Y 復原重做、Ctrl/Cmd+D 複製、Delete 刪除、Esc 取消 |
 
 夜間光線的物理模型見 [ADR-021](docs/adr/ADR-021-night-lighting-fixtures.md)、[ADR-023](docs/adr/ADR-023-properties-physical-night-game-ui.md)：燈具以 lm→cd 換算為真實光源；窗戶在夜間是「看得到夜空的開口」（亮度＝天空亮度，城市光害約 0.5 cd/m²），不再是發光板；間接光依全部燈具光通量以積分球公式估算。
@@ -264,9 +277,11 @@ Git pre-commit hook 會跑 `pnpm lint` 與 Prettier 檢查。新增面向使用�
 
 **開發伺服器不是 5173**：port 被占用時 Vite 會換下一個，以終端機的 `Local` 網址為準。
 
-**專案存在哪裡？**：未登入時存在該瀏覽器的 IndexedDB；登入並連上 API 後渲染前會自動存雲端版本。上傳的 3D 模型目前只存在本機瀏覽器。
+**專案存在哪裡？**：存在該瀏覽器的 IndexedDB；AI 渲染前會自動存一份版本到 API（本機工作區）。上傳的 3D 模型與平面圖匯入的暫存也只存在本機瀏覽器。
 
-**`pnpm test:e2e` 失敗在 webServer**：E2E 會用 Testcontainers 起真實後端，需要 Docker 在執行中，**也需要 cv-service 的 Python venv**（`services/cv-service/.venv`，建立方式見第 2 節步驟 4）；缺少時會出現 `spawn …/.venv/bin/uvicorn ENOENT`。只想跑前端相關 spec 時，可暫時用只啟動 Web 的設定：
+**平面圖辨識不準？**：瀏覽器辨識只處理水平／垂直牆、沒有 OCR（房名依面積推測、尺度需校正）。在校正頁刪除誤判的牆、手動兩點校正；需要更高品質時啟動 cv-service 並設定 `VITE_CV_URL`。DWG 請先轉存 DXF；PDF 請轉成 PNG。
+
+**`pnpm test:e2e` 失敗在 webServer**：E2E 會用 Testcontainers 起真實後端（`AUTH_MODE=none`），需要 Docker 在執行中。cv-service 的 venv 是選用的（只有 API 的平面圖任務會用到；前端匯入在瀏覽器辨識）。只想跑前端相關 spec 時，可暫時用只啟動 Web 的設定：
 
 ```ts
 // playwright.web-only.config.ts（不要提交）

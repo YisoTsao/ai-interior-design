@@ -5,7 +5,7 @@ export { Db, type Tx } from './db/db.js';
 export * from './db/migrate.js';
 export { seedCatalog } from './db/seed.js';
 export { createRedis } from './infra/redis.js';
-export { Storage } from './infra/storage.js';
+export { Storage, S3Storage, SupabaseStorage, createStorage, type ObjectStorage } from './infra/storage.js';
 export { ApiError, type ErrorCode } from './common/errors.js';
 export { log } from './common/log.js';
 export { OpenApiContract } from './common/openapi.js';

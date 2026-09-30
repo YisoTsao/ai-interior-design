@@ -1,55 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import * as Dialog from '@radix-ui/react-dialog';
 import { FileUp, X } from 'lucide-react';
-import { ApiClientError, api, refresh, useAuth } from '../../cloud/client';
-import { AuthForm } from '../../cloud/AuthForm';
+import { PlanParseError } from '@interiorai/plan-recognition';
+import { recognizePlanFile } from './local';
 
-const MIME: Record<string, string> = {
-  dxf: 'application/dxf',
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  webp: 'image/webp',
-};
-
-/** 匯入平面圖（FR-101/102）：上傳 → 建立辨識任務 → 前往校正頁 */
-export function ImportPlanButton() {
+/**
+ * 匯入平面圖（FR-101/102）：選檔或拖放 → 瀏覽器辨識（或 cv-service）→ 校正頁 → 建立 2D/3D 專案。
+ * 不需要登入，也不需要後端。
+ */
+export function ImportPlanButton({ className = 'btn' }: { className?: string }) {
   const { t } = useTranslation();
-  const auth = useAuth();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (open && auth.status === 'unknown') void refresh();
-  }, [open, auth.status]);
+  const [over, setOver] = useState(false);
 
-  const upload = async (file: File) => {
+  const run = async (file: File | undefined) => {
+    if (!file) return;
     setBusy(true);
     setErr(null);
     try {
-      const ext = file.name.toLowerCase().split('.').pop() ?? '';
-      const mime = MIME[ext];
-      if (!mime) throw new Error(t('planImport.badType'));
-      const tk = await api.post('/uploads', {
-        body: { kind: 'plan', filename: file.name, mime, sizeBytes: file.size },
-      });
-      const put = await fetch(tk.putUrl, { method: 'PUT', headers: tk.headers, body: file });
-      if (!put.ok) throw new Error(`upload ${put.status}`);
-      await api.post('/uploads/{id}/complete', { params: { id: tk.upload.id } });
-      const job = await api.post('/plan-imports', {
-        idempotencyKey: crypto.randomUUID(),
-        body: { uploadId: tk.upload.id },
-      });
-      void nav(`/import/${job.id}`);
+      const s = await recognizePlanFile(file);
+      void nav(`/import/${s.id}`);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       setErr(
-        e instanceof ApiClientError
-          ? t(`render.err.${e.code}`, { defaultValue: e.message })
-          : (e as Error).message,
+        e instanceof PlanParseError
+          ? msg === 'TOO_LARGE'
+            ? t('planImport.tooLarge')
+            : e.code === 'UPLOAD_REJECTED'
+              ? msg
+              : t('planImport.parseFailed', { message: msg })
+          : t('planImport.parseFailed', { message: msg }),
       );
     } finally {
       setBusy(false);
@@ -59,45 +44,59 @@ export function ImportPlanButton() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button className="btn" data-testid="import-plan">
+        <button className={className} data-testid="import-plan">
           <FileUp size={16} aria-hidden /> {t('planImport.button')}
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/20" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50" />
         <Dialog.Content
-          className="fixed left-1/2 top-24 w-[440px] max-w-[calc(100%-32px)] -translate-x-1/2 space-y-3 rounded-lg border border-border bg-surface p-4 shadow-xl"
+          className="game-ui hud-panel fixed top-24 left-1/2 z-50 w-[480px] max-w-[calc(100%-32px)] -translate-x-1/2 space-y-3 p-5"
           aria-describedby={undefined}
         >
           <div className="flex items-center justify-between">
-            <Dialog.Title className="font-semibold">{t('planImport.title')}</Dialog.Title>
+            <Dialog.Title className="hud-title flex-1 text-base">{t('planImport.title')}</Dialog.Title>
             <Dialog.Close className="icon-btn" aria-label={t('render.close')}>
               <X size={18} aria-hidden />
             </Dialog.Close>
           </div>
-          {auth.status !== 'authenticated' ? (
-            <AuthForm hint={t('planImport.loginHint')} />
-          ) : (
-            <div className="space-y-2 text-sm">
-              <p className="text-muted">{t('planImport.formats')}</p>
-              <input
-                ref={input}
-                type="file"
-                accept=".dxf,.png,.jpg,.jpeg,.webp"
-                className="block w-full text-sm"
-                disabled={busy}
-                aria-label={t('planImport.choose')}
-                data-testid="import-file"
-                onChange={(e) => e.target.files?.[0] && void upload(e.target.files[0])}
-              />
-              {busy && <p aria-live="polite">{t('planImport.uploading')}</p>}
-              {err && (
-                <p role="alert" className="text-danger">
-                  {err}
-                </p>
-              )}
-            </div>
+          <p className="text-xs text-muted">{t('planImport.formats')}</p>
+          <label
+            className={`flex cursor-pointer flex-col items-center gap-2 border border-dashed p-8 text-center text-sm ${over ? 'border-primary bg-primary/10' : 'border-border'}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOver(true);
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setOver(false);
+              void run(e.dataTransfer.files[0]);
+            }}
+          >
+            <FileUp size={26} aria-hidden className="text-primary" />
+            <span>{busy ? t('planImport.analyzing') : t('planImport.choose')}</span>
+            <input
+              type="file"
+              accept=".dxf,.png,.jpg,.jpeg,.webp"
+              className="sr-only"
+              disabled={busy}
+              aria-label={t('planImport.choose')}
+              data-testid="import-file"
+              onChange={(e) => void run(e.target.files?.[0])}
+            />
+          </label>
+          {busy && (
+            <p aria-live="polite" className="text-xs text-muted" data-testid="plan-progress">
+              {t('planImport.analyzing')}
+            </p>
           )}
+          {err && (
+            <p role="alert" className="text-sm text-danger" data-testid="plan-failed">
+              {err}
+            </p>
+          )}
+          <p className="text-[11px] text-muted">{t('planImport.privacy')}</p>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Sparkles, X } from 'lucide-react';
 import { viewer3dApi } from '@interiorai/viewer-3d';
-import { ApiClientError, api, logout, refresh, useAuth } from '../cloud/client';
-import { AuthForm } from '../cloud/AuthForm';
+import { ApiClientError, api } from '../cloud/client';
 import {
   gbufferSize,
   submitRender,
@@ -22,11 +21,7 @@ const STRICTNESS = ['free', 'balanced', 'strict'] as const;
 /** AI 渲染面板（S5.10，FR-502/504）：草圖→高清、嚴格度、預估點數、進度、比較、局部重繪、未通過預覽 */
 export function RenderPanel() {
   const { t } = useTranslation();
-  const auth = useAuth();
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (open && auth.status === 'unknown') void refresh();
-  }, [open, auth.status]);
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -48,7 +43,7 @@ export function RenderPanel() {
               <X size={18} aria-hidden />
             </Dialog.Close>
           </div>
-          {auth.status === 'authenticated' ? <RenderForm /> : <AuthForm />}
+          <RenderForm />
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -59,7 +54,6 @@ function RenderForm() {
   const { t } = useTranslation();
   const store = useEditorStore();
   const selection = useEditor((s) => s.selection);
-  const user = useAuth((s) => s.user);
   const [pricing, setPricing] = useState<Pricing | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [settings, setSettings] = useState<RenderSettings>({
@@ -172,11 +166,8 @@ function RenderForm() {
   return (
     <div className="space-y-3 text-sm">
       <div className="flex items-center justify-between text-xs text-muted">
-        <span data-testid="render-user">{user?.email}</span>
         <span data-testid="render-balance">{t('render.balance', { n: balance ?? '—' })}</span>
-        <button className="btn px-2 py-0.5 text-xs" onClick={() => void logout()}>
-          {t('auth.logout')}
-        </button>
+        {pricing === null && <span className="text-warn">{t('render.offline')}</span>}
       </div>
 
       <fieldset className="space-y-2" disabled={busy}>

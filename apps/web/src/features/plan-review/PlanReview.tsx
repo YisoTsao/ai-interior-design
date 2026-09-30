@@ -3,95 +3,79 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Check, Ruler, Trash2 } from 'lucide-react';
 import { createEditorStore, importPlan, saveProject, type ImportSkip } from '@interiorai/app-state';
-import type { Schemas } from '@interiorai/api-client';
-import { api, refresh, useAuth } from '../../cloud/client';
-import { AuthForm } from '../../cloud/AuthForm';
 import {
   LOW_CONFIDENCE,
   calibrate,
   defaultMmPerUnit,
   imageTransform,
+  labelRoomsHeuristic,
   pending,
   toImport,
   type PlanResult,
 } from './geometry';
+import { deleteSession, loadSession, type ImportSession } from './local';
 
-type PlanImport = Schemas['PlanImport'];
 type P = [number, number];
 
 /**
  * 平面圖校正（S6.6、FR-103/104）：底圖＋辨識結果疊圖；信心 < 0.6 紅框並列入待確認；
- * 尺度校正必經（兩點＋實際長度，或確認 DXF/OCR 的尺度）；直角吸附；建立 3D 專案。
+ * 尺度校正必經（兩點＋實際長度，或確認 DXF 的尺度）；直角吸附；建立 2D/3D 專案。
+ * 匯入工作階段存在本機（不需登入）。
  */
 export function PlanReviewPage() {
   const { id } = useParams();
   const { t } = useTranslation();
-  const auth = useAuth();
-  const [pi, setPi] = useState<PlanImport | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [session, setSession] = useState<ImportSession | null | 'missing'>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (auth.status === 'unknown') void refresh();
-  }, [auth.status]);
-  useEffect(() => {
-    if (auth.status !== 'authenticated' || !id) return;
     let dead = false;
-    const poll = async () => {
-      try {
-        const r = await api.get('/plan-imports/{id}', { params: { id } });
-        if (dead) return;
-        setPi(r);
-        if (r.state !== 'succeeded' && r.state !== 'failed' && r.state !== 'canceled')
-          setTimeout(() => void poll(), 800);
-      } catch (e) {
-        if (!dead) setErr((e as Error).message);
-      }
-    };
-    void poll();
+    void loadSession(id ?? '').then((s) => !dead && setSession(s ?? 'missing'));
     return () => {
       dead = true;
     };
-  }, [auth.status, id]);
+  }, [id]);
+  useEffect(() => {
+    if (!session || session === 'missing' || !session.image) return;
+    const url = URL.createObjectURL(session.image);
+    setImageUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [session]);
 
   return (
-    <main className="flex h-full flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-3">
+    <main className="game-ui flex h-full flex-col">
+      <header className="hud-bar flex h-12 shrink-0 items-center gap-2 px-3">
         <Link to="/" className="icon-btn" aria-label={t('top.back')}>
           <ArrowLeft size={18} aria-hidden />
         </Link>
-        <h1 className="font-semibold">{t('planImport.reviewTitle')}</h1>
-        <span className="text-xs text-muted">{pi?.fileName}</span>
+        <h1 className="hud-title">{t('planImport.reviewTitle')}</h1>
+        <span className="text-xs text-muted">{session && session !== 'missing' ? session.fileName : ''}</span>
+        {session && session !== 'missing' && (
+          <span className="ml-auto text-[11px] text-muted" data-testid="plan-engine">
+            {t(`planImport.engine.${session.engine}`)}
+          </span>
+        )}
       </header>
-      {auth.status !== 'authenticated' ? (
-        <div className="mx-auto mt-10 w-96">
-          <AuthForm hint={t('planImport.loginHint')} />
-        </div>
-      ) : err ? (
-        <p role="alert" className="p-6 text-danger">
-          {err}
-        </p>
-      ) : !pi || (pi.state !== 'succeeded' && pi.state !== 'failed') ? (
+      {session === null ? (
         <div className="grid flex-1 place-items-center" aria-live="polite" data-testid="plan-progress">
-          <div className="w-72 space-y-2 text-center">
-            <p>{t('planImport.analyzing')}</p>
-            <progress className="w-full" max={100} value={pi?.progress ?? 0} />
-          </div>
+          <p>{t('planImport.analyzing')}</p>
         </div>
-      ) : pi.state === 'failed' || !pi.result ? (
+      ) : session === 'missing' ? (
         <div className="p-6" role="alert" data-testid="plan-failed">
-          <p className="text-danger">
-            {t(`render.err.${pi.errorCode ?? 'JOB_FAILED'}`, { defaultValue: pi.errorMessage ?? '' })}
-          </p>
-          <p className="text-sm text-muted">{pi.errorMessage}</p>
+          <p className="text-danger">{t('planImport.missing')}</p>
+          <Link to="/" className="btn mt-3">
+            {t('top.back')}
+          </Link>
         </div>
       ) : (
-        <Review pi={pi} result={pi.result as PlanResult} />
+        <Review session={session} imageUrl={imageUrl} />
       )}
     </main>
   );
 }
 
-function Review({ pi, result }: { pi: PlanImport; result: PlanResult }) {
+function Review({ session, imageUrl }: { session: ImportSession; imageUrl: string | null }) {
+  const result = session.result as unknown as PlanResult;
   const { t } = useTranslation();
   const nav = useNavigate();
   const tf = useMemo(() => imageTransform(result), [result]);
@@ -161,13 +145,20 @@ function Review({ pi, result }: { pi: PlanImport; result: PlanResult }) {
 
   const build = async () => {
     if (!mmPerUnit) return;
-    const store = createEditorStore({ projectName: pi.fileName ?? t('projects.untitled') });
+    const name = session.fileName.replace(/\.[a-z0-9]+$/i, '') || t('projects.untitled');
+    const store = createEditorStore({ projectName: name });
     const s = store.getState();
     let skip: ImportSkip[] = [];
-    s.exec(importPlan(s.levelId, toImport(result, mmPerUnit, { orthogonal, removed }), (x) => (skip = x)));
+    const labeled = labelRoomsHeuristic(result, mmPerUnit, {
+      living: t('planImport.rooms.living'),
+      bath: t('planImport.rooms.bath'),
+      bedroom: (n) => t('planImport.rooms.bedroom', { n }),
+    });
+    s.exec(importPlan(s.levelId, toImport(labeled, mmPerUnit, { orthogonal, removed }), (x) => (skip = x)));
     setSkipped(skip);
     const st = store.getState();
     await saveProject({ id: st.projectId, name: st.projectName, scene: st.scene });
+    void deleteSession(session.id);
     void nav(`/p/${st.projectId}/edit?view=3d`);
   };
 
@@ -188,8 +179,8 @@ function Review({ pi, result }: { pi: PlanImport; result: PlanResult }) {
           role="img"
           aria-label={t('planImport.canvas')}
         >
-          {tf.hasImage && pi.sourceUrl && (
-            <image href={pi.sourceUrl} x={0} y={0} width={im?.width} height={im?.height} opacity={0.55} />
+          {tf.hasImage && imageUrl && (
+            <image href={imageUrl} x={0} y={0} width={im?.width} height={im?.height} opacity={0.55} />
           )}
           {result.rooms?.map((r, i) => (
             <polygon
@@ -308,6 +299,15 @@ function Review({ pi, result }: { pi: PlanImport; result: PlanResult }) {
                 {t('planImport.apply')}
               </button>
             </div>
+          )}
+          {!mmPerUnit && result.scale.suggestedMmPerPx && (
+            <button
+              className="btn w-full"
+              onClick={() => setMmPerUnit(result.scale.suggestedMmPerPx!)}
+              data-testid="scale-suggested"
+            >
+              {t('planImport.useSuggested', { v: result.scale.suggestedMmPerPx.toFixed(2) })}
+            </button>
           )}
           {mmPerUnit && !scaleOk && (
             <button className="btn w-full" onClick={() => setScaleOk(true)} data-testid="scale-confirm">

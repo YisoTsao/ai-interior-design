@@ -285,7 +285,6 @@
   "render": {
     "title": "AI render",
     "close": "Close",
-    "loginHint": "Rendering runs in the cloud. Please sign in (new accounts get free credits).",
     "balance": "{{n}} credits",
     "style": "Style",
     "styles": {
@@ -351,16 +350,8 @@
       "NETWORK": "Cannot reach the server",
       "CANCELED": "Canceled"
     },
-    "inpaintDone": "Selection repainted; pixels outside the mask are bit-identical to the original"
-  },
-  "auth": {
-    "email": "Email",
-    "password": "Password (min 8 chars)",
-    "login": "Sign in",
-    "register": "Sign up",
-    "toRegister": "No account? Sign up",
-    "toLogin": "Have an account? Sign in",
-    "logout": "Sign out"
+    "inpaintDone": "Selection repainted; pixels outside the mask are bit-identical to the original",
+    "offline": "Render service offline"
   },
   "lightColors": {
     "2700K": "Warm 2700K",
@@ -380,7 +371,6 @@
   "planImport": {
     "button": "Import floor plan",
     "title": "Import floor plan",
-    "loginHint": "Floor plan recognition runs in the cloud. Please sign in.",
     "formats": "DXF (vector, most accurate) and PNG/JPG/WEBP (raster). Convert DWG to DXF first.",
     "choose": "Choose a floor plan file",
     "uploading": "Uploading…",
@@ -417,7 +407,21 @@
     "orthogonal": "Snap near-orthogonal walls",
     "build": "Create 3D project",
     "needScale": "Confirm the scale before creating the project",
-    "skipped": "{{n}} invalid elements were skipped"
+    "skipped": "{{n}} invalid elements were skipped",
+    "tooLarge": "The file is larger than 25 MB.",
+    "parseFailed": "Could not recognize this plan: {{message}}",
+    "privacy": "Recognition runs in your browser; the file is not uploaded.",
+    "engine": {
+      "browser": "Browser recognition",
+      "cv-service": "cv-service recognition"
+    },
+    "missing": "This import was not found (already built or browser data cleared). Please upload again.",
+    "rooms": {
+      "living": "Living room",
+      "bath": "Bathroom",
+      "bedroom": "Bedroom {{n}}"
+    },
+    "useSuggested": "Estimate scale from door widths ({{v}} mm/px)"
   },
   "light": {
     "title": "Light",

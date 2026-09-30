@@ -285,7 +285,6 @@
   "render": {
     "title": "AI 渲染",
     "close": "關閉",
-    "loginHint": "AI 渲染在雲端執行，請先登入（新帳號贈送點數）。",
     "balance": "餘額 {{n}} 點",
     "style": "風格",
     "styles": {
@@ -351,16 +350,8 @@
       "NETWORK": "無法連線到伺服器",
       "CANCELED": "已取消"
     },
-    "inpaintDone": "已重繪所選物件；遮罩外像素與原圖逐位元相同"
-  },
-  "auth": {
-    "email": "Email",
-    "password": "密碼（至少 8 字元）",
-    "login": "登入",
-    "register": "註冊",
-    "toRegister": "沒有帳號？註冊",
-    "toLogin": "已有帳號？登入",
-    "logout": "登出"
+    "inpaintDone": "已重繪所選物件；遮罩外像素與原圖逐位元相同",
+    "offline": "渲染服務未啟動"
   },
   "lightColors": {
     "2700K": "暖白 2700K",
@@ -380,7 +371,6 @@
   "planImport": {
     "button": "匯入平面圖",
     "title": "匯入平面圖",
-    "loginHint": "平面圖辨識在雲端執行，請先登入。",
     "formats": "支援 DXF（向量，最準）與 PNG／JPG／WEBP（點陣）。DWG 請先轉存為 DXF。",
     "choose": "選擇平面圖檔案",
     "uploading": "上傳中…",
@@ -417,7 +407,21 @@
     "orthogonal": "直角吸附（接近水平/垂直的牆拉正）",
     "build": "建立 3D 專案",
     "needScale": "確認尺度後才能建立專案",
-    "skipped": "有 {{n}} 個元素不合法已略過"
+    "skipped": "有 {{n}} 個元素不合法已略過",
+    "tooLarge": "檔案超過 25 MB。",
+    "parseFailed": "無法辨識這張平面圖：{{message}}",
+    "privacy": "辨識在你的瀏覽器中進行，檔案不會上傳。",
+    "engine": {
+      "browser": "瀏覽器辨識",
+      "cv-service": "cv-service 辨識"
+    },
+    "missing": "找不到這次匯入（可能已建立專案或瀏覽器資料已清除），請重新上傳。",
+    "rooms": {
+      "living": "客廳",
+      "bath": "衛浴",
+      "bedroom": "臥室 {{n}}"
+    },
+    "useSuggested": "以門寬推估尺度（{{v}} mm/px）"
   },
   "light": {
     "title": "光源",
