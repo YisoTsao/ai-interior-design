@@ -88,6 +88,8 @@ function Review({ session, imageUrl }: { session: ImportSession; imageUrl: strin
   const [calib, setCalib] = useState<{ pts: P[]; active: boolean }>({ pts: [], active: false });
   const [lengthMm, setLengthMm] = useState('');
   const [skipped, setSkipped] = useState<ImportSkip[] | null>(null);
+  const [building, setBuilding] = useState(false);
+  const [buildErr, setBuildErr] = useState<string | null>(null);
   const svg = useRef<SVGSVGElement>(null);
 
   // 顯示範圍：有底圖＝影像像素；向量＝牆的外框（結果座標）
@@ -144,7 +146,17 @@ function Review({ session, imageUrl }: { session: ImportSession; imageUrl: strin
   };
 
   const build = async () => {
-    if (!mmPerUnit) return;
+    if (!mmPerUnit || building) return;
+    setBuilding(true);
+    setBuildErr(null);
+    try {
+      await buildProject(mmPerUnit);
+    } catch (e) {
+      setBuildErr(e instanceof Error ? e.message : String(e));
+      setBuilding(false);
+    }
+  };
+  const buildProject = async (mmPerUnit: number) => {
     const name = session.fileName.replace(/\.[a-z0-9]+$/i, '') || t('projects.untitled');
     const store = createEditorStore({ projectName: name });
     const s = store.getState();
@@ -371,13 +383,18 @@ function Review({ session, imageUrl }: { session: ImportSession; imageUrl: strin
 
         <button
           className="btn btn-primary w-full"
-          disabled={!scaleOk || !mmPerUnit}
+          disabled={!scaleOk || !mmPerUnit || building}
           onClick={() => void build()}
           data-testid="build-3d"
         >
           {t('planImport.build')}
         </button>
         {!scaleOk && <p className="text-xs text-muted">{t('planImport.needScale')}</p>}
+        {buildErr && (
+          <p role="alert" className="text-xs text-danger" data-testid="build-failed">
+            {t('planImport.buildFailed', { message: buildErr })}
+          </p>
+        )}
         {skipped && skipped.length > 0 && (
           <p className="text-xs text-warn">{t('planImport.skipped', { n: skipped.length })}</p>
         )}

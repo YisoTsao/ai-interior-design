@@ -85,6 +85,26 @@ export const FURNITURE_SETS: FurnitureSet[] = [
 ];
 
 /** 套組放置：at＝世界座標中心，rotationY＝整組旋轉；回傳 Command 與新群組 id */
+/** 套組各品項在 at（中心）與旋轉 rotationY 下的位置（放置與拖曳預覽共用） */
+export function setLayout(
+  set: FurnitureSet,
+  at: [number, number],
+  rotationY = 0,
+): { catalogId: string; position: [number, number, number]; rotationY: number }[] {
+  const c = Math.cos(rotationY);
+  const s = Math.sin(rotationY);
+  return set.items.map((it) => {
+    // 與 transform 慣例一致：物件局部 +X＝(cos, −sin)、+Z＝(sin, cos)
+    const x = at[0] + c * it.x + s * it.z;
+    const z = at[1] - s * it.x + c * it.z;
+    return {
+      catalogId: it.catalogId,
+      position: [Math.round(x), it.y ?? 0, Math.round(z)],
+      rotationY: rotationY + (it.rot ?? 0),
+    };
+  });
+}
+
 export function placeSet(
   levelId: string,
   set: FurnitureSet,
@@ -92,22 +112,11 @@ export function placeSet(
   rotationY = 0,
 ): Command & { groupId: string; ids: string[] } {
   const groupId = newId('obj').replace('obj_', 'grp_');
-  const c = Math.cos(rotationY);
-  const s = Math.sin(rotationY);
   const ids: string[] = [];
-  const cmds = set.items.map((it) => {
+  const cmds = setLayout(set, at, rotationY).map((it) => {
     const id = newId('obj');
     ids.push(id);
-    // 與 transform 慣例一致：物件局部 +X＝(cos, −sin)、+Z＝(sin, cos)
-    const x = at[0] + c * it.x + s * it.z;
-    const z = at[1] - s * it.x + c * it.z;
-    return addObject(levelId, {
-      id,
-      catalogId: it.catalogId,
-      position: [Math.round(x), it.y ?? 0, Math.round(z)],
-      rotationY: rotationY + (it.rot ?? 0),
-      groupId,
-    });
+    return addObject(levelId, { id, ...it, groupId });
   });
   return Object.assign(batch(cmds, 'command.placeSet'), { groupId, ids });
 }

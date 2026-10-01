@@ -1,5 +1,5 @@
 import { objectDims, resolveParams, type Catalog, type CatalogEntry } from '@interiorai/catalog';
-import { pointOnWall, wallLength } from '@interiorai/core-geometry';
+import { detectRooms, pointInPolygon, pointOnWall, wallLength } from '@interiorai/core-geometry';
 import type { Environment, Level, LightOverride, SceneObject } from '@interiorai/scene-schema';
 import type { WallSide } from './style.js';
 
@@ -62,7 +62,8 @@ export interface LightSource {
   rangeMm?: number;
   /** 天花板燈具（剖面模型中沒有天花板時只隱藏燈體、光仍照射） */
   ceiling: boolean;
-  source: 'fixture' | 'window';
+  /** fill＝沒有燈具的房間由檢視器補上的虛擬吸頂光（不在 Scene） */
+  source: 'fixture' | 'window' | 'fill';
 }
 
 /** 物件局部 → 世界：繞 +Y 旋轉 θ（Three.js 右手系）＋縮放＋平移 */
@@ -318,3 +319,49 @@ export const aimWorld = (
   panDeg: number,
   rotationY: number,
 ): Vec3 => rotDir(aim(FACING[facing]!, tiltDeg, panDeg), rotationY);
+
+/**
+ * 夜間補光：沒有任何燈具的房間在天花中央補一盞虛擬吸頂燈（2700 K、約 100 lm/m²，不入 Scene）。
+ * 剛從平面圖匯入（還沒有家具與燈具）的專案，夜間只剩城市夜空的窗光（0.5 cd/m²），整棟會是一塊全黑的量體。
+ */
+export function roomFillLights(
+  level: Pick<Level, 'walls' | 'openings' | 'height'>,
+  fixtures: readonly LightSource[],
+): LightSource[] {
+  const out: LightSource[] = [];
+  const { rooms } = detectRooms(level);
+  for (const r of rooms) {
+    const poly = r.floor;
+    if (fixtures.some((f) => pointInPolygon([f.position[0], f.position[2]], poly))) continue;
+    const areaM2 = r.netArea / 1e6;
+    if (areaM2 < 1) continue;
+    // 面積加權重心；凹多邊形重心落在房外時退回第一個頂點附近的內點
+    let cx = 0;
+    let cz = 0;
+    let a2 = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const [x0, z0] = poly[i]!;
+      const [x1, z1] = poly[(i + 1) % poly.length]!;
+      const c = x0 * z1 - x1 * z0;
+      a2 += c;
+      cx += (x0 + x1) * c;
+      cz += (z0 + z1) * c;
+    }
+    if (Math.abs(a2) < 1e-6) continue;
+    cx /= 3 * a2;
+    cz /= 3 * a2;
+    if (!pointInPolygon([cx, cz], poly)) continue;
+    out.push({
+      id: `fill_${r.key}`,
+      kind: 'point',
+      position: [cx, Math.max(1800, level.height - 250), cz],
+      direction: [0, -1, 0],
+      color: kelvinToHex(2700),
+      lumens: Math.min(2500, Math.max(400, areaM2 * 100)),
+      castShadow: false,
+      ceiling: true,
+      source: 'fill',
+    });
+  }
+  return out;
+}

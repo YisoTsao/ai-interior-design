@@ -32,7 +32,8 @@ test('剖面模型：剖面牆隨視角改變、可切回簡易模式', async ({
   const [dx, dy, dz] = [0, 1, 2].map((i) => cam.position[i] - cam.target[i]);
   expect((Math.atan2(dy!, Math.hypot(dx!, dz!)) * 180) / Math.PI).toBeCloseTo(35, 0);
 
-  // 剖面牆：相機在 +X+Z 側 → z=8400 與 x=9000 的外牆及內牆降低；遠側 z=0、x=0 外牆保持全高
+  // 剖面牆（日／夜同一規則）：相機在 +X+Z 側 → 只有近側 z=8400 與 x=9000 的外牆降低；
+  // 內牆與遠側 z=0、x=0 外牆保持全高
   const cutSE: string[] = await page.evaluate(() => (window as any).__editor.viewer3d().cutWalls());
   const walls = (await level(page)).scene.levels[0].walls as { id: string; a: number[]; b: number[] }[];
   const find = (f: (w: { a: number[]; b: number[] }) => boolean) => walls.find(f)!.id;
@@ -40,7 +41,10 @@ test('剖面模型：剖面牆隨視角改變、可切回簡易模式', async ({
   const farX = find((w) => w.a[0] === 0 && w.b[0] === 0);
   expect(cutSE).not.toContain(farZ);
   expect(cutSE).not.toContain(farX);
-  expect(cutSE.length).toBe(walls.length - 2);
+  const near = walls
+    .filter((w) => (w.a[1] === 8400 && w.b[1] === 8400) || (w.a[0] === 9000 && w.b[0] === 9000))
+    .map((w) => w.id);
+  expect([...cutSE].sort()).toEqual([...near].sort());
 
   await page.waitForTimeout(800);
   await page.getByTestId('viewer3d').screenshot({ path: 'e2e/results/style-dollhouse-se.png' });

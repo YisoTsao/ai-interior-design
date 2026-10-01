@@ -34,11 +34,12 @@ import { deleteUserAsset, isUserAsset } from '../userAssets';
 import { useEditor, useEditorStore } from './context';
 import { mergeLook } from './look';
 import { useThumbnail } from './thumbs';
-import { UploadModelDialog } from './UploadModelDialog';
+import { requestModelUpload } from './uploadRequest';
 import { swatchCss } from './swatch';
 import { AssetDetail } from './AssetDetail';
 import { SetsList } from './SetsList';
 import { UserAssetsDialog } from './UserAssetsDialog';
+import { dragPayload } from './dragPayload';
 
 const TOOLS: { tool: Tool; icon: typeof MousePointer2; key: string; hotkey?: string }[] = [
   { tool: 'select', icon: MousePointer2, key: 'tools.select', hotkey: 'V' },
@@ -298,7 +299,6 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
   const [price, setPrice] = useState<string | null>(null);
   const [maxW, setMaxW] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
-  const [uploadOpen, setUploadOpen] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const used = useMemo(
@@ -368,16 +368,16 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
           <SlidersHorizontal size={14} aria-hidden />
           {active > 0 && <span className="text-[10px] text-primary">{active}</span>}
         </button>
-        <button
-          className="btn px-2"
-          onClick={() => setUploadOpen(true)}
-          title={t('upload.open')}
-          aria-label={t('upload.open')}
-          data-testid="upload-open"
-        >
-          <Upload size={14} aria-hidden />
-        </button>
       </div>
+      <button
+        className="btn w-full justify-center text-xs"
+        onClick={() => requestModelUpload()}
+        title={t('upload.formats')}
+        data-testid="upload-open"
+      >
+        <Upload size={14} aria-hidden /> {t('upload.open')}
+        <span className="font-mono text-[10px] text-muted">{t('upload.formatsShort')}</span>
+      </button>
       {showFilters && (
         <div
           className="space-y-2 border border-border bg-black/20 p-2 text-xs"
@@ -539,7 +539,6 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
           )}
         </>
       )}
-      <UploadModelDialog open={uploadOpen} onOpenChange={setUploadOpen} />
       <AssetDetail entryId={detail} onClose={() => setDetail(null)} />
       <UserAssetsDialog open={manageOpen} onOpenChange={setManageOpen} />
     </div>
@@ -571,7 +570,11 @@ function AssetCard({
         data-active={active}
         aria-label={t('assets.place', { name: nm })}
         draggable
-        onDragStart={(ev) => ev.dataTransfer.setData('application/x-interiorai-catalog', e.id)}
+        onDragStart={(ev) => {
+          ev.dataTransfer.setData('application/x-interiorai-catalog', e.id);
+          dragPayload.start({ kind: 'catalog', id: e.id });
+        }}
+        onDragEnd={dragPayload.end}
         onClick={onPick}
         data-testid={`asset-${e.id}`}
       >

@@ -5,6 +5,8 @@ import type { Level, Wall } from '@interiorai/scene-schema';
 import { buildFurnitureGeometry, buildOpeningFill, styledVariantKey } from '../src/furniture.js';
 import {
   classifyWalls,
+  cutawayWallHeight,
+  DOLLHOUSE,
   dollhouseFloorMaterial,
   fitDistance,
   fullHeightWalls,
@@ -187,5 +189,20 @@ describe('mutedColor', () => {
   });
   it('已經低飽和的顏色幾乎不變', () => {
     expect(mutedColor('#d9d6cf')).toBe('#d9d6cf');
+  });
+});
+
+describe('cutawayWallHeight（日／夜同一規則）', () => {
+  it('內牆與獨立牆全高', () => {
+    expect(cutawayWallHeight(2800, { exterior: false }, false)).toBe(2800);
+    expect(cutawayWallHeight(2800, undefined, false)).toBe(2800);
+  });
+  it('靠近相機的外牆降為牆腳，背對相機的外牆全高', () => {
+    const ext = { exterior: true, outward: [1, 0] as [number, number] };
+    expect(cutawayWallHeight(2800, ext, false)).toBe(DOLLHOUSE.cutHeight);
+    expect(cutawayWallHeight(2800, ext, true)).toBe(2800);
+  });
+  it('矮牆不會被拉高', () => {
+    expect(cutawayWallHeight(60, { exterior: true, outward: [0, 1] }, false)).toBe(60);
   });
 });

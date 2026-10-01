@@ -53,6 +53,10 @@ export interface Viewer3DApi {
   exportModel(format: 'glb' | 'obj'): Promise<Blob>;
   /** 以目前畫面（含後處理）輸出 PNG dataURL */
   screenshot(): string | null;
+  /** 目前顯示的放置預覽（幽靈物件）數量（測試用） */
+  ghosts(): number;
+  /** 世界座標（mm）→ 螢幕座標（測試鉤子；E2E 以此找物件位置） */
+  worldToClient(p: [number, number, number]): [number, number] | null;
   /** 螢幕座標 → 地面（y=0）世界座標 x,z（拖放資產用） */
   clientToFloor(clientX: number, clientY: number): [number, number] | null;
   /** 螢幕座標下的表面（牆面 A/B、地板、天花、物件、門窗） */
@@ -102,5 +106,30 @@ export const sunOverride = {
   subscribe: (f: () => void) => {
     sunSubs.add(f);
     return () => void sunSubs.delete(f);
+  },
+};
+
+/**
+ * 放置預覽（幽靈物件）：從資產庫拖進 3D 視埠時，游標下即時顯示半透明的物件（不入 Scene、不入 undo）。
+ * 應用層在 dragover 時以與 drop 相同的放置計算設定，離開／放下時清空。
+ */
+export interface PlacementGhost {
+  catalogId: string;
+  position: [number, number, number];
+  rotationY: number;
+  params?: Record<string, unknown>;
+}
+let ghosts: readonly PlacementGhost[] = [];
+const ghostSubs = new Set<() => void>();
+export const placementGhost = {
+  get: () => ghosts,
+  set: (v: readonly PlacementGhost[]) => {
+    if (!v.length && !ghosts.length) return;
+    ghosts = v;
+    ghostSubs.forEach((f) => f());
+  },
+  subscribe: (f: () => void) => {
+    ghostSubs.add(f);
+    return () => void ghostSubs.delete(f);
   },
 };

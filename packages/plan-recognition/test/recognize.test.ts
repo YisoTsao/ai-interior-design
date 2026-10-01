@@ -116,3 +116,39 @@ describe('DXF', () => {
     expect(r.walls.length).toBeGreaterThan(5);
   });
 });
+
+describe('售屋 DM 風格：尺寸線與家具外框不是牆', () => {
+  // 1000×800：外框 + 一道隔間（22 px 實心牆），外加 2 px 尺寸線、3 px 家具外框、木地板填色
+  const g = gray(1000, 800);
+  g.data.fill(255);
+  const rect = (x0: number, y0: number, x1: number, y1: number, v: number) => {
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) g.data[y * g.width + x] = v;
+  };
+  const outline = (x0: number, y0: number, x1: number, y1: number, w: number, v: number) => {
+    rect(x0, y0, x1, y0 + w, v);
+    rect(x0, y1 - w, x1, y1, v);
+    rect(x0, y0, x0 + w, y1, v);
+    rect(x1 - w, y0, x1, y1, v);
+  };
+  rect(150, 150, 550, 650, 205); // 木地板
+  outline(139, 139, 861, 661, 22, 0); // 外牆
+  rect(539, 139, 561, 661, 0); // 隔間
+  rect(539, 350, 561, 430, 255); // 門洞
+  outline(220, 300, 470, 400, 3, 40); // 沙發外框
+  rect(150, 60, 850, 62, 70); // 上方尺寸線
+  rect(60, 150, 62, 650, 70); // 左側尺寸線
+  const r = recognizeRaster(g);
+
+  it('只有主牆：沒有細牆、外框不被尺寸線往外推', () => {
+    const th = r.walls.map((w) => w.thickness);
+    expect(Math.min(...th)).toBeGreaterThan(15);
+    const xs = r.walls.flatMap((w) => [w.a[0]!, w.b[0]!]);
+    const ys = r.walls.flatMap((w) => [w.a[1]!, w.b[1]!]);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(690);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(720);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(520);
+  });
+  it('兩個房間（沙發不成房）', () => {
+    expect(r.rooms).toHaveLength(2);
+  });
+});

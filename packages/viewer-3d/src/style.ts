@@ -10,8 +10,8 @@ import type { Level, Room } from '@interiorai/scene-schema';
 export type ViewStyle = 'simple' | 'dollhouse';
 
 export const DOLLHOUSE = {
-  /** 剖面牆高度 mm（靠近相機的外牆與所有內牆） */
-  cutHeight: 350,
+  /** 剖面牆腳高度 mm（只有靠近相機的外牆；內牆與遠側外牆全高，與夜間相同） */
+  cutHeight: 100,
   elevationDeg: 35,
   azimuthDeg: 45,
   fovDeg: 22,
@@ -40,7 +40,6 @@ export const NIGHT = {
   envIntensity: 0.08,
   background: { center: '#86868a', edge: '#3a3a3d' },
   ground: '#4a4a4d',
-  lipHeight: 100,
   plinth: { margin: 160, radius: 420, height: 230, color: '#d6d5d1', gap: 110 },
   underglow: { color: '#ffb020', strength: 3.5, spread: 650, decal: 2.2 },
   bloom: { strength: 0.55, radius: 0.35, threshold: 1.0 },
@@ -224,6 +223,16 @@ export function fullHeightWalls(
     if (full) out.add(id);
   }
   return out;
+}
+
+/**
+ * 剖面模型中一面牆的顯示高度（日間與夜間同一規則）：
+ * 內牆、獨立牆、背對相機的外牆維持全高；只有靠近相機的外牆降為牆腳，讓視線看進室內。
+ * 先前日間把內牆也剖到 350 mm，與夜間（內牆全高）不一致，房間看起來像沒有牆。
+ */
+export function cutawayWallHeight(ownHeight: number, side: WallSide | undefined, isFull: boolean): number {
+  if (isFull || !side?.exterior) return ownHeight;
+  return Math.min(DOLLHOUSE.cutHeight, ownHeight);
 }
 
 /**

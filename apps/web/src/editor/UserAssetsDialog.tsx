@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileUp, RefreshCw, Trash2 } from 'lucide-react';
 import type { CatalogEntry } from '@interiorai/catalog';
+import { MODEL_ACCEPT } from '@interiorai/viewer-3d';
 import {
   deleteUserAsset,
   inspectModelFile,
+  inspectModelFiles,
+  modelBaseName,
   listUserAssets,
   replaceUserAssetFile,
   saveUserAsset,
@@ -50,12 +53,16 @@ export function UserAssetsDialog({
   const batch = async (files: FileList) => {
     setBusy('batch');
     const errs: string[] = [];
-    for (const f of Array.from(files)) {
+    // 模型檔各自成一件；材質、貼圖、.bin 等附屬檔提供給每一件
+    const all = Array.from(files);
+    const isSidecar = (f: File) => /\.(mtl|bin|png|jpe?g|webp|tga|bmp|gif)$/i.test(f.name);
+    const sidecars = all.filter(isSidecar);
+    for (const f of all.filter((x) => !isSidecar(x))) {
       try {
-        const c = await inspectModelFile(f);
-        const k = UNIT_TO_MM.m;
+        const c = await inspectModelFiles([f, ...sidecars]);
+        const k = UNIT_TO_MM[c.suggestedUnit];
         await saveUserAsset({
-          name: f.name.replace(/\.(glb|gltf)$/i, '').slice(0, 40),
+          name: modelBaseName(f.name),
           category: 'decor',
           anchor: 'floor',
           dimsMm: { w: c.model.size.x * k, d: c.model.size.z * k, h: c.model.size.y * k },
@@ -84,7 +91,7 @@ export function UserAssetsDialog({
           {busy === 'batch' ? t('userAssets.working') : t('userAssets.batch')}
           <input
             type="file"
-            accept=".glb,.gltf"
+            accept={MODEL_ACCEPT}
             multiple
             className="sr-only"
             data-testid="user-assets-batch"
@@ -191,7 +198,7 @@ function Row({
           <RefreshCw size={14} aria-hidden className={busy === e.id ? 'animate-spin' : ''} />
           <input
             type="file"
-            accept=".glb,.gltf"
+            accept={MODEL_ACCEPT}
             className="sr-only"
             onChange={async (ev) => {
               const f = ev.target.files?.[0];

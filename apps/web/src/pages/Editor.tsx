@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import * as Tooltip from '@radix-ui/react-tooltip';
@@ -47,6 +47,8 @@ import { captureThumb, VersionsPanel } from '../editor/VersionsPanel';
 import { HistoryPanel } from '../editor/HistoryPanel';
 import { ProjectInfoDialog } from '../editor/ProjectInfoDialog';
 import { ShortcutsDialog } from '../editor/ShortcutsDialog';
+import { UploadModelDialog } from '../editor/UploadModelDialog';
+import { hasModelFile, requestModelUpload, UPLOAD_MODEL_EVENT } from '../editor/uploadRequest';
 import { addVersion, setProjectThumb, shrink } from '../media';
 import { useUnderlay } from '../editor/underlay';
 import { usePlaceMaterial } from '../editor/placeMaterial';
@@ -71,16 +73,18 @@ import {
   batch,
   commentsOf,
   FURNITURE_SETS,
+  setLayout,
   setMaterial,
   stackElevation,
   updateObject,
   startAutosave,
 } from '@interiorai/app-state';
-import { defaultElevation, objectDims } from '@interiorai/catalog';
+import { defaultElevation, objectDims, type CatalogEntry } from '@interiorai/catalog';
 import { snapToWall } from '@interiorai/core-geometry';
 import { recordRecent } from '../editor/assetPrefs';
 import { Plan2D, plan2dApi } from '@interiorai/editor-2d';
-import { VIEW_PRESETS, Viewer3D, viewer3dApi, type ViewPreset } from '@interiorai/viewer-3d';
+import { placementGhost, VIEW_PRESETS, Viewer3D, viewer3dApi, type ViewPreset } from '@interiorai/viewer-3d';
+import { dragPayload } from '../editor/dragPayload';
 import { catalog, useCatalogVersion, useMaterials } from '../catalogData';
 import { BottomBar } from '../editor/BottomBar';
 import { IconButton, LangToggle, OfflineBadge } from '../editor/common';
@@ -251,12 +255,24 @@ function EditorShell() {
       p('info', 'projectInfo.title'),
       p('history', 'history.title'),
       p('shortcuts', 'shortcuts.title'),
+      p('upload', 'upload.open'),
       { id: 'tour', label: t('tour.help'), group: g, run: () => setTour(true) },
       { id: 'present', label: t('present.start'), group: g, run: startPresent },
       { id: 'panels', label: t('shortcuts.panels'), group: g, hint: '\\', run: togglePanels },
     ];
   }, [t, togglePanels, startPresent]);
   const prompt = usePrompt();
+  // 上傳 3D 模型：資產庫按鈕、指令面板、拖放模型檔（FE-AST-11）
+  const [uploadFiles, setUploadFiles] = useState<File[] | null>(null);
+  const [fileOver, setFileOver] = useState(false);
+  useEffect(() => {
+    const on = (e: Event) => {
+      setUploadFiles((e as CustomEvent<File[] | null>).detail);
+      setPanel('upload');
+    };
+    window.addEventListener(UPLOAD_MODEL_EVENT, on);
+    return () => window.removeEventListener(UPLOAD_MODEL_EVENT, on);
+  }, []);
   // 以資產詳情選的材質放置（FE-AST-05）：新放置的同品項物件套用主材質
   useEffect(
     () =>
@@ -393,8 +409,66 @@ function EditorShell() {
   useShortcuts(store, setMode, { palette: openPalette, help: openHelp, togglePanels });
   const tt = useCallback((k: string, v?: Record<string, string | number>) => t(k, v), [t]);
 
-  /** 拖放資產：2D 以畫布座標、3D 以地面射線（FE-V3D-02）；壁掛物與靠牆家具自動貼牆 */
+  /** 拖放點：2D 以畫布座標、3D 以地面射線 */
+  const dropPoint = (x: number, y: number) =>
+    view === '2d' ? plan2dApi.get()?.clientToWorld([x, y]) : viewer3dApi.get()?.clientToFloor(x, y);
+  /**
+   * 資產放置位置（拖放與 3D 拖曳預覽共用）：壁掛物與靠牆家具自動貼牆並背靠牆、疊放到桌面／櫃面。
+   * 門窗不能直接拖放（改用門窗工具）→ null。
+   */
+  const placementFor = (
+    entry: CatalogEntry,
+    pt: readonly number[],
+  ): { position: [number, number, number]; rotationY: number } | null => {
+    if (entry.model.kind === 'parametric' && ['door', 'window'].includes(entry.model.type)) return null;
+    const s = store.getState();
+    const lvl = activeLevel(s);
+    let pos: [number, number] = [Math.round(pt[0]!), Math.round(pt[1]!)];
+    let rot = 0;
+    const dims = objectDims(entry);
+    if (s.snapEnabled && entry.anchor !== 'ceiling') {
+      const sn = snapToWall(lvl, pos, dims.d, entry.anchor === 'wall' ? 1500 : 250);
+      if (sn) [pos, rot] = [sn.pos, sn.rotationY];
+    }
+    // 疊放吸附（FE-V3D-04）：拖到桌面／櫃面上
+    const y =
+      stackElevation(lvl, catalog, { catalogId: entry.id }, pos, rot) ?? defaultElevation(entry, lvl.height);
+    return { position: [pos[0], y, pos[1]], rotationY: rot };
+  };
+  /** 3D 拖曳預覽：游標下即時顯示半透明物件（與放下的結果相同） */
+  const ghostFrame = useRef(0);
+  const onDragOverCanvas = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.types.includes('Files')) setFileOver(true);
+    const p = dragPayload.get();
+    if (view !== '3d' || !p) return;
+    const { clientX, clientY } = e;
+    if (ghostFrame.current) return;
+    ghostFrame.current = requestAnimationFrame(() => {
+      ghostFrame.current = 0;
+      const pt = viewer3dApi.get()?.clientToFloor(clientX, clientY);
+      if (!pt || !dragPayload.get()) return placementGhost.set([]);
+      if (p.kind === 'set') {
+        const set = FURNITURE_SETS.find((x) => x.id === p.id);
+        placementGhost.set(set ? setLayout(set, [Math.round(pt[0]), Math.round(pt[1])]) : []);
+        return;
+      }
+      const entry = catalog.get(p.id);
+      const place = entry ? placementFor(entry, pt) : null;
+      placementGhost.set(entry && place ? [{ catalogId: entry.id, ...place }] : []);
+    });
+  };
+
+  /** 拖放資產（FE-V3D-02）；拖放模型檔 → 上傳 */
   const onDrop = (e: React.DragEvent) => {
+    setFileOver(false);
+    placementGhost.set([]);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length && hasModelFile(files)) {
+      e.preventDefault();
+      requestModelUpload(files);
+      return;
+    }
     // 材質拖到 3D 表面（FE-V3D-05）
     const matId = e.dataTransfer.getData('application/x-interiorai-material');
     if (matId && view === '3d') {
@@ -430,29 +504,17 @@ function EditorShell() {
     }
     const catId = e.dataTransfer.getData('application/x-interiorai-catalog');
     const entry = catalog.get(catId);
-    if (!entry || (entry.model.kind === 'parametric' && ['door', 'window'].includes(entry.model.type)))
-      return;
-    const pt =
-      view === '2d'
-        ? plan2dApi.get()?.clientToWorld([e.clientX, e.clientY])
-        : viewer3dApi.get()?.clientToFloor(e.clientX, e.clientY);
-    if (!pt) return;
+    const pt = dropPoint(e.clientX, e.clientY);
+    const place = entry && pt ? placementFor(entry, pt) : null;
+    if (!entry || !place) return;
     e.preventDefault();
     const s = store.getState();
     const lvl = activeLevel(s);
-    let y = defaultElevation(entry, lvl.height);
-    let pos: [number, number] = [Math.round(pt[0]), Math.round(pt[1])];
-    let rot = 0;
-    const dims = objectDims(entry);
-    if (s.snapEnabled && entry.anchor !== 'ceiling') {
-      const sn = snapToWall(lvl, pos, dims.d, entry.anchor === 'wall' ? 1500 : 250);
-      if (sn) [pos, rot] = [sn.pos, sn.rotationY];
-    }
-    // 疊放吸附（FE-V3D-04）：拖到桌面／櫃面上
-    y = stackElevation(lvl, catalog, { catalogId: entry.id }, pos, rot) ?? y;
     const before = new Set(lvl.objects.map((o) => o.id));
     if (
-      s.exec(addObject(s.levelId, { catalogId: entry.id, position: [pos[0], y, pos[1]], rotationY: rot }))
+      s.exec(
+        addObject(s.levelId, { catalogId: entry.id, position: place.position, rotationY: place.rotationY }),
+      )
     ) {
       const added = activeLevel(store.getState()).objects.find((o) => !before.has(o.id));
       if (added) s.select([added.id]);
@@ -493,11 +555,24 @@ function EditorShell() {
         <main
           id="canvas"
           className="relative min-w-0 flex-1 bg-bg"
-          onDragOver={(e) => e.preventDefault()}
+          onDragOver={onDragOverCanvas}
+          onDragLeave={(e) => {
+            if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+            setFileOver(false);
+            placementGhost.set([]);
+          }}
           onDrop={onDrop}
           tabIndex={-1}
           aria-label={t(view === '2d' ? 'top.view2d' : 'top.view3d')}
         >
+          {fileOver && (
+            <div
+              className="pointer-events-none absolute inset-2 z-30 grid place-items-center border-2 border-dashed border-primary bg-primary/10 text-sm text-primary"
+              data-testid="file-drop-hint"
+            >
+              {t('upload.dropHint')}
+            </div>
+          )}
           <CanvasBoundary
             resetKey={revision}
             fallback={(reset) => (
@@ -654,6 +729,14 @@ function EditorShell() {
       <ProjectInfoDialog open={panel === 'info'} onOpenChange={(v) => setPanel(v ? 'info' : null)} />
       <HistoryPanel open={panel === 'history'} onOpenChange={(v) => setPanel(v ? 'history' : null)} />
       <ShortcutsDialog open={panel === 'shortcuts'} onOpenChange={(v) => setPanel(v ? 'shortcuts' : null)} />
+      <UploadModelDialog
+        open={panel === 'upload'}
+        initialFiles={uploadFiles}
+        onOpenChange={(v) => {
+          setPanel(v ? 'upload' : null);
+          if (!v) setUploadFiles(null);
+        }}
+      />
       <CommandPalette
         open={panel === 'palette'}
         onOpenChange={(v) => setPanel(v ? 'palette' : null)}
@@ -677,7 +760,8 @@ type Panel =
   | 'palette'
   | 'mood'
   | 'versions'
-  | 'comments';
+  | 'comments'
+  | 'upload';
 
 function TopBar({
   mode,

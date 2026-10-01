@@ -15,6 +15,7 @@ import { useStore } from 'zustand';
 import {
   DEFAULTS,
   activeLevel,
+  batch,
   setMaterial,
   stackElevation,
   transformObject,
@@ -31,7 +32,7 @@ import {
   wallLength,
 } from '@interiorai/core-geometry';
 import type { Appearance, Level, SceneObject, Wall } from '@interiorai/scene-schema';
-import { sunOverride, viewer3dApi } from './api.js';
+import { placementGhost, sunOverride, viewer3dApi, type PlacementGhost } from './api.js';
 import { renderPanorama } from './panorama.js';
 import { exportScene } from './exportModel.js';
 import { renderGBuffer } from './gbuffer.js';
@@ -43,6 +44,7 @@ import {
   NIGHT_SKY,
   effectiveLight,
   fixtureLights,
+  roomFillLights,
   indirectEstimate,
   aimInverse,
   kelvinToHex,
@@ -76,6 +78,7 @@ import {
   classifyWalls,
   dollhouseFloorMaterial,
   fitDistance,
+  cutawayWallHeight,
   fullHeightWalls,
   mutedColor,
   presetDirection,
@@ -214,6 +217,7 @@ function SceneContent({
   const layers = useStore(store, (s) => s.layers);
   const level = useMemo(() => activeLevel({ scene, levelId }), [scene, levelId]);
   const sunOv = useSyncExternalStore(sunOverride.subscribe, sunOverride.get, sunOverride.get);
+  const ghosts = useSyncExternalStore(placementGhost.subscribe, placementGhost.get, placementGhost.get);
   const env = useMemo(
     () => (sunOv ? { ...scene.environment, ...sunOv } : scene.environment),
     [scene.environment, sunOv],
@@ -401,10 +405,9 @@ function SceneContent({
   const ownHeight = (w: Wall) => Math.min(w.height ?? structure.height, structure.height);
   const wallHeight = (w: Wall) => {
     const own = ownHeight(w);
-    if (!dh || walking || fullWalls.has(w.id)) return own;
-    // 夜間（images1）：內牆全高（接收燈光的彩色溢光），靠近相機的外牆只留牆腳
-    if (night) return sides.get(w.id)?.exterior ? Math.min(NIGHT.lipHeight, own) : own;
-    return Math.min(DOLLHOUSE.cutHeight, own);
+    if (!dh || walking) return own;
+    // 日間與夜間同一規則：內牆全高，靠近相機的外牆只留牆腳
+    return cutawayWallHeight(own, sides.get(w.id), fullWalls.has(w.id));
   };
   const walls = structure.walls
     .filter((w) => !w.appearance?.hidden)
@@ -609,6 +612,21 @@ function SceneContent({
   }, [scope]);
 
   const isGlb = (o: SceneObject) => catalog.get(o.catalogId)?.model.kind === 'glb';
+  /** 3D 拖曳中的物件位置（id → 位置／旋轉）；拖曳時即時呈現，放開才寫入 Scene */
+  const [dragMap, setDragMap] = useState<ReadonlyMap<
+    string,
+    { pos: [number, number, number]; rot: number }
+  > | null>(null);
+  const displayObjects = useMemo(
+    () =>
+      dragMap
+        ? level.objects.map((o) => {
+            const d = dragMap.get(o.id);
+            return d ? { ...o, position: d.pos, rotationY: d.rot } : o;
+          })
+        : level.objects,
+    [level.objects, dragMap],
+  );
   const single = selection.length === 1 ? level.objects.find((o) => o.id === selection[0]) : undefined;
   const selSet = useMemo(() => new Set(selection), [selection]);
   /** X 光模式：牆以半透明呈現 */
@@ -620,7 +638,7 @@ function SceneContent({
       { g: THREE.BufferGeometry; m: THREE.Material; objs: SceneObject[]; shadow: boolean }
     >();
     if (!layers.furniture) return [];
-    for (const o of level.objects) {
+    for (const o of displayObjects) {
       if (single && o.id === single.id) continue;
       if (o.appearance?.hidden || isGlb(o) || hiddenFixture(o)) continue;
       const { key, g } = geomFor(o);
@@ -632,9 +650,9 @@ function SceneContent({
       map.set(gk, cur);
     }
     return [...map.entries()];
-  }, [level.objects, single, layers.furniture, catalog, catalogVersion, fullWalls, showCeiling, mats]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [displayObjects, single, layers.furniture, catalog, catalogVersion, fullWalls, showCeiling, mats]); // eslint-disable-line react-hooks/exhaustive-deps
   const glbObjs = layers.furniture
-    ? level.objects.filter((o) => isGlb(o) && !o.appearance?.hidden && !(single && o.id === single.id))
+    ? displayObjects.filter((o) => isGlb(o) && !o.appearance?.hidden && !(single && o.id === single.id))
     : [];
 
   /**
@@ -689,10 +707,11 @@ function SceneContent({
   // 夜間光源：燈具＋全高外牆上的窗；依畫面焦點挑固定數量
   const cutKey = [...structure.walls.map((w) => (wallHeight(w) < ownHeight(w) ? '1' : '0'))].join('');
   // catalogVersion：上傳模型後目錄內容改變（catalog 參照不變）
-  const allFixtures = useMemo(
-    () => (night ? fixtureLights(level, catalog) : []),
-    [night, level, catalog, catalogVersion], // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  const allFixtures = useMemo(() => {
+    if (!night) return [];
+    const f = fixtureLights(level, catalog);
+    return [...f, ...roomFillLights(structure, f)];
+  }, [night, level, structure, catalog, catalogVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const wins = useMemo(() => {
     if (!night) return [];
     const cut = new Set(structure.walls.filter((w) => wallHeight(w) < ownHeight(w)).map((w) => w.id));
@@ -964,6 +983,13 @@ function SceneContent({
       },
       exportModel: (format) => exportScene(scene3, format),
       clientToFloor: (x, y) => floorHit(x, y, 0),
+      ghosts: () => placementGhost.get().length,
+      worldToClient: (p) => {
+        const v = new THREE.Vector3(p[0], p[1], p[2]).project(camera);
+        if (v.z > 1) return null;
+        const r = gl.domElement.getBoundingClientRect();
+        return [r.left + ((v.x + 1) / 2) * r.width, r.top + ((1 - v.y) / 2) * r.height];
+      },
       pickSurface: (x, y) => {
         const r = gl.domElement.getBoundingClientRect();
         raycaster.setFromCamera(
@@ -1146,24 +1172,28 @@ function SceneContent({
     });
   };
 
-  /** 沿地面拖曳家具（FE-V3D-03）：不需 gizmo；靠牆 20 cm 內自動貼齊並背靠牆 */
-  const [dragPos, setDragPos] = useState<{ id: string; pos: [number, number, number]; rot: number } | null>(
-    null,
-  );
+  /**
+   * 沿地面拖曳家具（FE-V3D-03）：不需 gizmo；拖曳中物件即時跟著游標移動（放開才寫入 Scene，單一 undo）。
+   * 單一物件：靠牆 20 cm 內自動貼齊並背靠牆、疊放到桌面／櫃面；多選：整組一起平移（保持相對位置）。
+   * Alt 暫停吸附 → 可放在任意位置。
+   */
   const startDrag = (o: SceneObject, e: ThreeEvent<PointerEvent>) => {
     if (tool !== 'select' || o.locked || e.nativeEvent.button !== 0 || walking || e.nativeEvent.shiftKey)
       return;
     e.stopPropagation();
     const p = floorHit(e.nativeEvent.clientX, e.nativeEvent.clientY, o.position[1]);
     if (!p) return;
-    if (!store.getState().selection.includes(o.id)) store.getState().select([o.id]);
+    const sel = store.getState().selection;
+    if (!sel.includes(o.id)) store.getState().select([o.id]);
+    const group = sel.includes(o.id) ? level.objects.filter((x) => sel.includes(x.id) && !x.locked) : [o];
     const entry = catalog.get(o.catalogId);
     const depth = entry ? objectDims(entry, o.params, o.scale).d : 500;
     const off: [number, number] = [o.position[0] - p[0], o.position[2] - p[1]];
     const sx = e.nativeEvent.clientX;
     const sy = e.nativeEvent.clientY;
     let moved = false;
-    let last: { pos: [number, number, number]; rot: number } | null = null;
+    let last: Map<string, { pos: [number, number, number]; rot: number }> | null = null;
+    let frame = 0;
     if (controls.current) controls.current.enabled = false;
     const move = (ev: PointerEvent) => {
       if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 5) return;
@@ -1174,25 +1204,46 @@ function SceneContent({
       let x = Math.round(q[0] + off[0]);
       let z = Math.round(q[1] + off[1]);
       let rot = o.rotationY;
-      if (snapOn && !ev.altKey && entry?.anchor !== 'ceiling') {
-        const sn = snapToWall(level, [x, z], depth, 200);
-        if (sn) [x, z, rot] = [sn.pos[0], sn.pos[1], sn.rotationY];
-        else [x, z] = [Math.round(x / 10) * 10, Math.round(z / 10) * 10];
+      const snap = snapOn && !ev.altKey;
+      const next = new Map<string, { pos: [number, number, number]; rot: number }>();
+      if (group.length === 1) {
+        if (snap && entry?.anchor !== 'ceiling') {
+          const sn = snapToWall(level, [x, z], depth, 200);
+          if (sn) [x, z, rot] = [sn.pos[0], sn.pos[1], sn.rotationY];
+          else [x, z] = [Math.round(x / 10) * 10, Math.round(z / 10) * 10];
+        }
+        // 疊放吸附（FE-V3D-04）
+        const y = (snap ? stackElevation(level, catalog, o, [x, z], rot) : null) ?? o.position[1];
+        next.set(o.id, { pos: [x, y, z], rot });
+      } else {
+        if (snap) [x, z] = [Math.round(x / 10) * 10, Math.round(z / 10) * 10];
+        const dx = x - o.position[0];
+        const dz = z - o.position[2];
+        for (const g of group)
+          next.set(g.id, { pos: [g.position[0] + dx, g.position[1], g.position[2] + dz], rot: g.rotationY });
       }
-      // 疊放吸附（FE-V3D-04）
-      const y = stackElevation(level, catalog, o, [x, z], rot) ?? o.position[1];
-      last = { pos: [x, y, z], rot };
-      setDragPos({ id: o.id, ...last });
-      invalidate();
+      last = next;
+      // 每個畫格最多更新一次（pointermove 可能比畫面更新頻繁）
+      if (!frame)
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          setDragMap(last);
+          invalidate();
+        });
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
+      if (frame) cancelAnimationFrame(frame);
       if (controls.current) controls.current.enabled = true;
       quality.current.dragging = false;
-      if (moved && last)
-        store.getState().exec(transformObject(level.id, o.id, { position: last.pos, rotationY: last.rot }));
-      setDragPos(null);
+      if (moved && last) {
+        const cmds = [...last].map(([id, t]) =>
+          transformObject(level.id, id, { position: t.pos, rotationY: t.rot }),
+        );
+        store.getState().exec(cmds.length === 1 ? cmds[0]! : batch(cmds));
+      }
+      setDragMap(null);
       invalidate();
     };
     window.addEventListener('pointermove', move);
@@ -1438,6 +1489,22 @@ function SceneContent({
           <GlbModel obj={o} entry={catalog.get(o.catalogId)!} shadows={dh} />
         </group>
       ))}
+      {ghosts.length > 0 && (
+        <PlacementGhosts
+          ghosts={ghosts}
+          catalog={catalog}
+          color={night ? '#ffd166' : theme.primary}
+          geometryOf={(g, i) =>
+            geomFor({
+              id: `__ghost${i}`,
+              catalogId: g.catalogId,
+              position: g.position,
+              rotationY: g.rotationY,
+              ...(g.params ? { params: g.params } : {}),
+            } as SceneObject).g
+          }
+        />
+      )}
       {single && layers.furniture && !single.appearance?.hidden && (
         <SelectedObject
           key={single.id}
@@ -1448,7 +1515,7 @@ function SceneContent({
           catalog={catalog}
           onDragging={(v) => (quality.current.dragging = v)}
           onCommit={commitTransform(single.id)}
-          override={dragPos?.id === single.id ? dragPos : null}
+          override={dragMap?.get(single.id) ?? null}
           onBodyDown={(e) => startDrag(single, e)}
           onBodyClick={surface('object', single.id)}
           onBodyMenu={ctx(single.id)}
@@ -1565,6 +1632,91 @@ function FurnitureInstances({
 }
 
 /** 使用者上傳的 GLB 模型（載入中顯示淡色包圍盒） */
+/**
+ * 放置預覽（幽靈物件）：半透明、帶光暈色的物件＋地面投影框（實際佔地 w×d），不參與點選與陰影。
+ * 與放下後的結果一致（同一個放置計算）：位置、背靠牆旋轉、疊放高度。
+ */
+function PlacementGhosts({
+  ghosts,
+  catalog,
+  color,
+  geometryOf,
+}: {
+  ghosts: readonly PlacementGhost[];
+  catalog: Catalog;
+  color: string;
+  geometryOf: (g: PlacementGhost, i: number) => THREE.BufferGeometry;
+}) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => invalidate(), [ghosts, invalidate]);
+  const mats = useMemo(
+    () => ({
+      body: new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: 0.35,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+      }),
+      foot: new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28, depthWrite: false }),
+    }),
+    [color],
+  );
+  useEffect(() => () => (mats.body.dispose(), mats.foot.dispose()), [mats]);
+  const none = () => null;
+  return (
+    <>
+      {ghosts.map((g, i) => {
+        const e = catalog.get(g.catalogId);
+        if (!e) return null;
+        const d = objectDims(e, g.params);
+        return (
+          <group key={i} position={g.position} rotation={[0, g.rotationY, 0]}>
+            {e.model.kind === 'glb' ? (
+              <GlbGhost entry={e} material={mats.body} />
+            ) : (
+              <mesh geometry={geometryOf(g, i)} material={mats.body} raycast={none} renderOrder={10} />
+            )}
+            <mesh
+              position={[0, 4 - g.position[1], 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              material={mats.foot}
+              raycast={none}
+              renderOrder={9}
+            >
+              <planeGeometry args={[d.w, d.d]} />
+            </mesh>
+          </group>
+        );
+      })}
+    </>
+  );
+}
+
+function GlbGhost({ entry, material }: { entry: CatalogEntry; material: THREE.Material }) {
+  const m = useModel(entry.model.kind === 'glb' ? entry.model.url : undefined);
+  const inst = useMemo(() => {
+    if (!m || m === 'error') return null;
+    const c = instantiateModel(m, entry.dimsMm, { id: '__ghost' }, false);
+    c.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.material = material;
+      mesh.raycast = () => {};
+      mesh.renderOrder = 10;
+    });
+    return c;
+  }, [m, entry.dimsMm, material]);
+  if (inst) return <primitive object={inst} />;
+  const { w, d, h } = entry.dimsMm;
+  return (
+    <mesh position={[0, h / 2, 0]} material={material} raycast={() => null}>
+      <boxGeometry args={[w, h, d]} />
+    </mesh>
+  );
+}
+
 function GlbModel({ obj, entry, shadows }: { obj: SceneObject; entry: CatalogEntry; shadows: boolean }) {
   const url = entry.model.kind === 'glb' ? entry.model.url : undefined;
   const m = useModel(url);

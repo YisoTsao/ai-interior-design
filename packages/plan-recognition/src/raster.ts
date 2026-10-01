@@ -480,12 +480,41 @@ function findRooms(mask: Gray, ops: Op[], tPx: number): { poly: Vec2[]; conf: nu
   return rooms;
 }
 
+/** 以長度加權的牆厚中位數（尺寸線、家具外框這類短細線不會拉低主牆厚） */
+export function dominantThickness(segs: Seg[]): number {
+  const xs = segs.map((s) => ({ t: s.thickness, w: len(s) })).sort((a, b) => a.t - b.t);
+  const tot = xs.reduce((a, x) => a + x.w, 0);
+  let acc = 0;
+  for (const x of xs) {
+    acc += x.w;
+    if (acc >= tot / 2) return x.t;
+  }
+  return xs.at(-1)?.t ?? 0;
+}
+
+/**
+ * 移除比主牆薄很多的筆畫：尺寸線、家具外框、填色邊界被自適應二值化加粗後（4–6 px）
+ * 能通過 segmentWalls 的 open(4)，會被當成牆、圍成假房間——外框的尺寸線更會讓真正的外牆變成內牆。
+ * 以主牆厚 45% 的方形核做 opening：比它細的筆畫消失，主牆與一般隔間牆（約主牆一半厚）保留，轉角形狀不變。
+ */
+export function dropThinStrokes(mask: Gray): Gray {
+  const { segs } = vectorize(mask);
+  if (!segs.length) return mask;
+  const T = dominantThickness(segs);
+  const k = Math.floor(T * 0.45);
+  if (k < 3 || !segs.some((s) => s.thickness < k)) return mask;
+  const cleaned = open(mask, k);
+  return count(cleaned) > 0 ? cleaned : mask;
+}
+
 // ── 主流程 ────────────────────────────────────────────────────────
 
 export function recognizeRaster(img: Gray, opts: RasterOptions = {}): PlanResult {
   if (Math.max(img.width, img.height) > MAX_SIDE)
     throw new PlanParseError('UPLOAD_REJECTED', `影像長邊超過 ${MAX_SIDE}px`);
-  const { mask, ink, conf: segConf, hollow } = segmentWalls(img);
+  const seg0 = segmentWalls(img);
+  const { ink, conf: segConf, hollow } = seg0;
+  const mask = dropThinStrokes(seg0.mask);
   const warnings: PlanResult['warnings'] = [];
   const first = vectorize(mask);
   const t0 = first.t;

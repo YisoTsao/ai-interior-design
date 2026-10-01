@@ -4,10 +4,13 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { AlertTriangle, Upload, X } from 'lucide-react';
 import type { CatalogEntry } from '@interiorai/catalog';
 import { renderThumbnail } from '@interiorai/viewer-3d';
+import { MODEL_ACCEPT } from '@interiorai/viewer-3d';
 import {
   UNIT_TO_MM,
   UPLOAD_LIMITS,
-  inspectModelFile,
+  convertUpload,
+  inspectModelFiles,
+  modelBaseName,
   saveUserAsset,
   type UploadCheck,
   type UploadUnit,
@@ -28,15 +31,19 @@ const CATS: CatalogEntry['category'][] = [
 ];
 
 /**
- * 上傳 3D 模型（GLB／自含式 glTF）：讀檔 → 解析與檢查（格式、大小、面數、尺寸）→ 預覽縮圖 →
- * 選擇檔案單位（glTF 標準為公尺）與分類、放置方式 → 聲明使用權 → 存入本機資產庫。
+ * 上傳 3D 模型（FE-AST-11）：選檔或拖放（可多檔：.obj＋.mtl＋貼圖、.gltf＋.bin，或 zip）→
+ * 瀏覽器轉成 GLB（GLB／glTF／OBJ／FBX／DAE／STL／PLY／3DS／3MF／USDZ／VRML）→ 檢查（面數、尺寸、缺檔）→
+ * 預覽縮圖 → 單位（自動推測）、轉正、減面、分類、放置方式 → 聲明使用權 → 存入本機資產庫。
+ * initialFiles：從編輯器畫布拖放模型檔時直接帶入。
  */
 export function UploadModelDialog({
   open,
   onOpenChange,
+  initialFiles,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  initialFiles?: File[] | null;
 }) {
   const { t } = useTranslation();
   const [check, setCheck] = useState<UploadCheck | null>(null);
@@ -50,6 +57,7 @@ export function UploadModelDialog({
   const [elevation, setElevation] = useState(1200);
   const [dims, setDims] = useState({ w: 0, d: 0, h: 0 });
   const [licensed, setLicensed] = useState(false);
+  const [over, setOver] = useState(false);
 
   useEffect(() => {
     if (open) return;
@@ -69,17 +77,37 @@ export function UploadModelDialog({
     });
   }, [check, unit]);
 
-  const onFile = async (f: File | undefined) => {
-    if (!f) return;
+  const onFiles = async (files: File[]) => {
+    if (!files.length) return;
     setError(null);
     setBusy(true);
     try {
-      const c = await inspectModelFile(f);
+      const c = await inspectModelFiles(files);
       setCheck(c);
-      setName(f.name.replace(/\.(glb|gltf)$/i, '').slice(0, 40));
+      setUnit(c.suggestedUnit);
+      setName(modelBaseName(c.source.mainName));
       setPreview(renderThumbnail(c.model.root.clone(true)));
     } catch (e) {
       setCheck(null);
+      setError(e instanceof Error ? e.message : 'UPLOAD_PARSE');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open && initialFiles?.length) void onFiles(initialFiles);
+  }, [open, initialFiles]);
+
+  /** 轉正／減面：從已解析的原始模型重新轉換 */
+  const reconvert = async (opts: { zUp: boolean; simplify: boolean }) => {
+    if (!check) return;
+    setBusy(true);
+    try {
+      const c = await convertUpload(check.source, opts);
+      setCheck(c);
+      setPreview(renderThumbnail(c.model.root.clone(true)));
+    } catch (e) {
       setError(e instanceof Error ? e.message : 'UPLOAD_PARSE');
     } finally {
       setBusy(false);
@@ -123,15 +151,34 @@ export function UploadModelDialog({
           <Dialog.Description className="text-xs text-muted">
             {t('upload.desc', { mb: UPLOAD_LIMITS.maxBytes / 1024 / 1024 })}
           </Dialog.Description>
-          <label className="flex cursor-pointer flex-col items-center gap-2 border border-dashed border-border p-5 text-center text-sm hover:border-primary">
+          <label
+            className={`flex cursor-pointer flex-col items-center gap-2 border border-dashed p-5 text-center text-sm hover:border-primary ${over ? 'border-primary bg-primary/10' : 'border-border'}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOver(true);
+            }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setOver(false);
+              void onFiles(Array.from(e.dataTransfer.files));
+            }}
+            data-testid="upload-drop"
+          >
             <Upload size={22} aria-hidden className="text-primary" />
             <span>{busy ? t('upload.reading') : t('upload.pick')}</span>
+            <span className="text-[11px] text-muted">{t('upload.formats')}</span>
             <input
               type="file"
-              accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
+              multiple
+              accept={MODEL_ACCEPT}
               className="sr-only"
               data-testid="upload-file"
-              onChange={(e) => void onFile(e.target.files?.[0])}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = '';
+                void onFiles(files);
+              }}
             />
           </label>
           {error && (
@@ -151,6 +198,9 @@ export function UploadModelDialog({
                     tris: check.model.triangles.toLocaleString(),
                     meshes: check.model.meshes,
                   })}
+                </p>
+                <p className="font-mono text-[10px] text-primary" data-testid="upload-format">
+                  {t('upload.converted', { format: check.format.toUpperCase() })}
                 </p>
               </div>
               <div className="space-y-2">
@@ -206,6 +256,28 @@ export function UploadModelDialog({
                     label: t(`upload.anchors.${a}`),
                   }))}
                 />
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={check.zUp}
+                    disabled={busy}
+                    onChange={(e) => void reconvert({ zUp: e.target.checked, simplify: check.simplified })}
+                    data-testid="upload-zup"
+                  />
+                  {t('upload.zUp')}
+                </label>
+                {(check.simplified || check.source.triangles > UPLOAD_LIMITS.maxTriangles) && (
+                  <label className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={check.simplified}
+                      disabled={busy}
+                      onChange={(e) => void reconvert({ zUp: check.zUp, simplify: e.target.checked })}
+                      data-testid="upload-simplify"
+                    />
+                    {t('upload.simplify', { max: UPLOAD_LIMITS.maxTriangles.toLocaleString() })}
+                  </label>
+                )}
                 {anchor === 'wall' && (
                   <NumberField
                     label={t('upload.elevation')}
@@ -220,7 +292,10 @@ export function UploadModelDialog({
           {check?.warnings.map((w) => (
             <p key={w} className="flex items-center gap-1 text-xs text-warn">
               <AlertTriangle size={12} aria-hidden />{' '}
-              {t(`upload.warn.${w}`, { max: UPLOAD_LIMITS.maxTriangles.toLocaleString() })}
+              {t(`upload.warn.${w}`, {
+                max: UPLOAD_LIMITS.maxTriangles.toLocaleString(),
+                files: check.missing.join(', '),
+              })}
             </p>
           ))}
           {check && (

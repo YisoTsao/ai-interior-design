@@ -10,6 +10,7 @@ import { useEditor, useEditorStore } from './context';
 import { HudDialog } from './HudDialog';
 import { useThumbnail } from './thumbs';
 import type { CatalogEntry } from '@interiorai/catalog';
+import { dragPayload } from './dragPayload';
 
 /**
  * 風格探索／情境板（FE-AI-06）：拖入參考圖 → 主色盤、風格標籤（信心分數）→ 推薦資產（可拖到畫面或點選放置）；
@@ -207,7 +208,11 @@ function Rec({ e }: { e: CatalogEntry }) {
       <button
         className="inv-slot w-full p-1"
         draggable
-        onDragStart={(ev) => ev.dataTransfer.setData('application/x-interiorai-catalog', e.id)}
+        onDragStart={(ev) => {
+          ev.dataTransfer.setData('application/x-interiorai-catalog', e.id);
+          dragPayload.start({ kind: 'catalog', id: e.id });
+        }}
+        onDragEnd={dragPayload.end}
         onClick={() => {
           const s = store.getState();
           if (s.view === '3d') s.setView('2d');

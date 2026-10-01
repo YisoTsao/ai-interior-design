@@ -568,7 +568,8 @@
       "bath": "衛浴",
       "bedroom": "臥室 {{n}}"
     },
-    "useSuggested": "以門寬推估尺度（{{v}} mm/px）"
+    "useSuggested": "以門寬推估尺度（{{v}} mm/px）",
+    "buildFailed": "建立專案失敗：{{message}}。可移除紅框項目或重新校正後再試。"
   },
   "light": {
     "title": "光源",
@@ -636,15 +637,15 @@
     "open": "上傳 3D 模型",
     "title": "上傳 3D 模型",
     "close": "關閉",
-    "desc": "支援 GLB 或自含式 glTF（最大 {{mb}} MB）。模型只存在這個瀏覽器，不會上傳到雲端。",
+    "desc": "支援 GLB、glTF、OBJ＋MTL、FBX、DAE、STL、PLY、3DS、3MF、USDZ、VRML，或打包成 zip（合計最大 {{mb}} MB）。會在瀏覽器轉成 GLB，只存在這個瀏覽器。",
     "reading": "讀取中…",
-    "pick": "選擇或拖入 .glb／.gltf 檔",
+    "pick": "選擇或拖入模型檔（可多選：模型＋材質＋貼圖）",
     "preview": "模型預覽",
     "stats": "{{tris}} 三角形 · {{meshes}} 個網格",
     "name": "名稱",
     "unit": "檔案單位",
     "units": {
-      "m": "公尺（glTF 標準）",
+      "m": "公尺",
       "cm": "公分",
       "mm": "公釐",
       "in": "英吋"
@@ -664,15 +665,24 @@
     "delete": "刪除 {{name}}",
     "deleteConfirm": "刪除「{{name}}」？已放置的物件會變成灰色方塊。",
     "error": {
-      "UPLOAD_FORMAT": "只支援 .glb 或 .gltf 檔。",
+      "UPLOAD_FORMAT": "找不到支援的模型檔（GLB、glTF、OBJ、FBX、DAE、STL、PLY、3DS、3MF、USDZ、WRL 或 zip）。",
       "UPLOAD_TOO_LARGE": "檔案太大了。",
-      "UPLOAD_PARSE": "無法讀取這個模型（glTF 若有外部 .bin／貼圖，請先匯出成 GLB）。",
-      "UPLOAD_SAVE": "儲存失敗（瀏覽器儲存空間不足或無法使用）。"
+      "UPLOAD_PARSE": "無法讀取這個模型，檔案可能損毀或使用了不支援的版本。",
+      "UPLOAD_SAVE": "儲存失敗（瀏覽器儲存空間不足或無法使用）。",
+      "UPLOAD_SKP": "SketchUp（.skp）無法在瀏覽器讀取：請在 SketchUp 以「檔案 → 匯出 → 3D 模型」存成 GLB、DAE 或 FBX 後上傳。",
+      "EMPTY_MODEL": "模型裡沒有可顯示的幾何。"
     },
     "warn": {
       "TRIANGLES": "面數超過 {{max}}，可能影響 3D 流暢度。",
-      "SIZE_ODD": "尺寸看起來不像公尺單位，請確認檔案單位。"
-    }
+      "SIZE_ODD": "尺寸看起來不像公尺單位，請確認檔案單位。",
+      "MISSING_FILES": "缺少附屬檔：{{files}}（請與模型一起選取或打包成 zip），缺的貼圖會以素色顯示。"
+    },
+    "formats": "GLB · glTF · OBJ · FBX · DAE · STL · PLY · 3DS · 3MF · USDZ · WRL · ZIP",
+    "zUp": "Z 軸朝上（STL／CAD 模型轉正）",
+    "simplify": "自動減面到 {{max}} 三角形",
+    "dropHint": "放開以上傳 3D 模型",
+    "formatsShort": "GLB · OBJ · FBX · DAE · STL…",
+    "converted": "{{format}} → GLB"
   },
   "ctx": {
     "title": "編輯選單",

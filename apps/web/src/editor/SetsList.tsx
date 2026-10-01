@@ -5,6 +5,7 @@ import { detectRooms, type Vec2 } from '@interiorai/core-geometry';
 import { catalog } from '../catalogData';
 import { useEditorStore } from './context';
 import { useThumbnail } from './thumbs';
+import { dragPayload } from './dragPayload';
 
 /** 套組放置點：選取的房間中心 → 最大房間中心 → 原點 */
 function targetPoint(level: ReturnType<typeof activeLevel>, selection: string[]): Vec2 {
@@ -51,7 +52,11 @@ function SetCard({ set, onPick, label }: { set: FurnitureSet; onPick: () => void
       <button
         className="inv-slot h-full w-full"
         draggable
-        onDragStart={(e) => e.dataTransfer.setData('application/x-interiorai-set', set.id)}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('application/x-interiorai-set', set.id);
+          dragPayload.start({ kind: 'set', id: set.id });
+        }}
+        onDragEnd={dragPayload.end}
         onClick={onPick}
         data-testid={`set-${set.id}`}
         aria-label={t('sets.place', { name: label })}

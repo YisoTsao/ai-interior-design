@@ -568,7 +568,8 @@
       "bath": "Bathroom",
       "bedroom": "Bedroom {{n}}"
     },
-    "useSuggested": "Estimate scale from door widths ({{v}} mm/px)"
+    "useSuggested": "Estimate scale from door widths ({{v}} mm/px)",
+    "buildFailed": "Could not create the project: {{message}}. Remove flagged items or recalibrate, then try again."
   },
   "light": {
     "title": "Light",
@@ -636,15 +637,15 @@
     "open": "Upload 3D model",
     "title": "Upload 3D model",
     "close": "Close",
-    "desc": "GLB or self-contained glTF (max {{mb}} MB). Stored in this browser only.",
+    "desc": "Supports GLB, glTF, OBJ+MTL, FBX, DAE, STL, PLY, 3DS, 3MF, USDZ, VRML, or a zip of them (up to {{mb}} MB total). Converted to GLB in your browser and stored only in this browser.",
     "reading": "Reading…",
-    "pick": "Choose a .glb / .gltf file",
+    "pick": "Choose or drop model files (select model + materials + textures together)",
     "preview": "Model preview",
     "stats": "{{tris}} triangles · {{meshes}} meshes",
     "name": "Name",
     "unit": "File units",
     "units": {
-      "m": "Meters (glTF default)",
+      "m": "Meters",
       "cm": "Centimeters",
       "mm": "Millimeters",
       "in": "Inches"
@@ -664,15 +665,24 @@
     "delete": "Delete {{name}}",
     "deleteConfirm": "Delete \"{{name}}\"? Placed copies will show as grey boxes.",
     "error": {
-      "UPLOAD_FORMAT": "Only .glb or .gltf files are supported.",
+      "UPLOAD_FORMAT": "No supported model file found (GLB, glTF, OBJ, FBX, DAE, STL, PLY, 3DS, 3MF, USDZ, WRL or zip).",
       "UPLOAD_TOO_LARGE": "The file is too large.",
-      "UPLOAD_PARSE": "Could not read this model (export glTF with external files as GLB).",
-      "UPLOAD_SAVE": "Save failed (browser storage unavailable or full)."
+      "UPLOAD_PARSE": "Could not read this model; the file may be damaged or use an unsupported version.",
+      "UPLOAD_SAVE": "Save failed (browser storage unavailable or full).",
+      "UPLOAD_SKP": "SketchUp (.skp) files cannot be read in the browser. In SketchUp use File → Export → 3D Model to save GLB, DAE or FBX, then upload that.",
+      "EMPTY_MODEL": "The model contains no visible geometry."
     },
     "warn": {
       "TRIANGLES": "More than {{max}} triangles; the 3D view may slow down.",
-      "SIZE_ODD": "Size looks unusual for meters; check the file units."
-    }
+      "SIZE_ODD": "Size looks unusual for meters; check the file units.",
+      "MISSING_FILES": "Missing files: {{files}} (select them with the model or zip them together). Missing textures show as plain color."
+    },
+    "formats": "GLB · glTF · OBJ · FBX · DAE · STL · PLY · 3DS · 3MF · USDZ · WRL · ZIP",
+    "zUp": "Z axis is up (STL / CAD models)",
+    "simplify": "Simplify to {{max}} triangles",
+    "dropHint": "Drop to upload a 3D model",
+    "formatsShort": "GLB · OBJ · FBX · DAE · STL…",
+    "converted": "{{format}} → GLB"
   },
   "ctx": {
     "title": "Edit menu",
