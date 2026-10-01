@@ -136,6 +136,12 @@ export function CommandPalette({
         group: g.set,
         run: () => prefs.setLength(u),
       })),
+      ...(['hud', 'pro', 'contrast'] as const).map((v) => ({
+        id: `theme:${v}`,
+        label: `${t('ui.theme')}: ${t(`ui.themes.${v}`)}`,
+        group: g.set,
+        run: () => prefs.setUiTheme(v),
+      })),
       {
         id: 'lang',
         label: i18n.language === 'en' ? '切換為繁體中文' : 'Switch to English',

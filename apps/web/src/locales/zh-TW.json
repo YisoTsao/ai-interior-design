@@ -322,7 +322,12 @@
     "tint": "染色",
     "openAngle": "門扇開啟角度",
     "slotFrame": "框架／腳",
-    "slotAccent": "點綴（抱枕、把手）"
+    "slotAccent": "點綴（抱枕、把手）",
+    "search": "搜尋屬性（例：粗糙度、踢腳）",
+    "pinned": "釘選的分節",
+    "pin": "釘選「{{name}}」",
+    "unpin": "取消釘選「{{name}}」",
+    "pinChip": "★ {{name}}"
   },
   "param": {
     "width": "寬",
@@ -452,7 +457,12 @@
     "resolveComment": "變更留言狀態",
     "deleteComment": "刪除留言",
     "autoLayout": "廚衛自動配置",
-    "reshapeArc": "調整弧形牆"
+    "reshapeArc": "調整弧形牆",
+    "lightGroup": "燈光群組",
+    "saveLightScene": "儲存燈光情境",
+    "applyLightScene": "套用燈光情境",
+    "deleteLightScene": "刪除燈光情境",
+    "addApproval": "記錄客戶確認"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -1222,7 +1232,8 @@
       "left": "左側牆面（沿繪製方向）",
       "right": "右側牆面（沿繪製方向）"
     },
-    "wallRefHint": "順時針畫房間時，「右側牆面」＝室內面：點的線就是室內淨尺寸。"
+    "wallRefHint": "順時針畫房間時，「右側牆面」＝室內面：點的線就是室內淨尺寸。",
+    "stairOpening": "樓梯開口"
   },
   "assetDetail": {
     "open": "「{{name}}」詳情",
@@ -1611,5 +1622,158 @@
     "inpaint": "重繪選取區",
     "save": "存入圖庫",
     "saved": "已存入圖庫"
+  },
+  "lightScene": {
+    "title": "燈光群組與情境",
+    "noLights": "場景中還沒有燈具。",
+    "groups": "群組",
+    "groupOn": "{{name}} 開關",
+    "groupLevel": "{{name}} 亮度",
+    "scenes": "情境（點擊套用）",
+    "delete": "刪除情境 {{name}}",
+    "name": "情境名稱",
+    "namePh": "例：晚餐、看電影",
+    "defaultName": "情境 {{n}}",
+    "save": "存成情境",
+    "play": "播放",
+    "stop": "停止",
+    "interval": "切換間隔（秒）",
+    "seconds": "秒",
+    "hint": "播放只預覽、不修改設計；點情境名稱才會套用（可復原）。",
+    "group": "燈光群組",
+    "groupPh": "例：客廳主燈"
+  },
+  "ies": {
+    "import": "匯入 IES 光域網",
+    "invalid": "不是有效的 IES（LM-63）檔案",
+    "curve": "配光曲線",
+    "stats": "{{lm}} lm · 峰值 {{cd}} cd",
+    "angles": "光束角 {{beam}}° · 場角 {{field}}°",
+    "hint": "由 IES 推算光通量與光束角；3D 以聚光近似配光（WebGL 無 IES 光源）。"
+  },
+  "preset": {
+    "title": "樣式預設",
+    "name": "預設名稱",
+    "namePh": "例：胡桃木＋霧面",
+    "save": "存成預設",
+    "saveOne": "請只選一個項目來建立預設",
+    "defaultName": "樣式 {{n}}",
+    "empty": "還沒有這類項目的預設；選一個項目後按「存成預設」。",
+    "delete": "刪除預設 {{name}}"
+  },
+  "ui": {
+    "title": "介面",
+    "theme": "主題",
+    "themes": {
+      "hud": "遊戲 HUD（深色）",
+      "pro": "淺色專業",
+      "contrast": "高對比"
+    },
+    "density": "介面密度",
+    "densities": {
+      "comfortable": "舒適",
+      "compact": "緊湊"
+    }
+  },
+  "minimap": {
+    "title": "小地圖（點擊移動視角）",
+    "show": "顯示小地圖",
+    "hide": "隱藏小地圖"
+  },
+  "achieve": {
+    "progress": "進度 {{n}}/{{total}}",
+    "unlocked": "完成里程碑：{{name}}",
+    "next": "下一步：{{name}}",
+    "items": {
+      "firstWall": {
+        "title": "第一道牆",
+        "hint": "用畫牆（W）或匯入平面圖"
+      },
+      "firstRoom": {
+        "title": "完成平面",
+        "hint": "牆圍成封閉的房間"
+      },
+      "furnished": {
+        "title": "完成佈置",
+        "hint": "放 5 件以上家具，或用 AI 自動佈置"
+      },
+      "material": {
+        "title": "換上材質",
+        "hint": "替牆面或地板換材質"
+      },
+      "lighting": {
+        "title": "燈光設計",
+        "hint": "調整燈具或存一個燈光情境"
+      },
+      "view3d": {
+        "title": "看 3D",
+        "hint": "按 Tab 切到 3D"
+      },
+      "image": {
+        "title": "完成出圖",
+        "hint": "渲染、截圖或全景存入圖庫"
+      },
+      "share": {
+        "title": "分享給客戶",
+        "hint": "產生分享連結"
+      }
+    }
+  },
+  "compare": {
+    "title": "方案比較",
+    "current": "目前設計",
+    "modes": {
+      "side": "並排",
+      "slider": "滑桿"
+    },
+    "views": {
+      "plan": "平面",
+      "photo": "3D 縮圖"
+    },
+    "noImage": "沒有圖（版本未存 3D 縮圖）",
+    "slider": "比較位置",
+    "items": "家具件數",
+    "total": "報價總額",
+    "changes": "物件變更",
+    "diff": "新增 {{added}}、刪除 {{removed}}、移動 {{moved}}"
+  },
+  "approval": {
+    "title": "確認方案",
+    "open": "確認方案",
+    "mainScheme": "主方案",
+    "pickScheme": "選擇方案",
+    "scheme": "方案",
+    "project": "專案",
+    "client": "客戶姓名",
+    "note": "備註",
+    "time": "確認時間",
+    "fingerprint": "方案指紋",
+    "signature": "簽名",
+    "signHere": "在此簽名",
+    "clear": "清除簽名",
+    "agree": "我已檢視並確認此方案（平面、3D 與報價），同意依此進行。",
+    "submit": "送出確認",
+    "done": "已完成確認。請把下方確認碼傳給設計師，並保存確認單。",
+    "copy": "複製確認碼",
+    "download": "下載確認單",
+    "sheetTitle": "設計方案確認單",
+    "shareSection": "客戶確認與替代方案",
+    "ask": "要求客戶在分享頁簽名確認",
+    "noVersions": "沒有已存版本可作為替代方案（版本歷史中可手動存版本）。",
+    "alternatives": "附上替代方案（客戶可切換比較）",
+    "import": "匯入客戶確認碼",
+    "verify": "驗證並記錄",
+    "badCode": "不是有效的確認碼",
+    "match": {
+      "current": "{{client}} 已確認「{{scheme}}」，與目前設計相同。",
+      "version": "{{client}} 已確認「{{scheme}}」，對應一個已存版本。",
+      "unknown": "{{client}} 的確認已記錄，但方案與目前設計及版本都不同（設計可能已修改）。"
+    },
+    "matchShort": {
+      "current": "與目前設計相同",
+      "version": "對應已存版本",
+      "unknown": "設計已變更"
+    },
+    "schemeLabel": "方案："
   }
 }

@@ -82,6 +82,9 @@
   弧牆凸度、自動外部尺寸、編號標記清單、家具俯視縮圖、牆定位線、資產篩選擴充（材質／寬深高／品牌／可訂製；目錄新增選填 brand）、
   壁紙 16 款與背景牆模板、RAL 近似色卡與 CSV 品牌色號匯入、法線／粗糙度貼圖、景深與構圖比例、互動降解析度、浮動面板、
   照片換風格（本機色彩轉移預覽＋PhotoStyleProvider 介面）。E2E `e2e/batch-a.spec.ts` 6/6。
+- 前台第八批（P2 第一部分）：燈光群組與情境（app-state light-scenes，時間軸預覽用 viewer lightPreview 不入 Scene）、IES 解析、
+  樣式預設、屬性搜尋與釘選、介面主題（pro／contrast）與密度、3D 小地圖、成就里程碑、樓梯自動開洞（stairOpenings＋地板挖洞）、
+  方案比較、分享頁多方案與客戶簽名確認（確認碼含方案 SHA-256，存 scene.meta.approvals）。E2E `e2e/batch-b.spec.ts` 5/5。
 - 第六批（Haiku 撰寫）經審查：訂製櫃、廚衛自動佈局、批次渲染、自訂快捷鍵、面板調寬、光束把手的 E2E 8/8 通過，規格狀態已補登。
 - 已解決：`@interiorai/assistant` 補上測試（7）。
 - 已知（歷史）：`@interiorai/assistant` 尚無測試檔，`pnpm test` 在該套件以「No test files」失敗（P6 進行中，非本次改動造成）。

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { Box, Copy, Footprints, Globe2, Map as MapIcon } from 'lucide-react';
+import { Box, Copy, Footprints, Globe2, Map as MapIcon, PenLine } from 'lucide-react';
 import { createEditorStore, saveProject } from '@interiorai/app-state';
 import type { Scene } from '@interiorai/scene-schema';
 import { Plan2D } from '@interiorai/editor-2d';
@@ -9,7 +9,8 @@ import { PanoramaViewer, Viewer3D, viewer3dApi } from '@interiorai/viewer-3d';
 import { catalog, useCatalogVersion, useMaterials } from '../catalogData';
 import { LangToggle } from '../editor/common';
 import { usePrefs } from '../prefs';
-import { decodeShare } from '../share';
+import { decodeShare, type SharePayload } from '../share';
+import { ApprovalDialog } from './ApprovalDialog';
 import { useCanvasTheme } from '../theme';
 
 type Tab = '2d' | '3d' | 'pano';
@@ -20,7 +21,8 @@ type Tab = '2d' | '3d' | 'pano';
  */
 export function ShareViewPage() {
   const { t } = useTranslation();
-  const [data, setData] = useState<{ name: string; scene: Scene } | null>(null);
+  const [data, setData] = useState<SharePayload | null>(null);
+  const [pick, setPick] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     const m = /[#&]s=([^&]+)/.exec(window.location.hash);
@@ -48,10 +50,38 @@ export function ShareViewPage() {
         …
       </div>
     );
-  return <ShareBody name={data.name} scene={data.scene} />;
+  // 多方案（FE-SHR-06）：0＝主方案，其餘為替代方案
+  const schemes = [{ name: t('approval.mainScheme'), scene: data.scene }, ...data.schemes];
+  const cur = schemes[Math.min(pick, schemes.length - 1)]!;
+  return (
+    <ShareBody
+      key={pick}
+      name={data.name}
+      scene={cur.scene}
+      schemes={schemes.map((x) => x.name)}
+      pick={pick}
+      onPick={setPick}
+      approval={data.approval}
+    />
+  );
 }
 
-function ShareBody({ name, scene }: { name: string; scene: Scene }) {
+function ShareBody({
+  name,
+  scene,
+  schemes,
+  pick,
+  onPick,
+  approval,
+}: {
+  name: string;
+  scene: Scene;
+  schemes: string[];
+  pick: number;
+  onPick: (i: number) => void;
+  approval: boolean;
+}) {
+  const [approveOpen, setApproveOpen] = useState(false);
   const { t } = useTranslation();
   const theme = useCanvasTheme();
   const { lengthUnit, areaUnit, graphics } = usePrefs();
@@ -91,6 +121,21 @@ function ShareBody({ name, scene }: { name: string; scene: Scene }) {
           {name || t('projects.untitled')}
         </h1>
         <span className="hud-chip">{t('share.readOnly')}</span>
+        {schemes.length > 1 && (
+          <select
+            className="field w-36 py-0.5 text-xs"
+            value={pick}
+            onChange={(e) => onPick(Number(e.target.value))}
+            aria-label={t('approval.pickScheme')}
+            data-testid="share-scheme"
+          >
+            {schemes.map((n, i) => (
+              <option key={i} value={i}>
+                {n}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="hud-seg ml-auto" role="tablist">
           <button
             role="tab"
@@ -121,6 +166,11 @@ function ShareBody({ name, scene }: { name: string; scene: Scene }) {
           </button>
         </div>
         <LangToggle />
+        {approval && (
+          <button className="btn" onClick={() => setApproveOpen(true)} data-testid="share-approve">
+            <PenLine size={14} aria-hidden /> {t('approval.open')}
+          </button>
+        )}
         <button className="btn btn-primary" onClick={() => void copyToMine()} data-testid="share-copy">
           <Copy size={14} aria-hidden /> {t('share.copyToMine')}
         </button>
@@ -179,6 +229,15 @@ function ShareBody({ name, scene }: { name: string; scene: Scene }) {
         )}
         {tab === 'pano' && pano && <PanoramaViewer src={pano} />}
       </main>
+      {approval && (
+        <ApprovalDialog
+          open={approveOpen}
+          onOpenChange={setApproveOpen}
+          project={name}
+          scheme={schemes[pick] ?? ''}
+          scene={scene}
+        />
+      )}
     </div>
   );
 }

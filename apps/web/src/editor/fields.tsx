@@ -12,6 +12,7 @@ import {
   searchColors,
 } from './colorCards';
 import { formatLength, parseLength, type LengthUnit } from '@interiorai/editor-2d';
+import { useInspectorPrefs } from './inspectorPrefs';
 
 /** 長度欄位：依偏好單位顯示；Enter 提交成一個 Command（02 §4） */
 export function LengthField({
@@ -326,7 +327,7 @@ export function ToggleField({
   );
 }
 
-/** 可收合的屬性分節 */
+/** 可收合的屬性分節；可釘選（FE-PROP-07），面板搜尋時不符合的分節隱藏 */
 export function Section({
   title,
   children,
@@ -340,11 +341,50 @@ export function Section({
   right?: React.ReactNode;
   testId?: string;
 }) {
+  const { t } = useTranslation();
+  const query = useInspectorPrefs((s) => s.query.trim().toLowerCase());
+  const pinned = useInspectorPrefs((s) => s.pins.includes(title));
+  const togglePin = useInspectorPrefs((s) => s.togglePin);
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!query) {
+      el.hidden = false;
+      return;
+    }
+    const hit = (el.textContent ?? '').toLowerCase().includes(query);
+    el.hidden = !hit;
+    if (hit) el.open = true;
+  }, [query]);
+  useEffect(() => {
+    if (pinned && ref.current) ref.current.open = true;
+  }, [pinned]);
   return (
-    <details className="hud-section" open={defaultOpen} data-testid={testId}>
+    <details
+      ref={ref}
+      className={`hud-section ${pinned ? 'hud-section-pinned' : ''}`}
+      open={defaultOpen || pinned}
+      data-testid={testId}
+      data-section-title={title}
+    >
       <summary className="flex items-center justify-between gap-2">
         <span className="hud-title flex-1">{title}</span>
         {right}
+        <button
+          type="button"
+          className={`hud-pin ${pinned ? 'text-primary' : 'text-muted'}`}
+          aria-pressed={pinned}
+          aria-label={t(pinned ? 'inspector.unpin' : 'inspector.pin', { name: title })}
+          title={t(pinned ? 'inspector.unpin' : 'inspector.pin', { name: title })}
+          onClick={(e) => {
+            e.preventDefault();
+            togglePin(title);
+          }}
+          data-testid={testId ? `${testId}-pin` : undefined}
+        >
+          {pinned ? '★' : '☆'}
+        </button>
         <ChevronRight size={14} className="chev text-muted" aria-hidden />
       </summary>
       <div className="hud-section-body">{children}</div>

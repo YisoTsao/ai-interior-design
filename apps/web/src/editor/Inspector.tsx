@@ -70,6 +70,10 @@ import { mergeLook } from './look';
 import { MaterialPicker } from './MaterialPicker';
 import { editActions } from './actions';
 import { useThumbnail } from './thumbs';
+import { LightGroupField, LightScenesSection } from './LightScenes';
+import { IesImport } from './IesImport';
+import { useInspectorPrefs } from './inspectorPrefs';
+import { StylePresetsSection } from './StylePresets';
 
 export function Inspector({
   uniformScale,
@@ -119,8 +123,73 @@ export function Inspector({
       data-tour="inspector"
     >
       <h2 className="hud-title">{t('inspector.title')}</h2>
+      <InspectorTools />
+      <StylePresetsSection />
       {body}
     </aside>
+  );
+}
+
+/** 介面主題與密度（FE-UX-06） */
+function UiSection() {
+  const { t } = useTranslation();
+  const { uiTheme, setUiTheme, density, setDensity } = usePrefs();
+  return (
+    <Section title={t('ui.title')} defaultOpen={false} testId="section-ui">
+      <SelectField
+        label={t('ui.theme')}
+        value={uiTheme}
+        onChange={setUiTheme}
+        options={(['hud', 'pro', 'contrast'] as const).map((v) => ({ value: v, label: t(`ui.themes.${v}`) }))}
+        testId="ui-theme"
+      />
+      <SelectField
+        label={t('ui.density')}
+        value={density}
+        onChange={setDensity}
+        options={(['comfortable', 'compact'] as const).map((v) => ({
+          value: v,
+          label: t(`ui.densities.${v}`),
+        }))}
+        testId="ui-density"
+      />
+    </Section>
+  );
+}
+
+/** 屬性搜尋＋釘選分節跳轉（FE-PROP-07） */
+function InspectorTools() {
+  const { t } = useTranslation();
+  const { query, setQuery, pins } = useInspectorPrefs();
+  const jump = (title: string) => {
+    const el = document.querySelector<HTMLDetailsElement>(
+      `details[data-section-title="${CSS.escape(title)}"]`,
+    );
+    if (!el) return;
+    el.open = true;
+    el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+  return (
+    <div className="space-y-1">
+      <input
+        type="search"
+        className="field w-full"
+        placeholder={t('inspector.search')}
+        aria-label={t('inspector.search')}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        data-testid="inspector-search"
+      />
+      {pins.length > 0 && (
+        <div className="flex flex-wrap gap-1" aria-label={t('inspector.pinned')} data-testid="inspector-pins">
+          {pins.map((p) => (
+            <button key={p} className="hud-chip text-[10px]" onClick={() => jump(p)}>
+              {t('inspector.pinChip', { name: p })}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -411,6 +480,8 @@ function LightSection({ obj, entry, levelId }: { obj: SceneObject; entry: Catalo
         />
       }
     >
+      <LightGroupField obj={obj} levelId={levelId} />
+      <IesImport obj={obj} entry={entry} levelId={levelId} />
       <ToggleField
         label={t('light.on')}
         checked={ov.on !== false}
@@ -1044,6 +1115,8 @@ function ScenePanel({ level }: { level: Level }) {
           ))}
         </div>
       </Section>
+      <LightScenesSection />
+      <UiSection />
       <Section title={t('stats.title')}>
         <p className="hud-stat">
           <span>{t('stats.rooms')}</span>

@@ -16,6 +16,8 @@ import {
   DEFAULTS,
   activeLevel,
   batch,
+  stairOpenings,
+  withLightState,
   setMaterial,
   stackElevation,
   transformObject,
@@ -25,6 +27,7 @@ import {
 import { materialMap, objectDims, type Catalog, type CatalogEntry, type Material } from '@interiorai/catalog';
 import {
   buildingFootprint,
+  type Vec2,
   detectRooms,
   offsetPolygon,
   pointOnWall,
@@ -32,7 +35,7 @@ import {
   wallLength,
 } from '@interiorai/core-geometry';
 import type { Appearance, Level, SceneObject, Wall } from '@interiorai/scene-schema';
-import { placementGhost, sunOverride, viewer3dApi, type PlacementGhost } from './api.js';
+import { lightPreview, placementGhost, sunOverride, viewer3dApi, type PlacementGhost } from './api.js';
 import { renderPanorama } from './panorama.js';
 import { exportScene } from './exportModel.js';
 import { renderGBuffer } from './gbuffer.js';
@@ -222,6 +225,7 @@ function SceneContent({
   const level = useMemo(() => activeLevel({ scene, levelId }), [scene, levelId]);
   const sunOv = useSyncExternalStore(sunOverride.subscribe, sunOverride.get, sunOverride.get);
   const ghosts = useSyncExternalStore(placementGhost.subscribe, placementGhost.get, placementGhost.get);
+  const lightPrev = useSyncExternalStore(lightPreview.subscribe, lightPreview.get, lightPreview.get);
   const env = useMemo(
     () => (sunOv ? { ...scene.environment, ...sunOv } : scene.environment),
     [scene.environment, sunOv],
@@ -487,14 +491,16 @@ function SceneContent({
     return out;
   }, [structure, sides, scope]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => trims.forEach((b) => scope.release(b.g)), [trims, scope]);
+  // 樓梯開口（FE-LVL-04）：下一層樓梯到達本層時，地板挖洞
+  const openingsKey = JSON.stringify(stairOpenings(scene, levelId, catalog));
   const rooms = useMemo(
     () =>
-      buildRoomSurfaces(structure).map((r) => ({
+      buildRoomSurfaces(structure, JSON.parse(openingsKey) as Vec2[][]).map((r) => ({
         ...r,
         floor: scope.track(r.floor),
         ceiling: scope.track(r.ceiling),
       })),
-    [structure, scope],
+    [structure, scope, openingsKey],
   );
   useEffect(
     () => () => rooms.forEach((r) => (scope.release(r.floor), scope.release(r.ceiling))),
@@ -621,15 +627,26 @@ function SceneContent({
     string,
     { pos: [number, number, number]; rot: number }
   > | null>(null);
+  /** 燈光情境預覽（不入 Scene）套用後的物件；拖曳不影響光源池 */
+  const litObjects = useMemo(
+    () =>
+      lightPrev
+        ? level.objects.map((o) => {
+            const l = lightPrev.get(o.id);
+            return l ? withLightState(o, catalog, l) : o;
+          })
+        : level.objects,
+    [level.objects, lightPrev, catalog],
+  );
   const displayObjects = useMemo(
     () =>
       dragMap
-        ? level.objects.map((o) => {
+        ? litObjects.map((o) => {
             const d = dragMap.get(o.id);
             return d ? { ...o, position: d.pos, rotationY: d.rot } : o;
           })
-        : level.objects,
-    [level.objects, dragMap],
+        : litObjects,
+    [litObjects, dragMap],
   );
   const single = selection.length === 1 ? level.objects.find((o) => o.id === selection[0]) : undefined;
   const selSet = useMemo(() => new Set(selection), [selection]);
@@ -713,9 +730,9 @@ function SceneContent({
   // catalogVersion：上傳模型後目錄內容改變（catalog 參照不變）
   const allFixtures = useMemo(() => {
     if (!night) return [];
-    const f = fixtureLights(level, catalog);
+    const f = fixtureLights({ objects: litObjects }, catalog);
     return [...f, ...roomFillLights(structure, f)];
-  }, [night, level, structure, catalog, catalogVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [night, litObjects, structure, catalog, catalogVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const wins = useMemo(() => {
     if (!night) return [];
     const cut = new Set(structure.walls.filter((w) => wallHeight(w) < ownHeight(w)).map((w) => w.id));

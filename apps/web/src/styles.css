@@ -635,3 +635,149 @@ body {
 .hud-float > div > aside {
   max-height: 100%;
 }
+
+/* 屬性分節釘選（FE-PROP-07） */
+.hud-pin {
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.hud-section-pinned > summary {
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * 介面主題與密度（FE-UX-06）：html[data-ui-theme] 覆寫 .game-ui 的 token；
+ * pro＝淺色專業（白底、墨綠主色），contrast＝高對比（黑底、白字、亮黃主色、粗框）。
+ * html[data-density=compact]：縮小間距與控制項高度。
+ * ────────────────────────────────────────────────────────────── */
+html[data-ui-theme='pro'] .game-ui {
+  --bg: #f4f3ef;
+  --surface: #ffffff;
+  --surface-2: #f0efea;
+  --border: #d9d7d0;
+  --text: #1b1d21;
+  --muted: #565c66;
+  --primary: #2f5d50;
+  --primary-fg: #ffffff;
+  --accent: #b5732a;
+  --danger: #b33224;
+  --warn: #8a6100;
+  --ok: #2e8b57;
+  --glow: 0 0 0 1px rgba(47, 93, 80, 0.5), 0 0 10px rgba(47, 93, 80, 0.2);
+  --wall: #3c4047;
+  --floor: #efe9df;
+  --object: #e3d7c4;
+  --grid: #ebeae4;
+  --grid-major: #d8d6ce;
+  --hud-font: 'Noto Sans TC', system-ui, sans-serif;
+  color-scheme: light;
+}
+html[data-ui-theme='pro'] .game-ui .btn,
+html[data-ui-theme='pro'] .game-ui .icon-btn {
+  background: var(--surface);
+}
+html[data-ui-theme='pro'] .game-ui .hud-panel {
+  background: var(--surface);
+}
+html[data-ui-theme='pro'] .game-ui ::-webkit-scrollbar-thumb {
+  background: #c9c7c0;
+}
+html[data-ui-theme='contrast'] .game-ui {
+  --bg: #000000;
+  --surface: #000000;
+  --surface-2: #111111;
+  --border: #ffffff;
+  --text: #ffffff;
+  --muted: #e6e6e6;
+  --primary: #ffe600;
+  --primary-fg: #000000;
+  --accent: #00e5ff;
+  --danger: #ff5c5c;
+  --warn: #ffd000;
+  --ok: #4dff88;
+  --glow: 0 0 0 2px #ffe600;
+  --wall: #ffffff;
+  --floor: #111111;
+  --object: #333333;
+  --grid: #0a0a0a;
+  --grid-major: #333333;
+}
+html[data-ui-theme='contrast'] .game-ui .btn,
+html[data-ui-theme='contrast'] .game-ui .icon-btn,
+html[data-ui-theme='contrast'] .game-ui .field {
+  background: #000;
+  border-width: 2px;
+}
+html[data-ui-theme='contrast'] .game-ui .hud-panel {
+  background: #000;
+}
+html[data-density='compact'] .game-ui .btn {
+  padding: 3px 8px;
+}
+html[data-density='compact'] .game-ui .icon-btn {
+  width: 28px;
+  height: 28px;
+}
+html[data-density='compact'] .game-ui .field {
+  padding: 2px 6px;
+}
+html[data-density='compact'] .game-ui .hud-section-body {
+  padding: 6px;
+  gap: 5px;
+}
+
+/* 淺色專業／高對比：覆寫遊戲 HUD 寫死的深色漸層 */
+html[data-ui-theme='pro'] .game-ui .hud-bar,
+html[data-ui-theme='pro'] .game-ui .hud-bar-bottom,
+html[data-ui-theme='pro'] .game-ui .hud-popover,
+html[data-ui-theme='pro'] .game-ui .hud-chip,
+html[data-ui-theme='pro'] .game-ui .inv-slot,
+html[data-ui-theme='pro'] .game-ui .hotbar-slot,
+html[data-ui-theme='pro'] .game-ui .field,
+html[data-ui-theme='pro'] .game-ui select.field option {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+html[data-ui-theme='pro'] .game-ui .btn:hover:not(:disabled),
+html[data-ui-theme='pro'] .game-ui .inv-slot:hover {
+  background: var(--surface-2);
+}
+html[data-ui-theme='pro'] .game-ui .hud-section {
+  background: var(--surface-2);
+}
+html[data-ui-theme='pro'] .game-ui .hud-range {
+  --track: linear-gradient(90deg, var(--primary) var(--fill), #d9d7d0 var(--fill));
+}
+html[data-ui-theme='pro'] .game-ui .hud-switch {
+  background: #d9d7d0;
+}
+html[data-ui-theme='contrast'] .game-ui .hud-bar,
+html[data-ui-theme='contrast'] .game-ui .hud-bar-bottom,
+html[data-ui-theme='contrast'] .game-ui .hud-popover,
+html[data-ui-theme='contrast'] .game-ui .hud-chip,
+html[data-ui-theme='contrast'] .game-ui .inv-slot,
+html[data-ui-theme='contrast'] .game-ui .hotbar-slot,
+html[data-ui-theme='contrast'] .game-ui select.field option {
+  background: #000;
+  border-color: #fff;
+  color: #fff;
+}
+html[data-ui-theme='pro'] .game-ui .hud-seg {
+  background: var(--surface-2);
+}
+html[data-ui-theme='pro'] .game-ui .icon-btn[aria-pressed='true'],
+html[data-ui-theme='pro'] .game-ui .hud-seg > button[aria-pressed='true'],
+html[data-ui-theme='pro'] .game-ui .hud-chip[aria-pressed='true'],
+html[data-ui-theme='pro'] .game-ui .hotbar-slot[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+html[data-ui-theme='contrast'] .game-ui .icon-btn[aria-pressed='true'],
+html[data-ui-theme='contrast'] .game-ui .hud-seg > button[aria-pressed='true'],
+html[data-ui-theme='contrast'] .game-ui .hud-chip[aria-pressed='true'],
+html[data-ui-theme='contrast'] .game-ui .hotbar-slot[aria-pressed='true'] {
+  background: var(--primary);
+  color: #000;
+}

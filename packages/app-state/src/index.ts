@@ -11,3 +11,5 @@ export * from './stack.js';
 export * from './sets.js';
 export * from './versions.js';
 export * from './kitchen.js';
+export * from './light-scenes.js';
+export * from './stairs.js';

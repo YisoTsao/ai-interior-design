@@ -33,7 +33,12 @@ export function useCanvasTheme() {
     const mq = matchMedia('(prefers-color-scheme: dark)');
     const on = () => setTheme(read());
     mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
+    // 介面主題切換（FE-UX-06）
+    window.addEventListener('interiorai:theme', on);
+    return () => {
+      mq.removeEventListener('change', on);
+      window.removeEventListener('interiorai:theme', on);
+    };
   }, []);
   return theme;
 }

@@ -1,6 +1,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { detectRooms, offsetPolygon, wallLength, wallQuad, type Vec2 } from '@interiorai/core-geometry';
+import {
+  detectRooms,
+  offsetPolygon,
+  subtractToPolygons,
+  wallLength,
+  wallQuad,
+  type Vec2,
+} from '@interiorai/core-geometry';
 import type { Level, Wall } from '@interiorai/scene-schema';
 
 /** 牆面群組：A＝沿 a→b 方向的左側面、B＝右側面、CAP＝頂面（剖面色）。開口側邊(reveal)與端面歸 A。 */
@@ -230,7 +237,11 @@ export function buildWallGeometry(level: Level, w: Wall, height = level.height):
 }
 
 /** 地板/天花：房間淨地板多邊形；UV＝平面 mm 座標（貼圖 repeat 依真實尺寸） */
-export function buildRoomSurfaces(level: Level): {
+export function buildRoomSurfaces(
+  level: Level,
+  /** 樓板開口（樓梯，FE-LVL-04）：從地板挖掉 */
+  openings: readonly Vec2[][] = [],
+): {
   key: string;
   roomId?: string;
   floor: THREE.BufferGeometry;
@@ -242,8 +253,15 @@ export function buildRoomSurfaces(level: Level): {
   return detectRooms(level)
     .rooms.filter((d) => d.floor.length >= 3)
     .map((d) => {
-      const floorShape = new THREE.Shape(d.floor.map(([x, z]) => new THREE.Vector2(x, -z)));
-      const floor = new THREE.ShapeGeometry(floorShape);
+      const parts = openings.length
+        ? subtractToPolygons(d.floor, [...openings])
+        : [{ outer: d.floor, holes: [] }];
+      const shapes = parts.map((p) => {
+        const sh = new THREE.Shape(p.outer.map(([x, z]) => new THREE.Vector2(x, -z)));
+        for (const h of p.holes) sh.holes.push(new THREE.Path(h.map(([x, z]) => new THREE.Vector2(x, -z))));
+        return sh;
+      });
+      const floor = new THREE.ShapeGeometry(shapes);
       floor.rotateX(-Math.PI / 2); // (x, −z) → (x, 0, z)，法線朝上
       const room = byKey.get(d.key);
       const c = room?.ceiling;

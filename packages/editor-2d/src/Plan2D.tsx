@@ -105,6 +105,8 @@ export interface Plan2DProps {
   pins?: CommentPin[];
   /** 自動外部尺寸（FE-PLAN-10）：分段＋總尺寸 */
   autoDims?: boolean;
+  /** 樓板開口（樓梯自動開洞，FE-LVL-04）：虛線框＋對角線 */
+  slabOpenings?: Vec2[][];
   /** 家具俯視縮圖（FE-PLAN-12）：catalogId → 圖（沒有＝畫符號） */
   furnitureImages?: ReadonlyMap<string, string>;
   /** 畫牆的定位線（FE-PLAN-15）：點擊的線是牆中心、左側面或右側面（沿繪製方向） */
@@ -213,6 +215,7 @@ export function Plan2D({
   pins,
   onPinClick,
   autoDims,
+  slabOpenings,
   furnitureImages,
   wallReference = 'center',
   theme: baseTheme,
@@ -1463,6 +1466,45 @@ export function Plan2D({
                 selected
               />
             )}
+            {slabOpenings?.map((poly, i) => (
+              <Group key={`open${i}`} listening={false} name="slab-opening">
+                <Line
+                  points={flat(poly)}
+                  closed
+                  stroke={theme.warn}
+                  strokeWidth={1.5}
+                  dash={[8, 5]}
+                  strokeScaleEnabled={false}
+                />
+                {poly.length === 4 && (
+                  <>
+                    <Line
+                      points={flat([poly[0]!, poly[2]!])}
+                      stroke={theme.warn}
+                      strokeWidth={1}
+                      strokeScaleEnabled={false}
+                    />
+                    <Line
+                      points={flat([poly[1]!, poly[3]!])}
+                      stroke={theme.warn}
+                      strokeWidth={1}
+                      strokeScaleEnabled={false}
+                    />
+                  </>
+                )}
+                <Text
+                  x={centroid(poly)[0]}
+                  y={centroid(poly)[1]}
+                  offsetX={50 * px}
+                  offsetY={6 * px}
+                  width={100 * px}
+                  align="center"
+                  text={t('plan.stairOpening')}
+                  fontSize={11 * px}
+                  fill={theme.warn}
+                />
+              </Group>
+            ))}
             {autoDims && <AutoDimensions level={level} px={px} unit={lengthUnit} theme={theme} />}
             {snapInfo && snapInfo.kind !== 'none' && (tool !== 'select' || drag) && (
               <Circle

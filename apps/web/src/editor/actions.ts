@@ -20,6 +20,7 @@ import {
   updateObject,
   type AlignMode,
   type EditorStore,
+  type Command,
 } from '@interiorai/app-state';
 import { closestOnSegment, type Vec2 } from '@interiorai/core-geometry';
 import type { Level } from '@interiorai/scene-schema';
@@ -35,7 +36,7 @@ import { mergeLook } from './look';
  * 樣式剪貼簿（FE-PROP-03）：複製物件的材質＋外觀、牆的兩面材質＋外觀＋鋪貼、房間的地板材質＋鋪貼，
  * 貼到同類型的選取項目（一次 undo）。
  */
-type StyleClip =
+export type StyleClip =
   | {
       kind: 'object';
       materialOverrides?: Level['objects'][number]['materialOverrides'];
@@ -53,6 +54,76 @@ type StyleClip =
       room: Pick<Level['rooms'][number], 'floorMaterialId' | 'floorAppearance' | 'floorTiling'>;
     };
 let styleClip: StyleClip | null = null;
+
+/** 取出物件／牆／房間的樣式（材質＋外觀＋鋪貼） */
+export function captureStyle(l: Level, id: string | undefined): StyleClip | null {
+  const o = l.objects.find((x) => x.id === id);
+  const w = l.walls.find((x) => x.id === id);
+  const r = l.rooms.find((x) => x.id === id);
+  if (o) {
+    const { hidden: _h, ...look } = o.appearance ?? {};
+    return {
+      kind: 'object',
+      materialOverrides: o.materialOverrides,
+      appearance: Object.keys(look).length ? look : undefined,
+    };
+  }
+  if (w)
+    return {
+      kind: 'wall',
+      wall: {
+        materialId: w.materialId,
+        materialIdB: w.materialIdB,
+        appearance: w.appearance,
+        appearanceB: w.appearanceB,
+        tilingA: w.tilingA,
+        tilingB: w.tilingB,
+      },
+    };
+  if (r)
+    return {
+      kind: 'room',
+      room: {
+        floorMaterialId: r.floorMaterialId,
+        floorAppearance: r.floorAppearance,
+        floorTiling: r.floorTiling,
+      },
+    };
+  return null;
+}
+
+/** 把樣式套到選取中同類型的項目（單一 Command；沒有可套用的回傳 null） */
+export function applyStyle(l: Level, sel: readonly string[], c: StyleClip): Command | null {
+  const cmds =
+    c.kind === 'object'
+      ? l.objects
+          .filter((o) => sel.includes(o.id))
+          .map((o) =>
+            updateObject(l.id, o.id, {
+              // 只套用目標家具有的材質槽
+              materialOverrides: Object.fromEntries(
+                Object.entries(c.materialOverrides ?? {}).filter(([slot]) =>
+                  catalog.get(o.catalogId)?.materialSlots.some((m) => m.name === slot),
+                ),
+              ),
+              appearance: mergeLook(c.appearance, { hidden: o.appearance?.hidden }),
+            }),
+          )
+      : c.kind === 'wall'
+        ? l.walls.filter((w) => sel.includes(w.id)).map((w) => updateWall(l.id, w.id, c.wall))
+        : l.rooms
+            .filter((r) => sel.includes(r.id))
+            .flatMap((r) => [
+              ...(c.room.floorMaterialId
+                ? [setMaterial(l.id, { kind: 'floor', roomId: r.id }, c.room.floorMaterialId)]
+                : []),
+              updateRoom(l.id, r.id, {
+                floorAppearance: c.room.floorAppearance,
+                floorTiling: c.room.floorTiling,
+              }),
+            ]);
+  return cmds.length ? batch(cmds, 'command.pasteStyle') : null;
+}
 
 export function editActions(store: EditorStore) {
   const st = () => store.getState();
@@ -160,75 +231,13 @@ export function editActions(store: EditorStore) {
     },
     /** 複製選取項目的樣式（取第一個） */
     copyStyle() {
-      const l = level();
-      const id = st().selection[0];
-      const o = l.objects.find((x) => x.id === id);
-      const w = l.walls.find((x) => x.id === id);
-      const r = l.rooms.find((x) => x.id === id);
-      if (o) {
-        const { hidden: _h, ...look } = o.appearance ?? {};
-        styleClip = {
-          kind: 'object',
-          materialOverrides: o.materialOverrides,
-          appearance: Object.keys(look).length ? look : undefined,
-        };
-      } else if (w)
-        styleClip = {
-          kind: 'wall',
-          wall: {
-            materialId: w.materialId,
-            materialIdB: w.materialIdB,
-            appearance: w.appearance,
-            appearanceB: w.appearanceB,
-            tilingA: w.tilingA,
-            tilingB: w.tilingB,
-          },
-        };
-      else if (r)
-        styleClip = {
-          kind: 'room',
-          room: {
-            floorMaterialId: r.floorMaterialId,
-            floorAppearance: r.floorAppearance,
-            floorTiling: r.floorTiling,
-          },
-        };
-      return !!(o || w || r);
+      styleClip = captureStyle(level(), st().selection[0]);
+      return !!styleClip;
     },
     pasteStyle() {
-      const c = styleClip;
-      if (!c) return;
-      const l = level();
-      const sel = st().selection;
-      const cmds =
-        c.kind === 'object'
-          ? l.objects
-              .filter((o) => sel.includes(o.id))
-              .map((o) =>
-                updateObject(l.id, o.id, {
-                  // 只套用目標家具有的材質槽
-                  materialOverrides: Object.fromEntries(
-                    Object.entries(c.materialOverrides ?? {}).filter(([slot]) =>
-                      catalog.get(o.catalogId)?.materialSlots.some((m) => m.name === slot),
-                    ),
-                  ),
-                  appearance: mergeLook(c.appearance, { hidden: o.appearance?.hidden }),
-                }),
-              )
-          : c.kind === 'wall'
-            ? l.walls.filter((w) => sel.includes(w.id)).map((w) => updateWall(l.id, w.id, c.wall))
-            : l.rooms
-                .filter((r) => sel.includes(r.id))
-                .flatMap((r) => [
-                  ...(c.room.floorMaterialId
-                    ? [setMaterial(l.id, { kind: 'floor', roomId: r.id }, c.room.floorMaterialId)]
-                    : []),
-                  updateRoom(l.id, r.id, {
-                    floorAppearance: c.room.floorAppearance,
-                    floorTiling: c.room.floorTiling,
-                  }),
-                ]);
-      if (cmds.length) exec(batch(cmds, 'command.pasteStyle'));
+      if (!styleClip) return;
+      const cmd = applyStyle(level(), st().selection, styleClip);
+      if (cmd) exec(cmd);
     },
     hasStyle: () => !!styleClip,
     /** 在牆上（點擊位置或中點）插入節點（FE-PLAN-15） */

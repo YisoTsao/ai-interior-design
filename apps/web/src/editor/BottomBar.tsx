@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Info, X } from 'lucide-react';
+import { AlertTriangle, Info, Trophy, X } from 'lucide-react';
 import { activeLevel } from '@interiorai/app-state';
 import { findCollisions } from '@interiorai/core-geometry';
 import { collisionInputs } from '@interiorai/editor-2d';
 import { catalog } from '../catalogData';
 import { useEditor, useEditorStore } from './context';
+import { ACHIEVEMENTS, useAchievements } from './achievements';
 
 /** 底部：警示（穿牆/重疊，不阻擋）與操作提示；aria-live 讓讀屏得知 */
 export function BottomBar() {
@@ -23,6 +24,10 @@ export function BottomBar() {
     const e = o ? catalog.get(o.catalogId) : undefined;
     return (i18n.language === 'en' ? e?.nameEn : e?.nameZh) ?? id;
   };
+  const done = useAchievements(store, catalog, (a) =>
+    store.getState().notify('info', t('achieve.unlocked', { name: t(`achieve.items.${a}.title`) })),
+  );
+  const next = ACHIEVEMENTS.find((a) => !done.has(a));
   const warnings = useMemo(() => findCollisions(level, collisionInputs(level, catalog)), [level]);
   return (
     <footer className="hud-bar-bottom flex min-h-9 items-center gap-3 px-3 py-1 text-xs">
@@ -52,6 +57,35 @@ export function BottomBar() {
           </span>
         ))}
       </div>
+      <details className="relative" data-testid="achievements">
+        <summary className="cursor-pointer text-muted">
+          <Trophy size={12} className="inline text-primary" aria-hidden />{' '}
+          {t('achieve.progress', { n: done.size, total: ACHIEVEMENTS.length })}
+        </summary>
+        <div className="hud-popover absolute right-0 bottom-6 z-10 w-72 space-y-1 p-2">
+          <div className="h-1.5 w-full bg-black/30">
+            <div
+              className="h-full bg-primary"
+              style={{ width: `${(done.size / ACHIEVEMENTS.length) * 100}%` }}
+            />
+          </div>
+          <ul className="space-y-1">
+            {ACHIEVEMENTS.map((a) => (
+              <li key={a} className={`flex gap-2 ${done.has(a) ? '' : 'opacity-60'}`} data-done={done.has(a)}>
+                <span aria-hidden>{done.has(a) ? '★' : '☆'}</span>
+                <span>
+                  <b>{t(`achieve.items.${a}.title`)}</b>
+                  <br />
+                  <span className="text-muted">{t(`achieve.items.${a}.hint`)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {next && (
+            <p className="text-accent">{t('achieve.next', { name: t(`achieve.items.${next}.title`) })}</p>
+          )}
+        </div>
+      </details>
       <details className="relative" data-testid="warnings">
         <summary className={`cursor-pointer ${warnings.length ? 'text-warn' : 'text-muted'}`}>
           <AlertTriangle size={12} className="inline" aria-hidden />{' '}

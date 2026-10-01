@@ -40,6 +40,11 @@ interface Prefs {
   /** 浮動面板（FE-UX-07）：是否浮動與視窗位置（畫布內 px） */
   panelFloat: { left: boolean; right: boolean; leftPos: [number, number]; rightPos: [number, number] };
   setPanelFloat(p: Partial<Prefs['panelFloat']>): void;
+  /** 介面主題與密度（FE-UX-06） */
+  uiTheme: 'hud' | 'pro' | 'contrast';
+  setUiTheme(t: Prefs['uiTheme']): void;
+  density: 'comfortable' | 'compact';
+  setDensity(d: Prefs['density']): void;
   /** 面板寬度（FE-UX-07） */
   panelWidths: { left: number; right: number };
   setPanelWidths(p: Partial<{ left: number; right: number }>): void;
@@ -82,6 +87,14 @@ const readGraphics = (): GraphicsSettings => {
     return DEFAULT_GRAPHICS;
   }
 };
+/** 介面主題／密度寫到 <html> 屬性（CSS 依此覆寫 token）；通知畫布重讀顏色 */
+export function applyUi(theme?: string, density?: string) {
+  if (typeof document === 'undefined') return;
+  if (theme) document.documentElement.dataset.uiTheme = theme;
+  if (density) document.documentElement.dataset.density = density;
+  window.dispatchEvent(new Event('interiorai:theme'));
+}
+
 /** 使用者偏好（每位使用者本機；不進 Scene） */
 export const usePrefs = create<Prefs>((set) => ({
   lengthUnit: read<LengthUnit>('lengthUnit', 'cm'),
@@ -117,6 +130,10 @@ export const usePrefs = create<Prefs>((set) => ({
       write('plan2d', JSON.stringify(plan2d));
       return { plan2d };
     }),
+  uiTheme: read<Prefs['uiTheme']>('uiTheme', 'hud'),
+  setUiTheme: (uiTheme) => (write('uiTheme', uiTheme), applyUi(uiTheme, undefined), set({ uiTheme })),
+  density: read<Prefs['density']>('density', 'comfortable'),
+  setDensity: (density) => (write('density', density), applyUi(undefined, density), set({ density })),
   panelFloat: readJson<Prefs['panelFloat']>('panelFloat', {
     left: false,
     right: false,
@@ -144,3 +161,5 @@ export const usePrefs = create<Prefs>((set) => ({
       return { snap };
     }),
 }));
+
+applyUi(usePrefs.getState().uiTheme, usePrefs.getState().density);

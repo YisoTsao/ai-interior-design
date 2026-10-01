@@ -608,6 +608,34 @@ export function setProjectInfo(patch: ProjectInfo): Command {
 export const projectInfoOf = (scene: Scene): ProjectInfo =>
   (scene.meta as { project?: ProjectInfo } | undefined)?.project ?? {};
 
+/** 客戶確認紀錄（FE-SHR-06）：存在 scene.meta.approvals；簽名為小尺寸 PNG dataURL */
+export interface Approval {
+  id: string;
+  scheme: string;
+  /** 客戶確認的方案場景 SHA-256（與目前設計或版本比對） */
+  schemeHash: string;
+  client: string;
+  note?: string;
+  signedAt: string;
+  signature: string;
+  /** 比對結果：current＝與目前設計相同、version＝某個版本、unknown＝都不符 */
+  match: 'current' | 'version' | 'unknown';
+}
+export const approvalsOf = (scene: Scene): Approval[] =>
+  ((scene.meta as { approvals?: Approval[] } | undefined)?.approvals ?? []).slice();
+export function addApproval(a: Approval): Command {
+  return {
+    id: cid('approval'),
+    label: 'command.addApproval',
+    do: (d) => {
+      const meta = (d.meta ?? {}) as Record<string, unknown>;
+      const list = ((meta.approvals as Approval[] | undefined) ?? []).filter((x) => x.id !== a.id);
+      meta.approvals = [...list, a];
+      d.meta = meta as Draft<Scene>['meta'];
+    },
+  };
+}
+
 /** 基地（FE-V3D-06 日照模擬）：緯度、經度、時區、平面圖北向、日期時間；存在 scene.meta.site */
 export interface SiteInfo {
   lat: number;

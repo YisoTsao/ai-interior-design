@@ -67,6 +67,15 @@ export function subtractPolygons(subject: readonly Vec2[], clips: readonly Vec2[
     .filter((p) => p.length >= 3);
 }
 
+/** subject − clips，保留洞的結構（clip 完全在內部時成為洞；用於樓板開口 FE-LVL-04） */
+export function subtractToPolygons(subject: readonly Vec2[], clips: readonly Vec2[][]): Polygon[] {
+  const tree = new PolyTree64();
+  booleanOpWithPolyTree(ClipType.Difference, [toPath(subject)], clips.map(toPath), tree, FillRule.NonZero);
+  const out: Polygon[] = [];
+  collect(tree, out);
+  return out;
+}
+
 /** 多邊形偏移（delta>0 外擴、<0 內縮），round＝圓角接合；可能分裂成多塊 */
 export function offsetPolygon(polys: readonly Vec2[][], delta: number, round = true): Vec2[][] {
   if (!polys.length) return [];

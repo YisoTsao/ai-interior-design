@@ -133,3 +133,22 @@ export const placementGhost = {
     return () => void ghostSubs.delete(f);
   },
 };
+
+/**
+ * 燈光情境預覽（FE-LGT-05 時間軸播放）：物件 id → 暫時的開關／亮度比例，不寫入 Scene、不進 undo。
+ * null＝使用場景中的狀態。
+ */
+export type LightPreview = ReadonlyMap<string, { on: boolean; level?: number }> | null;
+let lp: LightPreview = null;
+const lpSubs = new Set<() => void>();
+export const lightPreview = {
+  get: () => lp,
+  set: (v: LightPreview) => {
+    lp = v;
+    lpSubs.forEach((f) => f());
+  },
+  subscribe: (f: () => void) => {
+    lpSubs.add(f);
+    return () => void lpSubs.delete(f);
+  },
+};

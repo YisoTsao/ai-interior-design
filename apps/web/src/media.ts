@@ -38,6 +38,7 @@ export async function listGallery(projectId: string): Promise<GalleryItem[]> {
   return (await get<GalleryItem[]>(`gallery:${projectId}`, store)) ?? [];
 }
 export async function addToGallery(projectId: string, item: Omit<GalleryItem, 'id' | 'createdAt'>) {
+  window.dispatchEvent(new CustomEvent('interiorai:achievement', { detail: 'image' }));
   const list = await listGallery(projectId);
   const it: GalleryItem = {
     ...item,

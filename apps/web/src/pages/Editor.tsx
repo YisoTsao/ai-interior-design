@@ -32,6 +32,7 @@ import {
   Undo2,
   Wand2,
   PictureInPicture2,
+  Columns2,
 } from 'lucide-react';
 import { AssistantPanel } from '../editor/AssistantPanel';
 import { FurnishDialog } from '../editor/FurnishDialog';
@@ -62,6 +63,8 @@ import { placeSetAt } from '../editor/SetsList';
 import { useTopViews } from '../editor/thumbs';
 import { CameraControl, CropFrame, useCameraFx } from '../editor/CameraControl';
 import { FloatWindow } from '../editor/FloatWindow';
+import { Minimap } from '../editor/Minimap';
+import { SchemeCompare } from '../editor/SchemeCompare';
 import { PhotoRestyleDialog } from '../editor/PhotoRestyleDialog';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
@@ -79,6 +82,7 @@ import {
   commentsOf,
   FURNITURE_SETS,
   setLayout,
+  stairOpenings,
   setMaterial,
   stackElevation,
   updateObject,
@@ -262,6 +266,7 @@ function EditorShell() {
       p('shortcuts', 'shortcuts.title'),
       p('upload', 'upload.open'),
       p('photo', 'photoStyle.title'),
+      p('compare', 'compare.title'),
       { id: 'tour', label: t('tour.help'), group: g, run: () => setTour(true) },
       { id: 'present', label: t('present.start'), group: g, run: startPresent },
       { id: 'panels', label: t('shortcuts.panels'), group: g, hint: '\\', run: togglePanels },
@@ -324,6 +329,8 @@ function EditorShell() {
   const planStyle = usePrefs((s) => s.planStyle);
   const plan2d = usePrefs((s) => s.plan2d);
   const panelFloat = usePrefs((s) => s.panelFloat);
+  const slabKey = useEditor((s) => JSON.stringify(stairOpenings(s.scene, s.levelId, catalog)));
+  const slabOpenings = useMemo(() => JSON.parse(slabKey) as [number, number][][], [slabKey]);
   const cameraFx = useCameraFx();
   // 視埠尺寸（構圖框用）
   const canvasRef = useRef<HTMLElement>(null);
@@ -646,6 +653,7 @@ function EditorShell() {
                 snapSettings={snapPrefs}
                 planStyle={planStyle}
                 autoDims={plan2d.autoDims}
+                slabOpenings={slabOpenings}
                 furnitureImages={topViews}
                 wallReference={plan2d.wallReference}
                 underlay={underlay}
@@ -693,6 +701,7 @@ function EditorShell() {
             )}
           </CanvasBoundary>
           {view === '3d' && <CropFrame width={canvasSize.w} height={canvasSize.h} />}
+          {view === '3d' && !presenting && <Minimap />}
           {view === '3d' && !presenting && (
             <ViewportHud
               showCeiling={showCeiling}
@@ -784,6 +793,7 @@ function EditorShell() {
       <ProjectInfoDialog open={panel === 'info'} onOpenChange={(v) => setPanel(v ? 'info' : null)} />
       <HistoryPanel open={panel === 'history'} onOpenChange={(v) => setPanel(v ? 'history' : null)} />
       <ShortcutsDialog open={panel === 'shortcuts'} onOpenChange={(v) => setPanel(v ? 'shortcuts' : null)} />
+      <SchemeCompare open={panel === 'compare'} onOpenChange={(v) => setPanel(v ? 'compare' : null)} />
       <PhotoRestyleDialog open={panel === 'photo'} onOpenChange={(v) => setPanel(v ? 'photo' : null)} />
       <UploadModelDialog
         open={panel === 'upload'}
@@ -818,7 +828,8 @@ type Panel =
   | 'versions'
   | 'comments'
   | 'upload'
-  | 'photo';
+  | 'photo'
+  | 'compare';
 
 function TopBar({
   mode,
@@ -893,6 +904,9 @@ function TopBar({
       </IconButton>
       <IconButton label={t('versions.title')} onClick={() => setPanel('versions')} testId="open-versions">
         <GitBranch size={18} aria-hidden />
+      </IconButton>
+      <IconButton label={t('compare.title')} onClick={() => setPanel('compare')} testId="open-compare">
+        <Columns2 size={18} aria-hidden />
       </IconButton>
       <IconButton label={t('history.title')} onClick={() => setPanel('history')} testId="open-history">
         <History size={18} aria-hidden />

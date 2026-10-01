@@ -322,7 +322,12 @@
     "tint": "Tint",
     "openAngle": "Door open angle",
     "slotFrame": "Frame / legs",
-    "slotAccent": "Accent (cushions, handles)"
+    "slotAccent": "Accent (cushions, handles)",
+    "search": "Search properties (e.g. roughness)",
+    "pinned": "Pinned sections",
+    "pin": "Pin {{name}}",
+    "unpin": "Unpin {{name}}",
+    "pinChip": "★ {{name}}"
   },
   "param": {
     "width": "Width",
@@ -452,7 +457,12 @@
     "resolveComment": "change comment status",
     "deleteComment": "delete comment",
     "autoLayout": "auto kitchen/bath layout",
-    "reshapeArc": "Reshape arc wall"
+    "reshapeArc": "Reshape arc wall",
+    "lightGroup": "Light group",
+    "saveLightScene": "Save light scene",
+    "applyLightScene": "Apply light scene",
+    "deleteLightScene": "Delete light scene",
+    "addApproval": "Record client approval"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -1222,7 +1232,8 @@
       "left": "Left face (drawing direction)",
       "right": "Right face (drawing direction)"
     },
-    "wallRefHint": "When drawing a room clockwise, the right face is the interior face, so you click the clear interior dimensions."
+    "wallRefHint": "When drawing a room clockwise, the right face is the interior face, so you click the clear interior dimensions.",
+    "stairOpening": "Stair opening"
   },
   "assetDetail": {
     "open": "Details of “{{name}}”",
@@ -1611,5 +1622,158 @@
     "inpaint": "Repaint selection",
     "save": "Save to gallery",
     "saved": "Saved to gallery"
+  },
+  "lightScene": {
+    "title": "Light groups & scenes",
+    "noLights": "No light fixtures in this level yet.",
+    "groups": "Groups",
+    "groupOn": "{{name}} on/off",
+    "groupLevel": "{{name}} brightness",
+    "scenes": "Scenes (click to apply)",
+    "delete": "Delete scene {{name}}",
+    "name": "Scene name",
+    "namePh": "e.g. Dinner, Movie",
+    "defaultName": "Scene {{n}}",
+    "save": "Save scene",
+    "play": "Play",
+    "stop": "Stop",
+    "interval": "Interval (s)",
+    "seconds": "s",
+    "hint": "Playback only previews; click a scene name to apply it (undoable).",
+    "group": "Light group",
+    "groupPh": "e.g. Living main"
+  },
+  "ies": {
+    "import": "Import IES profile",
+    "invalid": "Not a valid IES (LM-63) file",
+    "curve": "Light distribution",
+    "stats": "{{lm}} lm · peak {{cd}} cd",
+    "angles": "Beam {{beam}}° · field {{field}}°",
+    "hint": "Lumens and beam angle are derived from the IES file; 3D approximates the distribution with a spot light."
+  },
+  "preset": {
+    "title": "Style presets",
+    "name": "Preset name",
+    "namePh": "e.g. Walnut matte",
+    "save": "Save preset",
+    "saveOne": "Select one item to create a preset",
+    "defaultName": "Style {{n}}",
+    "empty": "No presets for this kind yet; select an item and Save preset.",
+    "delete": "Delete preset {{name}}"
+  },
+  "ui": {
+    "title": "Interface",
+    "theme": "Theme",
+    "themes": {
+      "hud": "Game HUD (dark)",
+      "pro": "Light professional",
+      "contrast": "High contrast"
+    },
+    "density": "Density",
+    "densities": {
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    }
+  },
+  "minimap": {
+    "title": "Minimap (click to move the view)",
+    "show": "Show minimap",
+    "hide": "Hide minimap"
+  },
+  "achieve": {
+    "progress": "Progress {{n}}/{{total}}",
+    "unlocked": "Milestone reached: {{name}}",
+    "next": "Next: {{name}}",
+    "items": {
+      "firstWall": {
+        "title": "First wall",
+        "hint": "Draw a wall (W) or import a plan"
+      },
+      "firstRoom": {
+        "title": "Plan complete",
+        "hint": "Close walls into a room"
+      },
+      "furnished": {
+        "title": "Furnished",
+        "hint": "Place 5+ items or use AI furnish"
+      },
+      "material": {
+        "title": "Materials applied",
+        "hint": "Change a wall or floor material"
+      },
+      "lighting": {
+        "title": "Lighting design",
+        "hint": "Tune a light or save a light scene"
+      },
+      "view3d": {
+        "title": "See it in 3D",
+        "hint": "Press Tab for 3D"
+      },
+      "image": {
+        "title": "First image",
+        "hint": "Save a render, screenshot or panorama"
+      },
+      "share": {
+        "title": "Shared",
+        "hint": "Create a share link"
+      }
+    }
+  },
+  "compare": {
+    "title": "Compare schemes",
+    "current": "Current design",
+    "modes": {
+      "side": "Side by side",
+      "slider": "Slider"
+    },
+    "views": {
+      "plan": "Plan",
+      "photo": "3D thumbnail"
+    },
+    "noImage": "No image (no 3D thumbnail saved)",
+    "slider": "Compare position",
+    "items": "Items",
+    "total": "Quote total",
+    "changes": "Changes",
+    "diff": "+{{added}} / −{{removed}} / moved {{moved}}"
+  },
+  "approval": {
+    "title": "Approve this scheme",
+    "open": "Approve",
+    "mainScheme": "Main scheme",
+    "pickScheme": "Choose scheme",
+    "scheme": "Scheme",
+    "project": "Project",
+    "client": "Client name",
+    "note": "Note",
+    "time": "Signed at",
+    "fingerprint": "Scheme fingerprint",
+    "signature": "Signature",
+    "signHere": "Sign here",
+    "clear": "Clear signature",
+    "agree": "I have reviewed this scheme (plan, 3D and quote) and approve proceeding with it.",
+    "submit": "Confirm",
+    "done": "Done. Send the code below to your designer and keep the confirmation sheet.",
+    "copy": "Copy code",
+    "download": "Download sheet",
+    "sheetTitle": "Design approval",
+    "shareSection": "Client approval & alternatives",
+    "ask": "Ask the client to sign on the share page",
+    "noVersions": "No saved versions to offer as alternatives (save one in Version history).",
+    "alternatives": "Include alternatives (client can switch)",
+    "import": "Import client approval code",
+    "verify": "Verify & record",
+    "badCode": "Not a valid approval code",
+    "match": {
+      "current": "{{client}} approved “{{scheme}}”, identical to the current design.",
+      "version": "{{client}} approved “{{scheme}}”, matching a saved version.",
+      "unknown": "{{client}}'s approval was recorded, but it matches neither the current design nor any version (the design may have changed)."
+    },
+    "matchShort": {
+      "current": "Matches current design",
+      "version": "Matches a saved version",
+      "unknown": "Design changed since approval"
+    },
+    "schemeLabel": "Scheme:"
   }
 }
