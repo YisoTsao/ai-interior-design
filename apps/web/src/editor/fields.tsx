@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, Palette, RotateCcw } from 'lucide-react';
 import {
@@ -345,7 +346,8 @@ export function Section({
   const query = useInspectorPrefs((s) => s.query.trim().toLowerCase());
   const pinned = useInspectorPrefs((s) => s.pins.includes(title));
   const togglePin = useInspectorPrefs((s) => s.togglePin);
-  const ref = useRef<HTMLDetailsElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const det = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -355,40 +357,39 @@ export function Section({
     }
     const hit = (el.textContent ?? '').toLowerCase().includes(query);
     el.hidden = !hit;
-    if (hit) el.open = true;
+    if (hit && det.current) det.current.open = true;
   }, [query]);
   useEffect(() => {
-    if (pinned && ref.current) ref.current.open = true;
+    if (pinned && det.current) det.current.open = true;
   }, [pinned]);
   return (
-    <details
-      ref={ref}
-      className={`hud-section ${pinned ? 'hud-section-pinned' : ''}`}
-      open={defaultOpen || pinned}
-      data-testid={testId}
-      data-section-title={title}
-    >
-      <summary className="flex items-center justify-between gap-2">
-        <span className="hud-title flex-1">{title}</span>
-        {right}
-        <button
-          type="button"
-          className={`hud-pin ${pinned ? 'text-primary' : 'text-muted'}`}
-          aria-pressed={pinned}
-          aria-label={t(pinned ? 'inspector.unpin' : 'inspector.pin', { name: title })}
-          title={t(pinned ? 'inspector.unpin' : 'inspector.pin', { name: title })}
-          onClick={(e) => {
-            e.preventDefault();
-            togglePin(title);
-          }}
-          data-testid={testId ? `${testId}-pin` : undefined}
-        >
-          {pinned ? '★' : '☆'}
-        </button>
-        <ChevronRight size={14} className="chev text-muted" aria-hidden />
-      </summary>
-      <div className="hud-section-body">{children}</div>
-    </details>
+    <div ref={ref} className="relative" data-section-title={title}>
+      <details
+        ref={det}
+        className={`hud-section ${pinned ? 'hud-section-pinned' : ''}`}
+        open={defaultOpen || pinned}
+        data-testid={testId}
+      >
+        <summary className="flex items-center justify-between gap-2 pr-6">
+          <span className="hud-title flex-1">{title}</span>
+          {right}
+          <ChevronRight size={14} className="chev text-muted" aria-hidden />
+        </summary>
+        <div className="hud-section-body">{children}</div>
+      </details>
+      {/* 釘選按鈕不能放在 summary 內（互動元件不可巢狀） */}
+      <button
+        type="button"
+        className={`hud-pin absolute top-1.5 right-7 ${pinned ? 'text-primary' : 'text-muted'}`}
+        aria-pressed={pinned}
+        aria-label={t(pinned ? 'inspector.unpin' : 'inspector.pin', { name: title })}
+        title={t(pinned ? 'inspector.unpin' : 'inspector.pin', { name: title })}
+        onClick={() => togglePin(title)}
+        data-testid={testId ? `${testId}-pin` : undefined}
+      >
+        {pinned ? '★' : '☆'}
+      </button>
+    </div>
   );
 }
 
@@ -402,6 +403,8 @@ function ColorCardsButton({ onPick }: { onPick: (hex: string) => void }) {
   const [libsVer, setLibsVer] = useState(0);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
   const brands = useMemo(() => Object.keys(brandLibraries()).sort(), [libsVer, open]); // eslint-disable-line react-hooks/exhaustive-deps
   const onCsv = async (f: File | undefined) => {
     if (!f) return;
@@ -413,7 +416,8 @@ function ColorCardsButton({ onPick }: { onPick: (hex: string) => void }) {
   };
   useEffect(() => {
     if (!open) return;
-    const off = (e: Event) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const off = (e: Event) =>
+      !ref.current?.contains(e.target as Node) && !pop.current?.contains(e.target as Node) && setOpen(false);
     window.addEventListener('pointerdown', off, true);
     return () => window.removeEventListener('pointerdown', off, true);
   }, [open]);
@@ -432,117 +436,132 @@ function ColorCardsButton({ onPick }: { onPick: (hex: string) => void }) {
         aria-label={t('colors.open')}
         title={t('colors.open')}
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={(e) => {
+          // 彈出面板以 portal 固定定位（分節有 clip-path，面板放在分節內會被裁切）
+          const r = e.currentTarget.getBoundingClientRect();
+          const W = 288;
+          const left = Math.max(8, Math.min(window.innerWidth - W - 8, r.right - W));
+          const below = window.innerHeight - r.bottom;
+          setPos(
+            below > 420 ? { left, top: r.bottom + 4 } : { left, bottom: window.innerHeight - r.top + 4 },
+          );
+          setOpen(!open);
+        }}
         data-testid="color-cards"
       >
         <Palette size={13} aria-hidden />
       </button>
-      {open && (
-        <div
-          className="hud-popover absolute top-6 right-0 z-50 w-72 space-y-2 p-2"
-          data-testid="color-cards-panel"
-        >
-          <input
-            autoFocus
-            className="field w-full"
-            placeholder={t('colors.search')}
-            aria-label={t('colors.search')}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <div className="flex items-center gap-1">
-            <select
-              className="field min-w-0 flex-1 py-0.5 text-xs"
-              aria-label={t('colors.library')}
-              value={lib}
-              onChange={(e) => setLib(e.target.value)}
-              data-testid="color-library"
-            >
-              <option value="">{t('colors.allLibraries')}</option>
-              <option value="NCS">{t('colors.ncs')}</option>
-              <option value="RAL">{t('colors.ral')}</option>
-              {brands.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-            <label className="btn cursor-pointer px-2 py-0.5 text-[11px]" title={t('colors.importHint')}>
-              {t('colors.import')}
-              <input
-                type="file"
-                accept=".csv,.tsv,.txt,text/csv"
-                className="sr-only"
-                data-testid="color-import"
-                onChange={(e) => {
-                  void onCsv(e.target.files?.[0]);
-                  e.target.value = '';
-                }}
-              />
-            </label>
-            {lib && lib !== 'NCS' && lib !== 'RAL' && (
-              <button
-                type="button"
-                className="icon-btn h-6 w-6"
-                aria-label={t('colors.removeLibrary', { name: lib })}
-                title={t('colors.removeLibrary', { name: lib })}
-                onClick={() => {
-                  removeColorLibrary(lib);
-                  setLib('');
-                  setLibsVer((v) => v + 1);
-                }}
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={pop}
+            className="game-ui hud-popover fixed z-[60] max-h-[80vh] w-72 space-y-2 overflow-y-auto p-2"
+            style={pos}
+            data-testid="color-cards-panel"
+          >
+            <input
+              autoFocus
+              className="field w-full"
+              placeholder={t('colors.search')}
+              aria-label={t('colors.search')}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <div className="flex items-center gap-1">
+              <select
+                className="field min-w-0 flex-1 py-0.5 text-xs"
+                aria-label={t('colors.library')}
+                value={lib}
+                onChange={(e) => setLib(e.target.value)}
+                data-testid="color-library"
               >
-                ×
-              </button>
-            )}
-          </div>
-          {importMsg && <p className="text-[11px] text-accent">{importMsg}</p>}
-          <div className="flex flex-wrap gap-1">
-            {COLOR_FAMILIES.map((f) => (
-              <button
-                key={f}
-                type="button"
-                className="hud-chip text-[10px]"
-                aria-pressed={fam === f}
-                onClick={() => setFam(fam === f ? null : f)}
-              >
-                {t(`colors.families.${f}`)}
-              </button>
-            ))}
-          </div>
-          {recent.length > 0 && (
-            <div className="flex flex-wrap gap-1" aria-label={t('colors.recent')}>
-              {recent.map((h) => (
-                <button
-                  key={h}
-                  type="button"
-                  className="h-5 w-5 rounded border border-border"
-                  style={{ background: h }}
-                  title={h}
-                  onClick={() => pick(h)}
+                <option value="">{t('colors.allLibraries')}</option>
+                <option value="NCS">{t('colors.ncs')}</option>
+                <option value="RAL">{t('colors.ral')}</option>
+                {brands.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+              <label className="btn cursor-pointer px-2 py-0.5 text-[11px]" title={t('colors.importHint')}>
+                {t('colors.import')}
+                <input
+                  type="file"
+                  accept=".csv,.tsv,.txt,text/csv"
+                  className="sr-only"
+                  data-testid="color-import"
+                  onChange={(e) => {
+                    void onCsv(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
                 />
+              </label>
+              {lib && lib !== 'NCS' && lib !== 'RAL' && (
+                <button
+                  type="button"
+                  className="icon-btn h-6 w-6"
+                  aria-label={t('colors.removeLibrary', { name: lib })}
+                  title={t('colors.removeLibrary', { name: lib })}
+                  onClick={() => {
+                    removeColorLibrary(lib);
+                    setLib('');
+                    setLibsVer((v) => v + 1);
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {importMsg && <p className="text-[11px] text-accent">{importMsg}</p>}
+            <div className="flex flex-wrap gap-1">
+              {COLOR_FAMILIES.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  className="hud-chip text-[10px]"
+                  aria-pressed={fam === f}
+                  onClick={() => setFam(fam === f ? null : f)}
+                >
+                  {t(`colors.families.${f}`)}
+                </button>
               ))}
             </div>
-          )}
-          <div className="grid max-h-56 grid-cols-6 gap-1 overflow-y-auto">
-            {list.map((c) => {
-              const nm = i18n.language === 'en' ? c.en : c.zh;
-              return (
-                <button
-                  key={`${c.library}:${c.code}`}
-                  type="button"
-                  className="h-8 rounded border border-border"
-                  style={{ background: c.hex }}
-                  title={`${nm} · ${c.library === 'NCS' ? 'NCS ' : c.library === 'RAL' ? '' : `${c.library} `}${c.code}`}
-                  aria-label={`${nm} ${c.library === 'NCS' ? 'NCS ' : ''}${c.code}`}
-                  onClick={() => pick(c.hex)}
-                  data-testid={`color-${c.code.replace(/\s/g, '')}`}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
+            {recent.length > 0 && (
+              <div className="flex flex-wrap gap-1" aria-label={t('colors.recent')}>
+                {recent.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    className="h-5 w-5 rounded border border-border"
+                    style={{ background: h }}
+                    title={h}
+                    onClick={() => pick(h)}
+                  />
+                ))}
+              </div>
+            )}
+            <div className="grid max-h-56 grid-cols-6 gap-1 overflow-y-auto">
+              {list.map((c) => {
+                const nm = i18n.language === 'en' ? c.en : c.zh;
+                return (
+                  <button
+                    key={`${c.library}:${c.code}`}
+                    type="button"
+                    className="h-8 rounded border border-border"
+                    style={{ background: c.hex }}
+                    title={`${nm} · ${c.library === 'NCS' ? 'NCS ' : c.library === 'RAL' ? '' : `${c.library} `}${c.code}`}
+                    aria-label={`${nm} ${c.library === 'NCS' ? 'NCS ' : ''}${c.code}`}
+                    onClick={() => pick(c.hex)}
+                    data-testid={`color-${c.code.replace(/\s/g, '')}`}
+                  />
+                );
+              })}
+            </div>
+          </div>,
+          document.body,
+        )}
     </span>
   );
 }

@@ -162,11 +162,10 @@ function InspectorTools() {
   const { t } = useTranslation();
   const { query, setQuery, pins } = useInspectorPrefs();
   const jump = (title: string) => {
-    const el = document.querySelector<HTMLDetailsElement>(
-      `details[data-section-title="${CSS.escape(title)}"]`,
-    );
+    const el = document.querySelector<HTMLElement>(`[data-section-title="${CSS.escape(title)}"]`);
     if (!el) return;
-    el.open = true;
+    const d = el.querySelector('details');
+    if (d) d.open = true;
     el.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
   return (

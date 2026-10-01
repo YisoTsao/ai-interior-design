@@ -89,6 +89,8 @@
   全屋全景熱點與陀螺儀、戶型庫（示意戶型＋授權資料集匯入）、以圖找物（色彩＋比例描述子）、虛擬清空（本機擴散填補）、
   文字生成（規則式材質／家具）、AR 預覽（WebXR／AR Quick Look＋USDZ 匯出）、RoomPlan 掃描匯入。E2E `e2e/batch-c.spec.ts` 6/6。
 - 前台 11 規格 P0／P1／P2 全數有實作；標 🟡 的項目為「前台流程完成，但需外部資源（AI 供應商、授權資料、實機）」，見阻礙表。
+- 全量回歸（2026-10-01，P2 完成後）：lint／typecheck／unit 全綠；E2E 69/69（需 Docker）。修正回歸：屬性分節釘選鈕移出 summary（a11y nested-interactive）、
+  色卡面板改 portal（分節 clip-path 裁切）；G-buffer 邊緣快照更新（整體平移約 1–2 px，幾何相同）。
 - 第六批（Haiku 撰寫）經審查：訂製櫃、廚衛自動佈局、批次渲染、自訂快捷鍵、面板調寬、光束把手的 E2E 8/8 通過，規格狀態已補登。
 - 已解決：`@interiorai/assistant` 補上測試（7）。
 - 已知（歷史）：`@interiorai/assistant` 尚無測試檔，`pnpm test` 在該套件以「No test files」失敗（P6 進行中，非本次改動造成）。
