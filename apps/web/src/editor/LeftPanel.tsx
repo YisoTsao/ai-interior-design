@@ -23,6 +23,7 @@ import {
   Trash2,
   Unlock,
   Upload,
+  ScanSearch,
   TriangleRight,
   MoveUpRight,
   Hash,
@@ -38,6 +39,7 @@ import { useEditor, useEditorStore } from './context';
 import { mergeLook } from './look';
 import { useThumbnail } from './thumbs';
 import { requestModelUpload } from './uploadRequest';
+import { ImageSearchDialog } from './ImageSearchDialog';
 import { swatchCss } from './swatch';
 import { AssetDetail } from './AssetDetail';
 import { SetsList } from './SetsList';
@@ -274,6 +276,7 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
   const [f, setF] = useState<AssetFilter>(EMPTY_FILTER);
   const upd = (p: Partial<AssetFilter>) => setF((x) => ({ ...x, ...p }));
   const [showFilters, setShowFilters] = useState(false);
+  const [imageSearch, setImageSearch] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
   const used = useMemo(
@@ -325,6 +328,15 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
         />
         <button
           className="btn px-2"
+          onClick={() => setImageSearch(true)}
+          title={t('imageSearch.title')}
+          aria-label={t('imageSearch.title')}
+          data-testid="open-image-search"
+        >
+          <ScanSearch size={14} aria-hidden />
+        </button>
+        <button
+          className="btn px-2"
           aria-pressed={showFilters}
           aria-label={t('assets.filters')}
           title={t('assets.filters')}
@@ -335,6 +347,7 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
           {active > 0 && <span className="text-[10px] text-primary">{active}</span>}
         </button>
       </div>
+      <ImageSearchDialog open={imageSearch} onOpenChange={setImageSearch} />
       <button
         className="btn w-full justify-center text-xs"
         onClick={() => requestModelUpload()}

@@ -970,8 +970,11 @@ function SceneContent({
       panorama: (o) => {
         const t = controls.current?.target ?? new THREE.Vector3();
         // 漫遊／人視角：以相機位置；俯瞰：在目標點的人眼高度（1.6 m）
-        const eye =
-          walking || camera.position.y < 2200 ? camera.position.clone() : new THREE.Vector3(t.x, 1600, t.z);
+        const eye = o?.at
+          ? new THREE.Vector3(...o.at)
+          : walking || camera.position.y < 2200
+            ? camera.position.clone()
+            : new THREE.Vector3(t.x, 1600, t.z);
         const url = renderPanorama(gl, scene3, eye, o);
         invalidate();
         return url;

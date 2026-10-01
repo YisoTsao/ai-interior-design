@@ -557,7 +557,7 @@
   "planImport": {
     "button": "匯入平面圖",
     "title": "匯入平面圖",
-    "formats": "支援 DXF（向量，最準）與 PNG／JPG／WEBP（點陣）。DWG 請先轉存為 DXF。",
+    "formats": "支援 DXF（向量，最準）、PNG／JPG／WEBP（點陣），以及 iPhone／iPad LiDAR 掃描的 RoomPlan JSON。DWG 請先轉存為 DXF。",
     "choose": "選擇平面圖檔案",
     "uploading": "上傳中…",
     "badType": "不支援的檔案格式",
@@ -599,7 +599,8 @@
     "privacy": "辨識在你的瀏覽器中進行，檔案不會上傳。",
     "engine": {
       "browser": "瀏覽器辨識",
-      "cv-service": "cv-service 辨識"
+      "cv-service": "cv-service 辨識",
+      "roomplan": "手機 LiDAR 掃描（RoomPlan）"
     },
     "missing": "找不到這次匯入（可能已建立專案或瀏覽器資料已清除），請重新上傳。",
     "rooms": {
@@ -892,7 +893,8 @@
     "tab": {
       "blank": "空白",
       "template": "範本",
-      "import": "匯入平面圖"
+      "import": "匯入平面圖",
+      "library": "戶型庫"
     },
     "name": "專案名稱",
     "height": "樓高（mm）",
@@ -1047,7 +1049,9 @@
     "pano": "720°",
     "copyToMine": "複製到我的專案",
     "invalid": "分享連結不完整。",
-    "broken": "無法讀取分享內容：{{message}}"
+    "broken": "無法讀取分享內容：{{message}}",
+    "gyroOn": "陀螺儀",
+    "gyroOff": "關閉陀螺儀"
   },
   "tour": {
     "help": "新手導覽",
@@ -1616,12 +1620,13 @@
     "count": "結果張數",
     "generate": "產生",
     "working": "處理中…",
-    "inpaintHint": "局部重繪：選一張結果，用筆刷塗出要改的區域，再按「重繪選取區」。",
+    "inpaintHint": "局部重繪／虛擬清空：用筆刷塗出區域（沒有結果時以原圖為底），再按下方按鈕。",
     "brush": "筆刷",
     "clearMask": "清除遮罩",
     "inpaint": "重繪選取區",
     "save": "存入圖庫",
-    "saved": "已存入圖庫"
+    "saved": "已存入圖庫",
+    "clear": "虛擬清空：移除塗抹的家具"
   },
   "lightScene": {
     "title": "燈光群組與情境",
@@ -1775,5 +1780,121 @@
       "unknown": "設計已變更"
     },
     "schemeLabel": "方案："
+  },
+  "walk": {
+    "title": "漫遊影片",
+    "needBookmarks": "先在 3D 存至少兩個相機書籤（書籤圖示），它們就是影片的關鍵幀。",
+    "up": "往前",
+    "down": "往後",
+    "segment": "每段秒數",
+    "total": "{{n}} 個關鍵幀，共 {{s}} 秒",
+    "preview": "預覽",
+    "record": "錄製 {{ext}}",
+    "stop": "停止",
+    "recording": "錄影中…（停止）",
+    "noRecorder": "這個瀏覽器不支援影片錄製。",
+    "download": "下載影片",
+    "saveHint": "影片只存在這次瀏覽，請下載保存。"
+  },
+  "layout": {
+    "title": "圖紙版面",
+    "defaultTitle": "平面配置與透視",
+    "landscape": "橫式",
+    "portrait": "直式",
+    "tpl": {
+      "single": "單圖",
+      "two": "雙圖",
+      "four": "四格"
+    },
+    "src": {
+      "none": "（空白）",
+      "plan": "平面圖",
+      "furniture": "家具配置圖",
+      "view3d": "3D 目前視角"
+    },
+    "fit": "符合",
+    "print": "列印／存 PDF",
+    "preview": "版面預覽",
+    "popupBlocked": "瀏覽器擋住了新視窗，請允許彈出視窗後再試",
+    "hint": "平面圖依比例放在紙上（放不下時比例欄標紅，改小比例或換大紙）；3D 視角在開啟版面時擷取。",
+    "tb": {
+      "project": "專案",
+      "drawing": "圖名",
+      "client": "業主",
+      "designer": "設計",
+      "scale": "比例",
+      "sheet": "圖號",
+      "date": "日期"
+    }
+  },
+  "floorplan": {
+    "search": "搜尋名稱、社區、縣市",
+    "city": "縣市",
+    "allCities": "全部縣市",
+    "bed": "房數",
+    "anyBed": "不限房數",
+    "beds": "{{n}} 房",
+    "min": "坪≥",
+    "max": "坪≤",
+    "pingMin": "最小坪數",
+    "pingMax": "最大坪數",
+    "summary": "{{bed}}房{{living}}廳{{bath}}衛 · {{ping}} 坪",
+    "sampleName": "示意戶型・{{layout}} {{n}}",
+    "none": "沒有符合的戶型",
+    "import": "匯入戶型資料集",
+    "importHint": "JSON 陣列：name、city、community、ping、bed、living、bath、scene（InteriorAI Scene）",
+    "imported": "已匯入 {{added}} 筆（略過 {{skipped}} 筆）",
+    "badFile": "無法讀取這個檔案",
+    "note": "內建「示意戶型」為通用格局，不代表任何真實建案；真實建案戶型需取得授權資料後匯入。",
+    "preview": "戶型預覽",
+    "pick": "選一個戶型預覽"
+  },
+  "imageSearch": {
+    "title": "以圖找物",
+    "pick": "上傳家具照片（背景單純效果較好）",
+    "photo": "查詢照片",
+    "reading": "分析照片…",
+    "indexing": "比對資產 {{n}}/{{total}}…",
+    "score": "相似 {{n}}%",
+    "note": "依前景色彩與外形比例比對（瀏覽器內，不上傳照片）；點結果即可放置。"
+  },
+  "textGen": {
+    "title": "文字生成",
+    "note": "規則式本機解析（非生成式 AI）：依描述中的材質、顏色、花紋、尺寸產生。",
+    "tabs": {
+      "material": "材質",
+      "furniture": "家具"
+    },
+    "prompt": "描述",
+    "ph": {
+      "material": "例：鼠尾草綠條紋壁紙、白色拋光大理石地板 80x80",
+      "furniture": "例：灰色三人沙發 寬 200 公分、胡桃木書桌 140x70"
+    },
+    "category": "分類",
+    "pattern": "紋理",
+    "size": "單元尺寸",
+    "rough": "粗糙度",
+    "addMaterial": "加入材質庫",
+    "saved": "已加入材質庫（材質分頁）",
+    "noMatch": "找不到相符的家具，換個說法試試（例如：書桌、沙發、床）。",
+    "place": "放置",
+    "placed": "已放到場景（可再調整）",
+    "cats": {
+      "floor": "地板",
+      "wall": "牆面",
+      "ceiling": "天花",
+      "fabric": "布料",
+      "wood": "木作",
+      "metal": "金屬",
+      "stone": "石材"
+    }
+  },
+  "ar": {
+    "open": "AR 預覽",
+    "noModel": "這個品項沒有可用的 3D 模型",
+    "failed": "無法啟動 AR：{{message}}",
+    "unsupported": "這個裝置不支援網頁 AR。已下載 USDZ，可在 iPhone／iPad 開啟，或改用支援 WebXR 的 Android 手機。",
+    "hint": "對準地面，出現黃色圓圈時點一下放置；同一處再點一下旋轉 45°",
+    "close": "結束 AR"
   }
 }

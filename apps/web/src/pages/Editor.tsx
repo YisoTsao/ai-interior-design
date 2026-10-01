@@ -33,6 +33,9 @@ import {
   Wand2,
   PictureInPicture2,
   Columns2,
+  Film,
+  LayoutTemplate,
+  WandSparkles,
 } from 'lucide-react';
 import { AssistantPanel } from '../editor/AssistantPanel';
 import { FurnishDialog } from '../editor/FurnishDialog';
@@ -65,6 +68,9 @@ import { CameraControl, CropFrame, useCameraFx } from '../editor/CameraControl';
 import { FloatWindow } from '../editor/FloatWindow';
 import { Minimap } from '../editor/Minimap';
 import { SchemeCompare } from '../editor/SchemeCompare';
+import { WalkthroughPanel } from '../editor/WalkthroughPanel';
+import { LayoutDialog } from '../editor/LayoutDialog';
+import { TextGenDialog } from '../editor/TextGenDialog';
 import { PhotoRestyleDialog } from '../editor/PhotoRestyleDialog';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
@@ -267,6 +273,9 @@ function EditorShell() {
       p('upload', 'upload.open'),
       p('photo', 'photoStyle.title'),
       p('compare', 'compare.title'),
+      p('walkthrough', 'walk.title'),
+      p('layout', 'layout.title'),
+      p('textgen', 'textGen.title'),
       { id: 'tour', label: t('tour.help'), group: g, run: () => setTour(true) },
       { id: 'present', label: t('present.start'), group: g, run: startPresent },
       { id: 'panels', label: t('shortcuts.panels'), group: g, hint: '\\', run: togglePanels },
@@ -704,6 +713,7 @@ function EditorShell() {
           {view === '3d' && !presenting && <Minimap />}
           {view === '3d' && !presenting && (
             <ViewportHud
+              onWalkthrough={() => setPanel('walkthrough')}
               showCeiling={showCeiling}
               setShowCeiling={setShowCeiling}
               onPanorama={async () => {
@@ -793,6 +803,12 @@ function EditorShell() {
       <ProjectInfoDialog open={panel === 'info'} onOpenChange={(v) => setPanel(v ? 'info' : null)} />
       <HistoryPanel open={panel === 'history'} onOpenChange={(v) => setPanel(v ? 'history' : null)} />
       <ShortcutsDialog open={panel === 'shortcuts'} onOpenChange={(v) => setPanel(v ? 'shortcuts' : null)} />
+      <TextGenDialog open={panel === 'textgen'} onOpenChange={(v) => setPanel(v ? 'textgen' : null)} />
+      <LayoutDialog open={panel === 'layout'} onOpenChange={(v) => setPanel(v ? 'layout' : null)} />
+      <WalkthroughPanel
+        open={panel === 'walkthrough'}
+        onOpenChange={(v) => setPanel(v ? 'walkthrough' : null)}
+      />
       <SchemeCompare open={panel === 'compare'} onOpenChange={(v) => setPanel(v ? 'compare' : null)} />
       <PhotoRestyleDialog open={panel === 'photo'} onOpenChange={(v) => setPanel(v ? 'photo' : null)} />
       <UploadModelDialog
@@ -829,7 +845,10 @@ type Panel =
   | 'comments'
   | 'upload'
   | 'photo'
-  | 'compare';
+  | 'compare'
+  | 'walkthrough'
+  | 'layout'
+  | 'textgen';
 
 function TopBar({
   mode,
@@ -980,6 +999,9 @@ function TopBar({
         <IconButton label={t('mood.title')} onClick={() => setPanel('mood')} testId="open-mood">
           <Palette size={18} aria-hidden />
         </IconButton>
+        <IconButton label={t('textGen.title')} onClick={() => setPanel('textgen')} testId="open-text-gen">
+          <WandSparkles size={18} aria-hidden />
+        </IconButton>
         <IconButton label={t('photoStyle.title')} onClick={() => setPanel('photo')} testId="open-photo-style">
           <Images size={18} aria-hidden />
         </IconButton>
@@ -1030,6 +1052,9 @@ function TopBar({
           <IconButton label={t('present.start')} onClick={onPresent} testId="open-present">
             <Presentation2 size={18} aria-hidden />
           </IconButton>
+          <IconButton label={t('layout.title')} onClick={() => setPanel('layout')} testId="open-layout">
+            <LayoutTemplate size={18} aria-hidden />
+          </IconButton>
           <IconButton label={t('exports.title')} onClick={() => setPanel('export')} testId="open-export">
             <Download size={18} aria-hidden />
           </IconButton>
@@ -1051,7 +1076,9 @@ function ViewportHud({
   showCeiling,
   setShowCeiling,
   onPanorama,
+  onWalkthrough,
 }: {
+  onWalkthrough: () => void;
   showCeiling: boolean;
   setShowCeiling: (v: boolean) => void;
   onPanorama: () => void;
@@ -1089,6 +1116,15 @@ function ViewportHud({
         <Footprints size={18} aria-hidden />
       </IconButton>
       <BookmarksMenu />
+      <button
+        className="icon-btn"
+        aria-label={t('walk.title')}
+        title={t('walk.title')}
+        onClick={onWalkthrough}
+        data-testid="open-walkthrough"
+      >
+        <Film size={16} aria-hidden />
+      </button>
       <IconButton label={t('top.personView')} onClick={() => viewer3dApi.get()?.personView()}>
         <Eye size={18} aria-hidden />
       </IconButton>

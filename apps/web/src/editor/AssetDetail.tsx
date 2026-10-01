@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MousePointerClick, Star } from 'lucide-react';
 import { materialMap, type CatalogEntry } from '@interiorai/catalog';
 import { ModelPreview } from '@interiorai/viewer-3d';
+import { ArButton } from './ArButton';
 import { catalog, materials } from '../catalogData';
 import { recordRecent, toggleFavorite, useAssetPrefs } from './assetPrefs';
 import { useEditorStore } from './context';
@@ -72,6 +73,7 @@ export function AssetDetail({ entryId, onClose }: { entryId: string | null; onCl
             <Star size={14} fill={fav ? 'currentColor' : 'none'} aria-hidden />{' '}
             {t(fav ? 'assets.unfavorite' : 'assets.favorite', { name: '' })}
           </button>
+          <ArButton entry={e} materials={matMap} materialId={mat} />
           <button className="btn btn-primary" onClick={place} data-testid="asset-detail-place">
             <MousePointerClick size={14} aria-hidden />{' '}
             {mat ? t('assetDetail.placeWith', { mat: matName(mat) }) : t('assetDetail.place')}

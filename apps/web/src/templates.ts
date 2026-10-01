@@ -156,6 +156,18 @@ const PLANS: Record<TemplateId, Plan> = {
   },
 };
 
+const r10 = (v: number) => Math.round(v / 10) * 10;
+function scalePlan(p: Plan, [sx, sz]: [number, number]): Plan {
+  const P = (v: Vec2): Vec2 => [r10(v[0] * sx), r10(v[1] * sz)];
+  return {
+    outer: P(p.outer),
+    partitions: p.partitions.map(([a, b]) => [P(a), P(b)]),
+    doors: p.doors.map((d) => ({ ...d, at: P(d.at) })),
+    windows: p.windows.map((w) => ({ ...w, at: P(w.at) })),
+    rooms: p.rooms.map((r) => ({ ...r, at: P(r.at) })),
+  };
+}
+
 /** 樣板的總面積（坪＝3.3058 m²）與房數：卡片摘要用 */
 export const templateInfo = (id: TemplateId) => {
   const p = PLANS[id];
@@ -164,9 +176,16 @@ export const templateInfo = (id: TemplateId) => {
 
 export function buildTemplateScene(
   id: TemplateId,
-  o: { names: (key: string) => string; style?: FurnishStyle; height?: number; furnish?: boolean },
+  o: {
+    names: (key: string) => string;
+    style?: FurnishStyle;
+    height?: number;
+    furnish?: boolean;
+    /** 戶型變體（FE-PRJ-05）：外框與隔間位置依 x、z 縮放（門窗寬度不變），四捨五入到 10 mm */
+    scale?: [number, number];
+  },
 ): Scene {
-  const plan = PLANS[id];
+  const plan = o.scale ? scalePlan(PLANS[id], o.scale) : PLANS[id];
   const s = createEditorStore();
   const st = s.getState();
   const L = st.levelId;

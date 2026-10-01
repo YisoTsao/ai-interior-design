@@ -44,7 +44,7 @@ export interface Viewer3DApi {
   /** 目前被降為剖面高度的牆 id（測試用） */
   cutWalls(): string[];
   /** 720° 全景（等距柱狀 JPEG dataURL）；位置預設為目前視點（俯瞰時改在目標點的人眼高度） */
-  panorama(o?: { width?: number }): string | null;
+  panorama(o?: { width?: number; at?: [number, number, number] }): string | null;
   /** 指定解析度出圖（2K／4K；transparent＝去背，無後處理）→ PNG dataURL */
   capture(o: { width: number; height: number; transparent?: boolean }): string;
   /** 俯視彩色平面圖（正上方、近似正交）→ PNG dataURL */

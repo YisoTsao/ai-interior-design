@@ -8,7 +8,7 @@ import { useThumbnail } from './thumbs';
 import { dragPayload } from './dragPayload';
 
 /** 套組放置點：選取的房間中心 → 最大房間中心 → 原點 */
-function targetPoint(level: ReturnType<typeof activeLevel>, selection: string[]): Vec2 {
+export function targetPoint(level: ReturnType<typeof activeLevel>, selection: string[]): Vec2 {
   const det = detectRooms(level).rooms;
   const sel = level.rooms.find((r) => selection.includes(r.id));
   const key = sel ? [...sel.wallIds].sort().join('|') : null;

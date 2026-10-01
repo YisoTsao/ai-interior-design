@@ -4,3 +4,4 @@ export * from './geom.js';
 export * from './raster.js';
 export * from './dxf.js';
 export * from './detect.js';
+export * from './roomplan.js';

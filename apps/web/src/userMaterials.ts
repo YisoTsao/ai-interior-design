@@ -100,3 +100,12 @@ export async function deleteUserMaterial(id: string) {
   await set(KEY, list, store);
   setUserMaterials(list);
 }
+
+/** 直接存一筆材質（文字生成材質 FE-AI-05；id 需以 um_ 開頭） */
+export async function saveMaterialRecord(m: Material): Promise<Material> {
+  const v = MaterialSchema.parse(m);
+  const list = [...(await listUserMaterials()).filter((x) => x.id !== v.id), v];
+  await set(KEY, list, store);
+  setUserMaterials(list);
+  return v;
+}

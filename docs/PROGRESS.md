@@ -85,6 +85,10 @@
 - 前台第八批（P2 第一部分）：燈光群組與情境（app-state light-scenes，時間軸預覽用 viewer lightPreview 不入 Scene）、IES 解析、
   樣式預設、屬性搜尋與釘選、介面主題（pro／contrast）與密度、3D 小地圖、成就里程碑、樓梯自動開洞（stairOpenings＋地板挖洞）、
   方案比較、分享頁多方案與客戶簽名確認（確認碼含方案 SHA-256，存 scene.meta.approvals）。E2E `e2e/batch-b.spec.ts` 5/5。
+- 前台第九批（P2 第二部分）：漫遊影片（書籤關鍵幀、MediaRecorder MP4／WebM）、圖紙版面（A4／A3、比例、圖簽）、
+  全屋全景熱點與陀螺儀、戶型庫（示意戶型＋授權資料集匯入）、以圖找物（色彩＋比例描述子）、虛擬清空（本機擴散填補）、
+  文字生成（規則式材質／家具）、AR 預覽（WebXR／AR Quick Look＋USDZ 匯出）、RoomPlan 掃描匯入。E2E `e2e/batch-c.spec.ts` 6/6。
+- 前台 11 規格 P0／P1／P2 全數有實作；標 🟡 的項目為「前台流程完成，但需外部資源（AI 供應商、授權資料、實機）」，見阻礙表。
 - 第六批（Haiku 撰寫）經審查：訂製櫃、廚衛自動佈局、批次渲染、自訂快捷鍵、面板調寬、光束把手的 E2E 8/8 通過，規格狀態已補登。
 - 已解決：`@interiorai/assistant` 補上測試（7）。
 - 已知（歷史）：`@interiorai/assistant` 尚無測試檔，`pnpm test` 在該套件以「No test files」失敗（P6 進行中，非本次改動造成）。
@@ -99,6 +103,9 @@
 | P5 | ⚠ DWG／向量 PDF 匯入 | 拒絕並請使用者轉 DXF | 法務確認 ODA/LibreDWG 授權；PDF 向量抽取（PyMuPDF，AGPL 需評估） |
 | P6 | ⚠ 照片換風格真實 AI（FE-AI-01） | 本機色彩轉移預覽（介面標示非 AI）＋PhotoStyleProvider 介面 | 後端新增照片輸入端點（img2img／inpaint）並提供供應商金鑰 |
 | P6 | ⚠ SKP 匯入（FE-AST-11） | 提示使用者從 SketchUp 匯出 GLB／DAE／FBX | 取得可商用的 SKP 解析器（SketchUp SDK 授權）或後端轉檔服務 |
+| P6 | ⚠ 戶型庫真實資料（FE-PRJ-05） | 12 個示意戶型＋JSON 資料集匯入介面 | 取得可商用的建案戶型資料（縣市／社區／坪數）並轉成 Scene |
+| P6 | ⚠ 生成式 AI：以圖找物、虛擬清空、文字生成（FE-AST-09／AI-04／AI-05） | 本機規則式／影像處理近似 | 影像嵌入模型與生成式 inpainting／材質生成供應商及金鑰 |
+| P6 | ⚠ AR 與 LiDAR 實機驗證（FE-MOB-03／04） | WebXR／Quick Look 程式路徑＋RoomPlan JSON 單元測試 | Android（ARCore）與 iPhone Pro 實機測試；RoomPlan USDZ 解析 |
 | P4 | ⚠ 結構驗證門檻校準 | 〔假設〕0.65/0.80/0.90，`calibrated: false` | 真實供應商評測集結果（見上）＋人工評分後定案 |
 
 ## 未達標清單（軟性指標未達假設目標時填寫；P8 逐項處理）
@@ -152,4 +159,5 @@ DXF 牆長誤差 0.000%（Gate ≤ 1%）；E2E 點陣匯入寬/深誤差 < 3%。
 | 項目 | 假設 | 實測 | 日期 |
 |---|---|---|---|
 | core-geometry 分支覆蓋 | ≥90% | 94.14% | 2026-09-30 |
+| core-geometry 分支覆蓋（第九批後；先前牆分割合併未直接測試，一度降到 84%，已補測） | ≥90% | 91.63% | 2026-10-01 |
 （FPS/draw calls 在開發機量到，未在基準機定案，暫不改規則書數字）

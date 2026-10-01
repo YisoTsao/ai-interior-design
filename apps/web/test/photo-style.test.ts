@@ -64,3 +64,20 @@ describe('照片換風格（本機預覽）', () => {
     expect(f[10]!).toBeLessThan(0.8);
   });
 });
+
+import { inpaintPixels } from '../src/ai/photoStyle';
+describe('虛擬清空（FE-AI-04 本機預覽）', () => {
+  it('遮罩內的家具被周圍牆色填滿；遮罩外不變', () => {
+    const W = 40;
+    const H = 30;
+    const a = new Uint8ClampedArray(W * H * 4);
+    for (let i = 0; i < W * H; i++) a.set([220, 210, 190, 255], i * 4);
+    for (let y = 10; y < 20; y++) for (let x = 15; x < 25; x++) a.set([60, 40, 30, 255], (y * W + x) * 4);
+    const mask = new Uint8Array(W * H);
+    for (let y = 9; y < 21; y++) for (let x = 14; x < 26; x++) mask[y * W + x] = 255;
+    const out = inpaintPixels(a, W, H, mask);
+    const c = (15 * W + 20) * 4;
+    expect(Math.abs(out[c]! - 220)).toBeLessThan(8);
+    expect(Array.from(out.slice(0, 4))).toEqual([220, 210, 190, 255]);
+  });
+});

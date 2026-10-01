@@ -557,7 +557,7 @@
   "planImport": {
     "button": "Import floor plan",
     "title": "Import floor plan",
-    "formats": "DXF (vector, most accurate) and PNG/JPG/WEBP (raster). Convert DWG to DXF first.",
+    "formats": "DXF (vector, most accurate), PNG/JPG/WEBP (raster), and RoomPlan JSON from iPhone/iPad LiDAR scans. Convert DWG to DXF first.",
     "choose": "Choose a floor plan file",
     "uploading": "Uploading…",
     "badType": "Unsupported file type",
@@ -599,7 +599,8 @@
     "privacy": "Recognition runs in your browser; the file is not uploaded.",
     "engine": {
       "browser": "Browser recognition",
-      "cv-service": "cv-service recognition"
+      "cv-service": "cv-service recognition",
+      "roomplan": "Phone LiDAR scan (RoomPlan)"
     },
     "missing": "This import was not found (already built or browser data cleared). Please upload again.",
     "rooms": {
@@ -892,7 +893,8 @@
     "tab": {
       "blank": "Blank",
       "template": "Templates",
-      "import": "Import plan"
+      "import": "Import plan",
+      "library": "Floor plans"
     },
     "name": "Project name",
     "height": "Ceiling height (mm)",
@@ -1047,7 +1049,9 @@
     "pano": "720°",
     "copyToMine": "Copy to my projects",
     "invalid": "The share link is incomplete.",
-    "broken": "Could not read the shared design: {{message}}"
+    "broken": "Could not read the shared design: {{message}}",
+    "gyroOn": "Gyroscope",
+    "gyroOff": "Gyroscope off"
   },
   "tour": {
     "help": "Guided tour",
@@ -1616,12 +1620,13 @@
     "count": "Results",
     "generate": "Generate",
     "working": "Working…",
-    "inpaintHint": "Partial repaint: pick a result, brush the area to change, then Repaint selection.",
+    "inpaintHint": "Partial repaint / clearing: brush the area (uses the original if there are no results), then press a button below.",
     "brush": "Brush",
     "clearMask": "Clear mask",
     "inpaint": "Repaint selection",
     "save": "Save to gallery",
-    "saved": "Saved to gallery"
+    "saved": "Saved to gallery",
+    "clear": "Virtual clearing: remove brushed furniture"
   },
   "lightScene": {
     "title": "Light groups & scenes",
@@ -1775,5 +1780,121 @@
       "unknown": "Design changed since approval"
     },
     "schemeLabel": "Scheme:"
+  },
+  "walk": {
+    "title": "Walkthrough video",
+    "needBookmarks": "Save at least two camera bookmarks in 3D first; they become the keyframes.",
+    "up": "Move up",
+    "down": "Move down",
+    "segment": "Seconds per segment",
+    "total": "{{n}} keyframes, {{s}} s total",
+    "preview": "Preview",
+    "record": "Record {{ext}}",
+    "stop": "Stop",
+    "recording": "Recording… (stop)",
+    "noRecorder": "This browser cannot record video.",
+    "download": "Download video",
+    "saveHint": "The video lives only in this session; download to keep it."
+  },
+  "layout": {
+    "title": "Sheet layout",
+    "defaultTitle": "Plan and perspective",
+    "landscape": "Landscape",
+    "portrait": "Portrait",
+    "tpl": {
+      "single": "Single",
+      "two": "Two",
+      "four": "Four"
+    },
+    "src": {
+      "none": "(empty)",
+      "plan": "Floor plan",
+      "furniture": "Furniture plan",
+      "view3d": "Current 3D view"
+    },
+    "fit": "Fit",
+    "print": "Print / Save PDF",
+    "preview": "Sheet preview",
+    "popupBlocked": "The browser blocked the new window; allow pop-ups and retry",
+    "hint": "Plans are placed at true scale (flagged red if they don't fit — use a smaller scale or larger paper). The 3D view is captured when this dialog opens.",
+    "tb": {
+      "project": "Project",
+      "drawing": "Drawing",
+      "client": "Client",
+      "designer": "Designer",
+      "scale": "Scale",
+      "sheet": "Sheet",
+      "date": "Date"
+    }
+  },
+  "floorplan": {
+    "search": "Search name, community, city",
+    "city": "City",
+    "allCities": "All cities",
+    "bed": "Bedrooms",
+    "anyBed": "Any",
+    "beds": "{{n}} bed",
+    "min": "≥ ping",
+    "max": "≤ ping",
+    "pingMin": "Min ping",
+    "pingMax": "Max ping",
+    "summary": "{{bed}}B{{living}}L{{bath}}B · {{ping}} ping",
+    "sampleName": "Sample · {{layout}} {{n}}",
+    "none": "No matching floor plans",
+    "import": "Import dataset",
+    "importHint": "JSON array: name, city, community, ping, bed, living, bath, scene (InteriorAI Scene)",
+    "imported": "Imported {{added}} ({{skipped}} skipped)",
+    "badFile": "Could not read this file",
+    "note": "Built-in sample plans are generic layouts, not real buildings; import a licensed dataset for real ones.",
+    "preview": "Floor plan preview",
+    "pick": "Pick a plan to preview"
+  },
+  "imageSearch": {
+    "title": "Search by image",
+    "pick": "Upload a furniture photo (plain background works best)",
+    "photo": "Query photo",
+    "reading": "Analysing photo…",
+    "indexing": "Comparing assets {{n}}/{{total}}…",
+    "score": "{{n}}% similar",
+    "note": "Matched by foreground colour and proportions (in your browser; the photo is not uploaded). Click a result to place it."
+  },
+  "textGen": {
+    "title": "Generate from text",
+    "note": "Rule-based, in-browser (not generative AI): built from materials, colours, patterns and sizes in your text.",
+    "tabs": {
+      "material": "Material",
+      "furniture": "Furniture"
+    },
+    "prompt": "Description",
+    "ph": {
+      "material": "e.g. sage stripe wallpaper, white polished marble floor 80x80",
+      "furniture": "e.g. grey 3-seat sofa 200 cm wide, walnut desk 140x70"
+    },
+    "category": "Category",
+    "pattern": "Pattern",
+    "size": "Repeat size",
+    "rough": "Roughness",
+    "addMaterial": "Add to materials",
+    "saved": "Added to the material library",
+    "noMatch": "No matching furniture; try other words (e.g. desk, sofa, bed).",
+    "place": "Place",
+    "placed": "Placed in the scene",
+    "cats": {
+      "floor": "Floor",
+      "wall": "Wall",
+      "ceiling": "Ceiling",
+      "fabric": "Fabric",
+      "wood": "Wood",
+      "metal": "Metal",
+      "stone": "Stone"
+    }
+  },
+  "ar": {
+    "open": "View in AR",
+    "noModel": "No 3D model available for this item",
+    "failed": "Could not start AR: {{message}}",
+    "unsupported": "This device has no web AR. A USDZ file was downloaded for iPhone/iPad; or use an Android phone with WebXR.",
+    "hint": "Aim at the floor; tap when the yellow ring appears. Tap the same spot to rotate 45°",
+    "close": "Exit AR"
   }
 }

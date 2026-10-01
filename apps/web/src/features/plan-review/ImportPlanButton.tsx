@@ -78,7 +78,7 @@ export function ImportPlanButton({ className = 'btn' }: { className?: string }) 
             <span>{busy ? t('planImport.analyzing') : t('planImport.choose')}</span>
             <input
               type="file"
-              accept=".dxf,.png,.jpg,.jpeg,.webp"
+              accept=".dxf,.png,.jpg,.jpeg,.webp,.json"
               className="sr-only"
               disabled={busy}
               aria-label={t('planImport.choose')}

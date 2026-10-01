@@ -88,18 +88,21 @@ export function PhotoRestyleDialog({
     return any ? m : null;
   };
 
-  const generate = async (opts: { inpaint?: boolean } = {}) => {
+  const generate = async (opts: { inpaint?: boolean; clear?: boolean } = {}) => {
     if (!photo) return;
     setBusy(true);
     setSaved(null);
     try {
-      if (opts.inpaint) {
-        // 局部重繪：以目前選取的結果為底，只改遮罩內
+      if (opts.inpaint || opts.clear) {
+        // 局部重繪／虛擬清空：以目前選取的結果（沒有結果時用原圖）為底，只改遮罩內
         const base = results[active];
         const mask = readMask();
-        if (!base || !mask) return;
-        const bmp = await createImageBitmap(base.blob);
-        const blob = await provider.generate(bmp, { style, prompt, variant: results.length }, mask);
+        if (!mask) return;
+        const bmp = base ? await createImageBitmap(base.blob) : photo.bmp;
+        const blob = opts.clear
+          ? await provider.clear(bmp, mask)
+          : await provider.generate(bmp, { style, prompt, variant: results.length }, mask);
+        if (base) bmp.close();
         bmp.close();
         const r = { blob, url: URL.createObjectURL(blob) };
         setResults((x) => [...x, r]);
@@ -272,7 +275,7 @@ export function PhotoRestyleDialog({
             <button
               className="btn flex-1 justify-center"
               aria-pressed={brush}
-              disabled={!cur}
+              disabled={!photo}
               onClick={() => setBrush(!brush)}
               data-testid="photo-brush"
             >
@@ -295,6 +298,14 @@ export function PhotoRestyleDialog({
             data-testid="photo-inpaint"
           >
             {t('photoStyle.inpaint')}
+          </button>
+          <button
+            className="btn w-full justify-center"
+            disabled={!photo || busy}
+            onClick={() => void generate({ clear: true })}
+            data-testid="photo-clear"
+          >
+            {t('photoStyle.clear')}
           </button>
           <button
             className="btn w-full justify-center"

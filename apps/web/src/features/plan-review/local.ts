@@ -1,5 +1,11 @@
 import { createStore, del, get, set } from 'idb-keyval';
-import { detectKind, PlanParseError, recognizeDxf, type PlanResult } from '@interiorai/plan-recognition';
+import {
+  detectKind,
+  PlanParseError,
+  recognizeDxf,
+  recognizeRoomPlan,
+  type PlanResult,
+} from '@interiorai/plan-recognition';
 
 /**
  * 平面圖匯入（不需登入、不需後端）：在瀏覽器辨識 → 暫存匯入工作階段（IndexedDB）→ 校正頁。
@@ -13,7 +19,7 @@ export interface ImportSession {
   result: PlanResult;
   /** 點陣底圖（辨識用的影像，可能已縮小） */
   image: Blob | null;
-  engine: 'browser' | 'cv-service';
+  engine: 'browser' | 'cv-service' | 'roomplan';
 }
 
 const store = createStore('interiorai-imports', 'sessions');
@@ -95,6 +101,10 @@ export async function recognizePlanFile(file: File): Promise<ImportSession> {
   let engine: ImportSession['engine'] = 'browser';
   if (kind === 'vector') {
     result = recognizeDxf(await file.text());
+  } else if (kind === 'roomplan') {
+    // 手機 LiDAR 掃描（Apple RoomPlan CapturedRoom JSON，FE-MOB-04）
+    result = recognizeRoomPlan(await file.text());
+    engine = 'roomplan';
   } else {
     const remote = await viaCvService(file);
     if (remote) {

@@ -5,7 +5,8 @@ import { Box, Copy, Footprints, Globe2, Map as MapIcon, PenLine } from 'lucide-r
 import { createEditorStore, saveProject } from '@interiorai/app-state';
 import type { Scene } from '@interiorai/scene-schema';
 import { Plan2D } from '@interiorai/editor-2d';
-import { PanoramaViewer, Viewer3D, viewer3dApi } from '@interiorai/viewer-3d';
+import { lonToward, PanoramaViewer, Viewer3D, viewer3dApi } from '@interiorai/viewer-3d';
+import { detectRooms, pointInPolygon } from '@interiorai/core-geometry';
 import { catalog, useCatalogVersion, useMaterials } from '../catalogData';
 import { LangToggle } from '../editor/common';
 import { usePrefs } from '../prefs';
@@ -94,17 +95,47 @@ function ShareBody({
     return s;
   }, [name, scene]);
   const [tab, setTab] = useState<Tab>('3d');
-  const [pano, setPano] = useState<string | null>(null);
   const [lighting, setLighting] = useState<'day' | 'night'>('day');
   const tt = useCallback((k: string, v?: Record<string, string | number>) => t(k, v), [t]);
 
+  // 全屋全景導覽（FE-RND-02）：每個房間中央（人眼高 1.6 m）一張全景，熱點跳轉其他房間
+  const [tour, setTour] = useState<{ id: string; name: string; c: [number, number]; url: string }[]>([]);
+  const [cur, setCur] = useState(0);
   const makePano = () => {
-    const url = viewer3dApi.get()?.panorama({ width: 3072 });
-    if (url) {
-      setPano(url);
-      setTab('pano');
-    }
+    const v = viewer3dApi.get();
+    if (!v) return;
+    const lv = scene.levels[0]!;
+    const byKey = new Map(lv.rooms.map((r) => [[...r.wallIds].sort().join('|'), r]));
+    const rooms = detectRooms(lv)
+      .rooms.map((d) => {
+        const n = d.floor.length || 1;
+        let c: [number, number] = [
+          d.floor.reduce((a, p) => a + p[0], 0) / n,
+          d.floor.reduce((a, p) => a + p[1], 0) / n,
+        ];
+        if (!pointInPolygon(c, d.floor)) c = [d.floor[0]![0] + 300, d.floor[0]![1] + 300];
+        const r = byKey.get(d.key);
+        return { id: r?.id ?? d.key, label: r?.label, c, area: d.netArea };
+      })
+      .filter((r) => r.area > 2e6)
+      .slice(0, 12)
+      .map((r, i) => ({ ...r, name: r.label || `${t('room.unnamed')} ${i + 1}` }));
+    const list = rooms
+      .map((r) => ({ ...r, url: v.panorama({ width: 3072, at: [r.c[0], 1600, r.c[1]] }) ?? '' }))
+      .filter((r) => r.url);
+    const single = list.length ? null : v.panorama({ width: 3072 });
+    setTour(list.length ? list : single ? [{ id: 'here', name: name, c: [0, 0], url: single }] : []);
+    setCur(0);
+    if (list.length || single) setTab('pano');
   };
+  const pano = tour[cur]?.url ?? null;
+  const hotspots = useMemo(
+    () =>
+      tour
+        .filter((_, i) => i !== cur)
+        .map((r) => ({ id: r.id, label: r.name, lonDeg: lonToward(tour[cur]!.c, r.c) })),
+    [tour, cur],
+  );
   const copyToMine = async () => {
     const id = createEditorStore().getState().projectId;
     await saveProject({ id, name: t('projects.copyName', { name }), scene });
@@ -227,7 +258,32 @@ function ShareBody({
             </div>
           </>
         )}
-        {tab === 'pano' && pano && <PanoramaViewer src={pano} />}
+        {tab === 'pano' && pano && (
+          <>
+            <PanoramaViewer
+              src={pano}
+              hotspots={hotspots}
+              onHotspot={(id) =>
+                setCur(
+                  Math.max(
+                    0,
+                    tour.findIndex((r) => r.id === id),
+                  ),
+                )
+              }
+              labels={{ gyroOn: t('share.gyroOn'), gyroOff: t('share.gyroOff') }}
+            />
+            {tour.length > 1 && (
+              <span
+                className="hud-chip absolute top-2 left-2"
+                data-testid="pano-room"
+                data-room={tour[cur]?.id}
+              >
+                {tour[cur]?.name}
+              </span>
+            )}
+          </>
+        )}
       </main>
       {approval && (
         <ApprovalDialog

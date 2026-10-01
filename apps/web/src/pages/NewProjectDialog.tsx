@@ -13,9 +13,11 @@ import { HudDialog } from '../editor/HudDialog';
 import { ImportPlanButton } from '../features/plan-review/ImportPlanButton';
 import { buildSampleScene } from '../sample';
 import { buildTemplateScene, TEMPLATE_IDS, templateInfo, type TemplateId } from '../templates';
+import { floorplanScene, type FloorplanEntry } from '../floorplans';
+import { FloorplanLibrary } from './FloorplanLibrary';
 import { usePrefs } from '../prefs';
 
-type Tab = 'blank' | 'template' | 'import';
+type Tab = 'blank' | 'template' | 'library' | 'import';
 
 /**
  * 新建專案精靈（FE-PRJ-03）：空白（名稱、樓高、單位）／範本（套房、兩房、三房 × 風格，可選擇是否佈置）／
@@ -39,6 +41,7 @@ export function NewProjectDialog({
   const [style, setStyle] = useState<FurnishStyle>('nordic');
   const [furnish, setFurnish] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [plan, setPlan] = useState<FloorplanEntry | null>(null);
 
   const create = async (scene: Scene, fallbackName: string) => {
     setBusy(true);
@@ -69,6 +72,16 @@ export function NewProjectDialog({
       `${t(`templates.${tpl}`)} · ${t(`furnish.style.${style}`)}`,
     );
   };
+  const createLibrary = () => {
+    if (!plan) return;
+    const names = (k: string) => t(`templates.rooms.${k}`);
+    return create(
+      floorplanScene(plan, names),
+      plan.source === 'sample'
+        ? `${t(`templates.${plan.template!.id}`)} ${plan.ping} ${t('units.ping')}`
+        : plan.name,
+    );
+  };
   const area = (m2: number) =>
     areaUnit === 'ping' ? `${(m2 / 3.3058).toFixed(0)} ${t('units.ping')}` : `${m2.toFixed(0)} m²`;
 
@@ -87,8 +100,14 @@ export function NewProjectDialog({
             </button>
             <button
               className="btn btn-primary"
-              disabled={busy}
-              onClick={() => void (tab === 'blank' ? createBlank() : createTemplate())}
+              disabled={busy || (tab === 'library' && !plan)}
+              onClick={() =>
+                void (tab === 'blank'
+                  ? createBlank()
+                  : tab === 'library'
+                    ? createLibrary()
+                    : createTemplate())
+              }
               data-testid="wizard-create"
             >
               <FilePlus2 size={16} aria-hidden /> {t('wizard.create')}
@@ -98,7 +117,7 @@ export function NewProjectDialog({
       }
     >
       <div className="hud-seg mb-4" role="tablist">
-        {(['blank', 'template', 'import'] as const).map((k) => (
+        {(['blank', 'template', 'library', 'import'] as const).map((k) => (
           <button
             key={k}
             role="tab"
@@ -205,6 +224,7 @@ export function NewProjectDialog({
           )}
         </>
       )}
+      {tab === 'library' && <FloorplanLibrary selected={plan} onSelect={setPlan} />}
       {tab === 'import' && (
         <div className="flex flex-col items-center gap-3 p-6 text-center">
           <p className="text-sm text-muted">{t('wizard.importHint')}</p>

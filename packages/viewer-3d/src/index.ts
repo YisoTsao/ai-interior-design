@@ -15,3 +15,4 @@ export * from './PanoramaViewer.js';
 export * from './extras.js';
 export * from './ModelPreview.js';
 export * from './convertModel.js';
+export * from './ar.js';

@@ -227,22 +227,100 @@ export interface PhotoStyleProvider {
   /** true＝真實 AI 生成；false＝本機色彩轉移預覽 */
   generative: boolean;
   generate(photo: ImageBitmap, req: StyleRequest, mask?: Uint8Array | null): Promise<Blob>;
+  /** 虛擬清空（FE-AI-04）：移除遮罩內的物件 */
+  clear(photo: ImageBitmap, mask: Uint8Array): Promise<Blob>;
+}
+
+async function viaCanvas(
+  photo: ImageBitmap,
+  f: (d: Uint8ClampedArray, w: number, h: number) => Uint8ClampedArray,
+) {
+  const c = document.createElement('canvas');
+  c.width = photo.width;
+  c.height = photo.height;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(photo, 0, 0);
+  const img = g.getImageData(0, 0, c.width, c.height);
+  g.putImageData(
+    new ImageData(new Uint8ClampedArray(f(img.data, c.width, c.height)), c.width, c.height),
+    0,
+    0,
+  );
+  return new Promise<Blob>((res, rej) =>
+    c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', 0.9),
+  );
 }
 
 export const localPreviewProvider: PhotoStyleProvider = {
   id: 'local-preview',
   generative: false,
-  async generate(photo, req, mask) {
-    const c = document.createElement('canvas');
-    c.width = photo.width;
-    c.height = photo.height;
-    const g = c.getContext('2d', { willReadFrequently: true })!;
-    g.drawImage(photo, 0, 0);
-    const img = g.getImageData(0, 0, c.width, c.height);
-    const px = restylePixels(img.data, c.width, c.height, req, mask);
-    g.putImageData(new ImageData(new Uint8ClampedArray(px), c.width, c.height), 0, 0);
-    return new Promise<Blob>((res, rej) =>
-      c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', 0.9),
-    );
-  },
+  generate: (photo, req, mask) => viaCanvas(photo, (d, w, h) => restylePixels(d, w, h, req, mask)),
+  clear: (photo, mask) => viaCanvas(photo, (d, w, h) => inpaintPixels(d, w, h, mask)),
 };
+
+/**
+ * 虛擬清空（FE-AI-04，本機預覽）：遮罩內的像素由外往內逐層以已知鄰點平均填補（onion-peel 擴散），
+ * 再加極輕的雜訊避免塑膠感。適合移除背景單純處的家具；複雜背景需真正的生成式 inpainting。
+ */
+export function inpaintPixels(
+  rgba: Uint8ClampedArray,
+  w: number,
+  h: number,
+  mask: Uint8Array | Uint8ClampedArray,
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(rgba);
+  const unknown = new Uint8Array(w * h);
+  let left = 0;
+  // 遮罩略為外擴 2 px，避免家具邊緣殘影
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let m = false;
+      for (let dy = -2; dy <= 2 && !m; dy++)
+        for (let dx = -2; dx <= 2 && !m; dx++) {
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx >= 0 && yy >= 0 && xx < w && yy < h && mask[yy * w + xx]! > 127) m = true;
+        }
+      if (m) {
+        unknown[y * w + x] = 1;
+        left++;
+      }
+    }
+  let seed = 12345;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff - 0.5;
+  for (let pass = 0; left > 0 && pass < w + h; pass++) {
+    const fill: [number, number, number, number][] = [];
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (!unknown[i]) continue;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        let n = 0;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+            const j = yy * w + xx;
+            if (unknown[j]) continue;
+            r += out[j * 4]!;
+            g += out[j * 4 + 1]!;
+            b += out[j * 4 + 2]!;
+            n++;
+          }
+        if (n >= 2 || (n === 1 && pass > 4)) fill.push([i, r / n, g / n, b / n]);
+      }
+    if (!fill.length) break;
+    for (const [i, r, g, b] of fill) {
+      const k = 3 * rnd();
+      out[i * 4] = r + k;
+      out[i * 4 + 1] = g + k;
+      out[i * 4 + 2] = b + k;
+      unknown[i] = 0;
+      left--;
+    }
+  }
+  return out;
+}
