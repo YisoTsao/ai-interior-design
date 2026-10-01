@@ -47,11 +47,162 @@ function imageTexture(m: CatalogMaterial): THREE.Texture | null {
 }
 
 /**
+ * 壁紙花紋（FE-FIN-02）：一個重複單元畫在 S×S 畫布上（四邊可無縫拼接）。
+ * 底色＝material.color、花紋色＝material.accent。
+ */
+export function drawWallpaper(
+  g: CanvasRenderingContext2D,
+  S: number,
+  motif: string,
+  bg: string,
+  accent: string,
+): void {
+  g.fillStyle = bg;
+  g.fillRect(0, 0, S, S);
+  g.fillStyle = accent;
+  g.strokeStyle = accent;
+  const u = S / 8;
+  switch (motif) {
+    case 'stripe':
+      for (let i = 0; i < 4; i++) g.fillRect(i * 2 * u, 0, u, S);
+      break;
+    case 'pinstripe':
+      g.lineWidth = S / 160;
+      for (let i = 0; i < 16; i++) g.fillRect((i * S) / 16, 0, g.lineWidth, S);
+      break;
+    case 'check':
+      g.globalAlpha = 0.55;
+      for (let i = 0; i < 4; i++) {
+        g.fillRect(i * 2 * u, 0, u, S);
+        g.fillRect(0, i * 2 * u, S, u);
+      }
+      g.globalAlpha = 1;
+      break;
+    case 'dots':
+      for (let y = 0; y < 4; y++)
+        for (let x = 0; x < 4; x++) {
+          g.beginPath();
+          g.arc(x * 2 * u + u + (y % 2) * u, y * 2 * u + u, u * 0.28, 0, Math.PI * 2);
+          g.fill();
+        }
+      break;
+    case 'herringbone': {
+      g.lineWidth = S / 64;
+      for (let col = 0; col < 4; col++)
+        for (let row = -1; row < 9; row++) {
+          const x = col * 2 * u;
+          const y = row * u;
+          g.beginPath();
+          if (col % 2 === 0) {
+            g.moveTo(x, y);
+            g.lineTo(x + 2 * u, y + u);
+          } else {
+            g.moveTo(x, y + u);
+            g.lineTo(x + 2 * u, y);
+          }
+          g.stroke();
+        }
+      break;
+    }
+    case 'geometric': {
+      g.lineWidth = S / 90;
+      for (let y = 0; y <= 4; y++)
+        for (let x = 0; x <= 4; x++) {
+          const cx = x * 2 * u;
+          const cy = y * 2 * u;
+          g.beginPath();
+          g.moveTo(cx, cy - u);
+          g.lineTo(cx + u, cy);
+          g.lineTo(cx, cy + u);
+          g.lineTo(cx - u, cy);
+          g.closePath();
+          g.stroke();
+        }
+      break;
+    }
+    case 'damask':
+    case 'floral': {
+      // 大馬士革／花卉：對稱的花瓣圖樣，兩排交錯
+      const petal = (cx: number, cy: number, r: number, n: number) => {
+        for (let k = 0; k < n; k++) {
+          const a = (k / n) * Math.PI * 2;
+          g.beginPath();
+          g.ellipse(
+            cx + Math.cos(a) * r * 0.55,
+            cy + Math.sin(a) * r * 0.55,
+            r * 0.45,
+            r * 0.2,
+            a,
+            0,
+            Math.PI * 2,
+          );
+          g.fill();
+        }
+        g.beginPath();
+        g.arc(cx, cy, r * 0.18, 0, Math.PI * 2);
+        g.fill();
+      };
+      const n = motif === 'damask' ? 4 : 6;
+      const r = motif === 'damask' ? 1.6 * u : 1.1 * u;
+      for (const [cx, cy] of [
+        [0, 0],
+        [S, 0],
+        [0, S],
+        [S, S],
+        [S / 2, S / 2],
+      ] as const)
+        petal(cx, cy, r, n);
+      if (motif === 'damask') {
+        g.lineWidth = S / 120;
+        for (const [cx, cy] of [
+          [S / 2, 0],
+          [S / 2, S],
+          [0, S / 2],
+          [S, S / 2],
+        ] as const) {
+          g.beginPath();
+          g.ellipse(cx, cy, u * 0.9, u * 1.4, 0, 0, Math.PI * 2);
+          g.stroke();
+        }
+      }
+      break;
+    }
+  }
+}
+
+function wallpaperTexture(m: CatalogMaterial, S: number): THREE.Texture | null {
+  if (typeof document === 'undefined') return null;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S;
+  drawWallpaper(c.getContext('2d')!, S, m.motif ?? 'stripe', m.color, m.accent ?? hexShade(m.color, 0.8));
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.repeat.set(1 / m.realSizeMm.w, 1 / m.realSizeMm.h);
+  tex.anisotropy = 8;
+  return tex;
+}
+
+/** 自訂材質的法線／粗糙度貼圖（線性色彩空間；與底色貼圖同一重複單元） */
+function dataTexture(url: string | undefined, m: CatalogMaterial): THREE.Texture | null {
+  if (!url || typeof document === 'undefined') return null;
+  const tex = new THREE.TextureLoader().load(url, () =>
+    window.dispatchEvent(new Event('interiorai:texture')),
+  );
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.NoColorSpace;
+  tex.repeat.set(1 / m.realSizeMm.w, 1 / m.realSizeMm.h);
+  return tex;
+}
+
+/**
  * 剖面模型用的高品質程序化貼圖：木紋為錯縫長條地板（紋理方向一律沿 +X），
  * 磁磚有填縫與逐片色差。一個貼圖單元 = realSizeMm。
  */
 function hqPatternTexture(m: CatalogMaterial): THREE.Texture | null {
   if (m.pattern === 'image') return imageTexture(m);
+  if (m.pattern === 'wallpaper') return wallpaperTexture(m, 512);
   if (m.pattern === 'plain' || typeof document === 'undefined') return null;
   const S = m.pattern === 'wood' ? 1024 : 512;
   const c = document.createElement('canvas');
@@ -139,6 +290,7 @@ function hqPatternTexture(m: CatalogMaterial): THREE.Texture | null {
 /** 程序化貼圖：UV 以 mm 為單位，repeat = 1 / realSize → 貼圖重複率隨面積自動正確（FR-303） */
 function patternTexture(m: CatalogMaterial): THREE.Texture | null {
   if (m.pattern === 'image') return imageTexture(m);
+  if (m.pattern === 'wallpaper') return wallpaperTexture(m, 256);
   if (m.pattern === 'plain' || typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
   c.width = 256;
@@ -204,6 +356,10 @@ export class MaterialCache {
     const def = id ? this.lib.get(id) : undefined;
     const tex = def ? (this.opts.hq ? hqPatternTexture(def) : patternTexture(def)) : null;
     if (tex) this.scope.track(tex);
+    const normalMap = def ? dataTexture(def.normalUrl, def) : null;
+    const roughnessMap = def ? dataTexture(def.roughnessUrl, def) : null;
+    if (normalMap) this.scope.track(normalMap);
+    if (roughnessMap) this.scope.track(roughnessMap);
     const wallish = !def || def.category === 'wall';
     m = this.scope.track(
       new THREE.MeshStandardMaterial({
@@ -216,6 +372,8 @@ export class MaterialCache {
               ? this.opts.wallRoughness
               : (def?.roughness ?? 0.85),
         metalness: def?.metalness ?? 0,
+        normalMap,
+        roughnessMap,
         side: THREE.FrontSide,
       }),
     );

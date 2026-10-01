@@ -184,6 +184,25 @@ const CEILINGS: [string, string, string][] = [
   ['Black Ceiling', '黑色天花', '#2A2A2C'],
 ];
 
+const WALLPAPERS: [string, string, NonNullable<Material['motif']>, string, string][] = [
+  ['Wallpaper Stripe Sage', '壁紙 寬條紋 鼠尾草', 'stripe', '#e7e9df', '#b9c4ac'],
+  ['Wallpaper Stripe Navy', '壁紙 寬條紋 深藍', 'stripe', '#f1eee6', '#34465f'],
+  ['Wallpaper Pinstripe Grey', '壁紙 細條紋 灰', 'pinstripe', '#eeeeec', '#a9a9a6'],
+  ['Wallpaper Pinstripe Gold', '壁紙 細條紋 金', 'pinstripe', '#f4efe2', '#c2a15f'],
+  ['Wallpaper Check Beige', '壁紙 格紋 米', 'check', '#efe7d9', '#d3c3a6'],
+  ['Wallpaper Check Blue', '壁紙 格紋 藍', 'check', '#eef1f5', '#9fb2c9'],
+  ['Wallpaper Damask Ivory', '壁紙 大馬士革 象牙', 'damask', '#efe9dc', '#d6c9ab'],
+  ['Wallpaper Damask Charcoal', '壁紙 大馬士革 炭灰', 'damask', '#3d3e42', '#5b5c61'],
+  ['Wallpaper Geometric Mint', '壁紙 幾何 薄荷', 'geometric', '#e9f0eb', '#9cc2ae'],
+  ['Wallpaper Geometric Terracotta', '壁紙 幾何 陶土', 'geometric', '#f3e8de', '#c98a68'],
+  ['Wallpaper Herringbone Oat', '壁紙 人字 燕麥', 'herringbone', '#ece4d6', '#cdbfa6'],
+  ['Wallpaper Herringbone Slate', '壁紙 人字 石板', 'herringbone', '#d9dcdf', '#8f979f'],
+  ['Wallpaper Floral Blush', '壁紙 花卉 粉', 'floral', '#f6ece8', '#d6a2a0'],
+  ['Wallpaper Floral Green', '壁紙 花卉 綠', 'floral', '#eef1e8', '#7f9a6d'],
+  ['Wallpaper Dots Cream', '壁紙 圓點 奶油', 'dots', '#f5efe2', '#d9c49a'],
+  ['Wallpaper Dots Graphite', '壁紙 圓點 石墨', 'dots', '#e4e5e7', '#5d6168'],
+];
+
 export const GENERATED_MATERIALS: Material[] = [
   ...PAINTS.map(([en, zh, c]) =>
     mk('paint', en, `${zh}漆`, 'wall', c, 'plain', [1000, 1000], 0.9, { pricePerM2Twd: 380 }),
@@ -221,6 +240,15 @@ export const GENERATED_MATERIALS: Material[] = [
       [1200, 300],
       en.includes('Lacquer') ? 0.25 : 0.55,
     ),
+  ),
+  // 壁紙（FE-FIN-02）：8 種花紋 × 2 組配色；標準捲寬 53 cm 為一個重複單元
+  ...WALLPAPERS.map(([en, zh, motif, bg, accent]) =>
+    mk('wallpaper', en.replace(/^Wallpaper /, ''), zh, 'wall', bg, 'wallpaper', [530, 530], 0.85, {
+      nameEn: en,
+      motif,
+      accent,
+      pricePerM2Twd: 650,
+    }),
   ),
   ...CEILINGS.map(([en, zh, c]) =>
     mk('ceiling', en, zh, 'ceiling', c, en.includes('Slat') ? 'wood' : 'plain', [1000, 1000], 0.9, {

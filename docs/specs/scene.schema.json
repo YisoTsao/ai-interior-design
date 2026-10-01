@@ -1,14 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://interiorai.local/schemas/scene-1.3.0.json",
-  "title": "Scene Graph v1.3.0",
+  "$id": "https://interiorai.local/schemas/scene-1.4.0.json",
+  "title": "Scene Graph v1.4.0",
   "description": "唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。",
   "type": "object",
-  "required": [
-    "schemaVersion",
-    "units",
-    "levels"
-  ],
+  "required": ["schemaVersion", "units", "levels"],
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
@@ -38,6 +34,13 @@
     },
     "environment": {
       "$ref": "#/$defs/environment"
+    },
+    "lightScenes": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/$defs/lightScene"
+      }
     }
   },
   "$defs": {
@@ -75,15 +78,7 @@
     },
     "level": {
       "type": "object",
-      "required": [
-        "id",
-        "elevation",
-        "height",
-        "walls",
-        "openings",
-        "rooms",
-        "objects"
-      ],
+      "required": ["id", "elevation", "height", "walls", "openings", "rooms", "objects"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -143,12 +138,7 @@
     },
     "wall": {
       "type": "object",
-      "required": [
-        "id",
-        "a",
-        "b",
-        "thickness"
-      ],
+      "required": ["id", "a", "b", "thickness"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -166,12 +156,7 @@
           "maximum": 600
         },
         "type": {
-          "enum": [
-            "structural",
-            "exterior",
-            "partition",
-            "curtain"
-          ]
+          "enum": ["structural", "exterior", "partition", "curtain"]
         },
         "materialId": {
           "$ref": "#/$defs/id"
@@ -209,11 +194,7 @@
         "wainscot": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "height",
-            "style",
-            "sides"
-          ],
+          "required": ["height", "style", "sides"],
           "properties": {
             "height": {
               "type": "integer",
@@ -221,18 +202,10 @@
               "maximum": 2000
             },
             "style": {
-              "enum": [
-                "flat",
-                "panel",
-                "beadboard"
-              ]
+              "enum": ["flat", "panel", "beadboard"]
             },
             "sides": {
-              "enum": [
-                "A",
-                "B",
-                "both"
-              ]
+              "enum": ["A", "B", "both"]
             },
             "materialId": {
               "$ref": "#/$defs/id"
@@ -245,10 +218,7 @@
         "crown": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "height",
-            "profile"
-          ],
+          "required": ["height", "profile"],
           "properties": {
             "height": {
               "type": "integer",
@@ -256,33 +226,21 @@
               "maximum": 300
             },
             "profile": {
-              "enum": [
-                "flat",
-                "cove",
-                "step"
-              ]
+              "enum": ["flat", "cove", "step"]
             }
           }
         },
         "baseboardProfile": {
-          "enum": [
-            "flat",
-            "cove",
-            "step"
-          ]
+          "enum": ["flat", "cove", "step"]
+        },
+        "arcGroup": {
+          "$ref": "#/$defs/id"
         }
       }
     },
     "opening": {
       "type": "object",
-      "required": [
-        "id",
-        "wallId",
-        "type",
-        "offset",
-        "width",
-        "height"
-      ],
+      "required": ["id", "wallId", "type", "offset", "width", "height"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -292,11 +250,7 @@
           "$ref": "#/$defs/id"
         },
         "type": {
-          "enum": [
-            "door",
-            "window",
-            "passage"
-          ]
+          "enum": ["door", "window", "passage"]
         },
         "offset": {
           "type": "integer",
@@ -317,13 +271,7 @@
           "default": 0
         },
         "swing": {
-          "enum": [
-            "left",
-            "right",
-            "double",
-            "sliding",
-            "none"
-          ]
+          "enum": ["left", "right", "double", "sliding", "none"]
         },
         "confidence": {
           "type": "number",
@@ -358,10 +306,7 @@
     },
     "room": {
       "type": "object",
-      "required": [
-        "id",
-        "wallIds"
-      ],
+      "required": ["id", "wallIds"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -414,20 +359,11 @@
         "ceiling": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "type",
-            "dropMm",
-            "borderMm"
-          ],
+          "required": ["type", "dropMm", "borderMm"],
           "description": "天花造型（v1.3，FE-FIN-03）",
           "properties": {
             "type": {
-              "enum": [
-                "flat",
-                "drop",
-                "tray",
-                "cove"
-              ]
+              "enum": ["flat", "drop", "tray", "cove"]
             },
             "dropMm": {
               "type": "integer",
@@ -455,12 +391,7 @@
     },
     "object": {
       "type": "object",
-      "required": [
-        "id",
-        "catalogId",
-        "position",
-        "rotationY"
-      ],
+      "required": ["id", "catalogId", "position", "rotationY"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -521,20 +452,13 @@
     },
     "annotation": {
       "type": "object",
-      "required": [
-        "id",
-        "type"
-      ],
+      "required": ["id", "type"],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
         },
         "type": {
-          "enum": [
-            "dimension",
-            "text",
-            "note"
-          ]
+          "enum": ["dimension", "text", "note", "angle", "arrow", "tag"]
         },
         "data": {
           "type": "object"
@@ -543,12 +467,7 @@
     },
     "camera": {
       "type": "object",
-      "required": [
-        "id",
-        "position",
-        "target",
-        "fovDeg"
-      ],
+      "required": ["id", "position", "target", "fovDeg"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -578,23 +497,13 @@
           "type": "string"
         },
         "source": {
-          "enum": [
-            "manual",
-            "import-vector",
-            "import-raster",
-            "template"
-          ]
+          "enum": ["manual", "import-vector", "import-raster", "template"]
         },
         "scale": {
           "type": "object",
           "properties": {
             "method": {
-              "enum": [
-                "dimension_ocr",
-                "user",
-                "dxf_units",
-                "unknown"
-              ]
+              "enum": ["dimension_ocr", "user", "dxf_units", "unknown"]
             }
           }
         }
@@ -701,6 +610,11 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 100000
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
         }
       }
     },
@@ -710,12 +624,7 @@
       "description": "場景環境（v1.1）",
       "properties": {
         "sky": {
-          "enum": [
-            "moonless",
-            "moonlit",
-            "city",
-            "dusk"
-          ]
+          "enum": ["moonless", "moonlit", "city", "dusk"]
         },
         "exposureEv": {
           "type": "number",
@@ -747,11 +656,7 @@
     "tiling": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "pattern",
-        "tileW",
-        "tileH"
-      ],
+      "required": ["pattern", "tileW", "tileH"],
       "description": "鋪貼設計（v1.2）",
       "properties": {
         "pattern": {
@@ -811,6 +716,43 @@
           "type": "number",
           "minimum": 0,
           "maximum": 0.5
+        }
+      }
+    },
+    "lightScene": {
+      "type": "object",
+      "required": ["id", "name", "states"],
+      "additionalProperties": false,
+      "description": "燈光情境（v1.4）",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "states": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/id"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["on"],
+            "additionalProperties": false,
+            "properties": {
+              "on": {
+                "type": "boolean"
+              },
+              "level": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
         }
       }
     }

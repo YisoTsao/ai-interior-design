@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createCatalog, SEED_CATALOG, SEED_MATERIALS } from '@interiorai/catalog';
-import { activeLevel, addObject, addRectRoom, createEditorStore, updateRoom } from '@interiorai/app-state';
+import {
+  activeLevel,
+  addObject,
+  addRectRoom,
+  createEditorStore,
+  renameRoom,
+  updateRoom,
+} from '@interiorai/app-state';
 import {
   checkToolCall,
   checkToolCalls,
@@ -18,7 +25,8 @@ function setup() {
   const s = store.getState();
   s.exec(addRectRoom(s.levelId, [0, 0], [5000, 4000]));
   const room = activeLevel(store.getState()).rooms[0]!;
-  s.exec(updateRoom(s.levelId, room.id, { label: '客廳', kind: 'living' }));
+  s.exec(renameRoom(s.levelId, room.id, '客廳'));
+  s.exec(updateRoom(s.levelId, room.id, { kind: 'living' }));
   s.exec(addObject(s.levelId, { catalogId: 'sofa_3seat_a', position: [2500, 0, 1000], rotationY: 0 }));
   const st = store.getState();
   return makeCtx(st.scene, st.levelId, catalog, SEED_MATERIALS);

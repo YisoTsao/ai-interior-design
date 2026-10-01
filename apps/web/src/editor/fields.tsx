@@ -1,7 +1,16 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, Palette, RotateCcw } from 'lucide-react';
-import { COLOR_FAMILIES, pushRecentColor, recentColors, searchColors } from './colorCards';
+import {
+  brandLibraries,
+  COLOR_FAMILIES,
+  importColorCards,
+  parseColorCsv,
+  pushRecentColor,
+  recentColors,
+  removeColorLibrary,
+  searchColors,
+} from './colorCards';
 import { formatLength, parseLength, type LengthUnit } from '@interiorai/editor-2d';
 
 /** 長度欄位：依偏好單位顯示；Enter 提交成一個 Command（02 §4） */
@@ -349,14 +358,26 @@ function ColorCardsButton({ onPick }: { onPick: (hex: string) => void }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [fam, setFam] = useState<(typeof COLOR_FAMILIES)[number] | null>(null);
+  const [lib, setLib] = useState<string>('');
+  const [libsVer, setLibsVer] = useState(0);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const brands = useMemo(() => Object.keys(brandLibraries()).sort(), [libsVer, open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onCsv = async (f: File | undefined) => {
+    if (!f) return;
+    const { cards, errors } = parseColorCsv(await f.text());
+    importColorCards(cards);
+    setLibsVer((v) => v + 1);
+    setImportMsg(t('colors.imported', { n: cards.length, bad: errors.length }));
+    if (cards[0]?.library) setLib(cards[0].library);
+  };
   useEffect(() => {
     if (!open) return;
     const off = (e: Event) => !ref.current?.contains(e.target as Node) && setOpen(false);
     window.addEventListener('pointerdown', off, true);
     return () => window.removeEventListener('pointerdown', off, true);
   }, [open]);
-  const list = searchColors(q).filter((c) => !fam || c.family === fam);
+  const list = searchColors(q, lib || null).filter((c) => !fam || c.family === fam);
   const pick = (hex: string) => {
     pushRecentColor(hex);
     onPick(hex);
@@ -389,6 +410,53 @@ function ColorCardsButton({ onPick }: { onPick: (hex: string) => void }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          <div className="flex items-center gap-1">
+            <select
+              className="field min-w-0 flex-1 py-0.5 text-xs"
+              aria-label={t('colors.library')}
+              value={lib}
+              onChange={(e) => setLib(e.target.value)}
+              data-testid="color-library"
+            >
+              <option value="">{t('colors.allLibraries')}</option>
+              <option value="NCS">{t('colors.ncs')}</option>
+              <option value="RAL">{t('colors.ral')}</option>
+              {brands.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+            <label className="btn cursor-pointer px-2 py-0.5 text-[11px]" title={t('colors.importHint')}>
+              {t('colors.import')}
+              <input
+                type="file"
+                accept=".csv,.tsv,.txt,text/csv"
+                className="sr-only"
+                data-testid="color-import"
+                onChange={(e) => {
+                  void onCsv(e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {lib && lib !== 'NCS' && lib !== 'RAL' && (
+              <button
+                type="button"
+                className="icon-btn h-6 w-6"
+                aria-label={t('colors.removeLibrary', { name: lib })}
+                title={t('colors.removeLibrary', { name: lib })}
+                onClick={() => {
+                  removeColorLibrary(lib);
+                  setLib('');
+                  setLibsVer((v) => v + 1);
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {importMsg && <p className="text-[11px] text-accent">{importMsg}</p>}
           <div className="flex flex-wrap gap-1">
             {COLOR_FAMILIES.map((f) => (
               <button
@@ -421,12 +489,12 @@ function ColorCardsButton({ onPick }: { onPick: (hex: string) => void }) {
               const nm = i18n.language === 'en' ? c.en : c.zh;
               return (
                 <button
-                  key={c.code}
+                  key={`${c.library}:${c.code}`}
                   type="button"
                   className="h-8 rounded border border-border"
                   style={{ background: c.hex }}
-                  title={`${nm} · NCS ${c.code}`}
-                  aria-label={`${nm} NCS ${c.code}`}
+                  title={`${nm} · ${c.library === 'NCS' ? 'NCS ' : c.library === 'RAL' ? '' : `${c.library} `}${c.code}`}
+                  aria-label={`${nm} ${c.library === 'NCS' ? 'NCS ' : ''}${c.code}`}
                   onClick={() => pick(c.hex)}
                   data-testid={`color-${c.code.replace(/\s/g, '')}`}
                 />

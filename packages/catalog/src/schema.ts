@@ -197,10 +197,25 @@ export const CatalogEntrySchema = z.object({
   light: LightSpecSchema.optional(),
   /** 可選：P6 BOM 使用；〔假設〕價格 */
   unitPriceTwd: z.int().nonnegative().optional(),
+  /** 品牌／供應商（FE-AST-02 篩選）；未設定＝自產（InteriorAI） */
+  brand: z.string().min(1).max(60).optional(),
   license: LicenseSchema.optional(),
   status: z.enum(['draft', 'review', 'published', 'retired']),
 });
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
+
+/** 壁紙花紋（FE-FIN-02） */
+export const WALLPAPER_MOTIFS = [
+  'stripe',
+  'pinstripe',
+  'check',
+  'damask',
+  'geometric',
+  'herringbone',
+  'floral',
+  'dots',
+] as const;
+export type WallpaperMotif = (typeof WALLPAPER_MOTIFS)[number];
 
 export const MaterialSchema = z.object({
   id,
@@ -209,9 +224,18 @@ export const MaterialSchema = z.object({
   category: z.enum(['floor', 'wall', 'ceiling', 'fabric', 'wood', 'metal', 'stone']),
   /** sRGB 十六進位 */
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  pattern: z.enum(['plain', 'wood', 'tile', 'stone', 'image']),
+  pattern: z.enum(['plain', 'wood', 'tile', 'stone', 'image', 'wallpaper']),
   /** pattern=image：底色貼圖（dataURL 或 URL；使用者自訂材質 FE-FIN-06） */
   textureUrl: z.string().optional(),
+  /** 法線貼圖、粗糙度貼圖（灰階；FE-FIN-06）；與底色貼圖同一個重複單元 */
+  normalUrl: z.string().optional(),
+  roughnessUrl: z.string().optional(),
+  /** 壁紙花紋（pattern=wallpaper，FE-FIN-02）：一個重複單元＝realSizeMm；accent＝花紋色 */
+  motif: z.enum(WALLPAPER_MOTIFS).optional(),
+  accent: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .optional(),
   /** 貼圖一個重複單元的真實尺寸（mm），用於 repeat = 面尺寸 / realSize（FR-303） */
   realSizeMm: z.object({ w: z.int().positive(), h: z.int().positive() }),
   roughness: z.number().min(0).max(1),

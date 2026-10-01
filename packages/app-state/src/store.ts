@@ -22,6 +22,9 @@ export type Tool =
   | 'measure'
   | 'dimension'
   | 'text'
+  | 'angle'
+  | 'arrow'
+  | 'tag'
   | 'paint';
 export type ViewMode = '2d' | '3d';
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'error';

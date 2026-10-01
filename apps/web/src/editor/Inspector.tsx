@@ -18,13 +18,14 @@ import {
   updateWall,
   lightingPreset,
   LIGHT_PRESETS,
+  angleDegrees,
 } from '@interiorai/app-state';
 import { objectDims, resolveParams, type CatalogEntry } from '@interiorai/catalog';
 import { detectRooms, wallLength } from '@interiorai/core-geometry';
 import { SunStudy } from './SunStudy';
 import { PlanSettings } from './PlanSettings';
 import { CabinetDesigner } from './CabinetDesigner';
-import { CeilingSection, KitchenSection, UvSection, WallFinishSection } from './finishes';
+import { CeilingSection, FeatureWallSection, KitchenSection, UvSection, WallFinishSection } from './finishes';
 import { LightingAnalysis } from './LightingAnalysis';
 import { useLuxResult } from './luxResult';
 import { formatArea } from '@interiorai/editor-2d';
@@ -656,6 +657,7 @@ function WallPanel({ w, level }: { w: Wall; level: Level }) {
         onChange={(tl) => exec(updateWall(levelId, w.id, { tilingA: tl, tilingB: tl }))}
         defaults={{ pattern: 'straight', tileW: 300, tileH: 600, grout: 2 }}
       />
+      <FeatureWallSection w={w} levelId={levelId} />
       <WallFinishSection w={w} levelId={levelId} />
       <UvSection
         look={w.appearance}
@@ -997,6 +999,12 @@ function ScenePanel({ level }: { level: Level }) {
           }))}
         />
         <ToggleField label={t('gfx.ao')} checked={graphics.ao} onChange={(ao) => setGraphics({ ao })} />
+        <ToggleField
+          label={t('gfx.dynamicRes')}
+          checked={graphics.dynamicRes ?? true}
+          onChange={(dynamicRes) => setGraphics({ dynamicRes })}
+          testId="gfx-dynamic-res"
+        />
         <SliderField
           label={t('gfx.bloom')}
           value={graphics.bloom}
@@ -1417,7 +1425,33 @@ function AnnotationPanel({
   return (
     <div className="space-y-2" data-testid="inspector-annotation">
       <h3 className="font-medium">{t(`annotation.${type}`)}</h3>
-      {type !== 'dimension' ? (
+      {type === 'tag' ? (
+        <>
+          <NumberField
+            label={t('annotation.number')}
+            value={Number(data.number ?? 1)}
+            step={1}
+            onCommit={(v) => upd({ number: Math.max(1, Math.round(v)) })}
+            testId="tag-number"
+          />
+          <label className="grid gap-1 text-xs">
+            <span>{t('annotation.text')}</span>
+            <input
+              className="field font-sans"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onBlur={() => text !== (data.text ?? '') && upd({ text: text || undefined })}
+              data-testid="annotation-text"
+            />
+          </label>
+        </>
+      ) : type === 'angle' ? (
+        <p className="font-mono text-xs text-accent" data-testid="angle-value">
+          {t('annotation.degrees', {
+            deg: angleDegrees(data as unknown as Parameters<typeof angleDegrees>[0]).toFixed(1),
+          })}
+        </p>
+      ) : type === 'arrow' ? null : type !== 'dimension' ? (
         <>
           <label className="grid gap-1 text-xs">
             <span>{t('annotation.text')}</span>

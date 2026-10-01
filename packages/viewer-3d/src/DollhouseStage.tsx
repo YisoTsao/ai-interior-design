@@ -8,6 +8,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
 import type { Environment } from '@interiorai/scene-schema';
 import { GradeShader } from './effects.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -18,6 +19,8 @@ import { vignetteTexture } from './NightScene.js';
 import {
   DEFAULT_GRAPHICS,
   DOLLHOUSE,
+  dofAperture,
+  DOF_MAX_BLUR,
   NIGHT,
   QUALITY_BUDGET,
   SUN_DEFAULT,
@@ -63,7 +66,10 @@ export function DollhouseStage({
   outline,
   outlineColor = '#ffd166',
   capture,
+  dof,
 }: {
+  /** 景深（FE-V3D-10）：focus() 回傳對焦距離 mm；互動中關閉 */
+  dof?: { fStop: number; focus: () => number } | null;
   bbox: THREE.Box3;
   mats: MaterialCache;
   quality: React.RefObject<QualityState>;
@@ -201,6 +207,13 @@ export function DollhouseStage({
           )
         : null;
     if (bloom) composer.addPass(bloom);
+    const bokeh = new BokehPass(scene, camera, {
+      focus: 3000,
+      aperture: dofAperture(4),
+      maxblur: DOF_MAX_BLUR,
+    });
+    bokeh.enabled = false;
+    composer.addPass(bokeh);
     composer.addPass(new OutputPass());
     const grade = new ShaderPass(GradeShader);
     grade.uniforms.vignette!.value = night ? 0.5 : 0.28;
@@ -209,7 +222,7 @@ export function DollhouseStage({
     grade.uniforms.warmth!.value = night ? 0.004 : 0.006;
     grade.enabled = graphics.grade;
     composer.addPass(grade);
-    return { composer, ao, bloom, out, rt };
+    return { composer, ao, bloom, out, rt, bokeh };
   }, [
     gl,
     scene,
@@ -236,6 +249,7 @@ export function DollhouseStage({
       post.ao.dispose();
       post.bloom?.dispose();
       post.out.dispose();
+      post.bokeh.dispose();
       post.composer.dispose();
       post.rt.dispose();
     },
@@ -271,10 +285,28 @@ export function DollhouseStage({
   }, [gl, scene, camera, invalidate]);
 
   // priority 1 → 由此接手渲染；互動中只關 AO（其餘後處理保留，避免旋轉時畫面跳動）
+  // 互動中的解析度倍率（FE-V3D-12）：旋轉／拖曳時降為 0.6×，放開恢復
+  const resScale = useRef(1);
+  const dofRef = useRef(dof);
+  dofRef.current = dof;
   useFrame(() => {
     const q = quality.current;
     gl.shadowMap.needsUpdate = !q?.orbiting;
     const interacting = q?.orbiting || q?.dragging;
+    const want = interacting && (graphics.dynamicRes ?? true) ? 0.6 : 1;
+    if (want !== resScale.current) {
+      resScale.current = want;
+      post.composer.setPixelRatio(Math.max(0.5, dprRef.current * want));
+      post.composer.setSize(sizeRef.current.width, sizeRef.current.height);
+      if (want === 1) invalidate(); // 停止互動後補一張全解析度
+    }
+    const d = dofRef.current;
+    post.bokeh.enabled = !!d && !interacting;
+    if (d && !interacting) {
+      const u = post.bokeh.uniforms as Record<string, THREE.IUniform<number>>;
+      u.focus!.value = d.focus();
+      u.aperture!.value = dofAperture(d.fStop);
+    }
     // 統計一整個畫格（含後處理各 pass）的 draw calls / 三角形
     gl.info.autoReset = false;
     gl.info.reset();

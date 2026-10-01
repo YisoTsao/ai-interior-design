@@ -31,6 +31,7 @@ import {
   Share2,
   Undo2,
   Wand2,
+  PictureInPicture2,
 } from 'lucide-react';
 import { AssistantPanel } from '../editor/AssistantPanel';
 import { FurnishDialog } from '../editor/FurnishDialog';
@@ -58,6 +59,10 @@ import { useLuxResult } from '../editor/luxResult';
 import { ResizeHandle } from '../editor/ResizeHandle';
 import { SectionControl, useSection } from '../editor/SectionControl';
 import { placeSetAt } from '../editor/SetsList';
+import { useTopViews } from '../editor/thumbs';
+import { CameraControl, CropFrame, useCameraFx } from '../editor/CameraControl';
+import { FloatWindow } from '../editor/FloatWindow';
+import { PhotoRestyleDialog } from '../editor/PhotoRestyleDialog';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
 import {
   activeLevel,
@@ -256,9 +261,22 @@ function EditorShell() {
       p('history', 'history.title'),
       p('shortcuts', 'shortcuts.title'),
       p('upload', 'upload.open'),
+      p('photo', 'photoStyle.title'),
       { id: 'tour', label: t('tour.help'), group: g, run: () => setTour(true) },
       { id: 'present', label: t('present.start'), group: g, run: startPresent },
       { id: 'panels', label: t('shortcuts.panels'), group: g, hint: '\\', run: togglePanels },
+      {
+        id: 'floatLeft',
+        label: t('float.toggleLeft'),
+        group: g,
+        run: () => usePrefs.getState().setPanelFloat({ left: !usePrefs.getState().panelFloat.left }),
+      },
+      {
+        id: 'floatRight',
+        label: t('float.toggleRight'),
+        group: g,
+        run: () => usePrefs.getState().setPanelFloat({ right: !usePrefs.getState().panelFloat.right }),
+      },
     ];
   }, [t, togglePanels, startPresent]);
   const prompt = usePrompt();
@@ -304,6 +322,27 @@ function EditorShell() {
   const projectId = useEditor((s) => s.projectId);
   const snapPrefs = usePrefs((s) => s.snap);
   const planStyle = usePrefs((s) => s.planStyle);
+  const plan2d = usePrefs((s) => s.plan2d);
+  const panelFloat = usePrefs((s) => s.panelFloat);
+  const cameraFx = useCameraFx();
+  // 視埠尺寸（構圖框用）
+  const canvasRef = useRef<HTMLElement>(null);
+  const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) =>
+      setCanvasSize({ w: e!.contentRect.width, h: e!.contentRect.height }),
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const placedIds = useEditor((s) =>
+    activeLevel(s)
+      .objects.map((o) => o.catalogId)
+      .join('|'),
+  );
+  const topViews = useTopViews(placedIds ? placedIds.split('|') : [], plan2d.furnitureThumbs);
   const underlay = useUnderlay((s) => s.rec);
   // 照度熱度圖（FE-LGT-03）
   const luxOn = useLuxOverlay((s) => s.on);
@@ -541,7 +580,7 @@ function EditorShell() {
         />
       )}
       <div className="flex min-h-0 flex-1">
-        {showLeft && !presenting && (
+        {showLeft && !presenting && !panelFloat.left && (
           <>
             <LeftPanel />
             <ResizeHandle
@@ -553,6 +592,7 @@ function EditorShell() {
           </>
         )}
         <main
+          ref={canvasRef}
           id="canvas"
           className="relative min-w-0 flex-1 bg-bg"
           onDragOver={onDragOverCanvas}
@@ -605,6 +645,9 @@ function EditorShell() {
                 ghostLevel={ghost}
                 snapSettings={snapPrefs}
                 planStyle={planStyle}
+                autoDims={plan2d.autoDims}
+                furnitureImages={topViews}
+                wallReference={plan2d.wallReference}
                 underlay={underlay}
                 heatmap={heatmap}
                 pins={pins2d}
@@ -634,6 +677,7 @@ function EditorShell() {
                 displayMode={displayMode}
                 levelsMode={levelsMode}
                 section={section}
+                dof={cameraFx.dof ? { fStop: cameraFx.fStop } : null}
                 pins={pins3d}
                 onPinClick={openPin}
                 onPerfLow={() => {
@@ -648,6 +692,7 @@ function EditorShell() {
               />
             )}
           </CanvasBoundary>
+          {view === '3d' && <CropFrame width={canvasSize.w} height={canvasSize.h} />}
           {view === '3d' && !presenting && (
             <ViewportHud
               showCeiling={showCeiling}
@@ -703,8 +748,18 @@ function EditorShell() {
             />
           )}
           {prompt.node}
+          {showLeft && !presenting && panelFloat.left && (
+            <FloatWindow side="left">
+              <LeftPanel />
+            </FloatWindow>
+          )}
+          {showRight && !presenting && panelFloat.right && (
+            <FloatWindow side="right">
+              <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
+            </FloatWindow>
+          )}
         </main>
-        {showRight && !presenting && (
+        {showRight && !presenting && !panelFloat.right && (
           <>
             <ResizeHandle
               side="right"
@@ -729,6 +784,7 @@ function EditorShell() {
       <ProjectInfoDialog open={panel === 'info'} onOpenChange={(v) => setPanel(v ? 'info' : null)} />
       <HistoryPanel open={panel === 'history'} onOpenChange={(v) => setPanel(v ? 'history' : null)} />
       <ShortcutsDialog open={panel === 'shortcuts'} onOpenChange={(v) => setPanel(v ? 'shortcuts' : null)} />
+      <PhotoRestyleDialog open={panel === 'photo'} onOpenChange={(v) => setPanel(v ? 'photo' : null)} />
       <UploadModelDialog
         open={panel === 'upload'}
         initialFiles={uploadFiles}
@@ -761,7 +817,8 @@ type Panel =
   | 'mood'
   | 'versions'
   | 'comments'
-  | 'upload';
+  | 'upload'
+  | 'photo';
 
 function TopBar({
   mode,
@@ -778,6 +835,7 @@ function TopBar({
   panels: { left: boolean; right: boolean; setLeft: (v: boolean) => void; setRight: (v: boolean) => void };
   onPresent: () => void;
 }) {
+  const floatRight = usePrefs((s) => s.panelFloat.right);
   const { t } = useTranslation();
   const store = useEditorStore();
   const name = useEditor((s) => s.projectName);
@@ -855,6 +913,14 @@ function TopBar({
       >
         <PanelRight size={18} aria-hidden />
       </IconButton>
+      <IconButton
+        label={t('float.toggleRight')}
+        pressed={floatRight}
+        onClick={() => usePrefs.getState().setPanelFloat({ right: !floatRight })}
+        testId="float-toggle-right"
+      >
+        <PictureInPicture2 size={18} aria-hidden />
+      </IconButton>
       <div className="mx-2 h-6 w-px bg-border" />
       <div role="radiogroup" aria-label={t('top.view2d')} className="hud-seg" data-tour="view">
         <IconButton
@@ -899,6 +965,9 @@ function TopBar({
         </IconButton>
         <IconButton label={t('mood.title')} onClick={() => setPanel('mood')} testId="open-mood">
           <Palette size={18} aria-hidden />
+        </IconButton>
+        <IconButton label={t('photoStyle.title')} onClick={() => setPanel('photo')} testId="open-photo-style">
+          <Images size={18} aria-hidden />
         </IconButton>
       </div>
       <div className="ml-auto flex items-center gap-2">
@@ -1137,6 +1206,7 @@ function ViewportHud({
         </select>
       )}
       <SectionControl />
+      <CameraControl />
       <select
         className="field w-20 font-sans"
         aria-label={t('top.lens')}

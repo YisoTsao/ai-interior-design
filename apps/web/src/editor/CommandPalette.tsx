@@ -28,6 +28,9 @@ const TOOL_KEYS: [Tool, string, string?][] = [
   ['measure', 'tools.measure', 'M'],
   ['dimension', 'tools.dimension', 'K'],
   ['text', 'tools.text', 'T'],
+  ['angle', 'tools.angle'],
+  ['arrow', 'tools.arrow'],
+  ['tag', 'tools.tag'],
   ['pan', 'tools.pan'],
 ];
 

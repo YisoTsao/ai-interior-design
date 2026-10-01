@@ -3,6 +3,8 @@
  * 色號為 NCS 系統的近似對照，實際施工以廠商色卡為準。
  */
 export interface ColorCard {
+  /** 色卡系統：NCS（內建近似）、RAL（內建近似）或使用者匯入的品牌名稱 */
+  library?: string;
   code: string;
   zh: string;
   en: string;
@@ -72,6 +74,132 @@ export const COLOR_CARDS: ColorCard[] = [
   c('S 2060-G', '翠綠', 'Emerald', '#1f9a6a', 'accent'),
   c('S 2050-R40B', '紫羅蘭', 'Violet', '#8a5aa8', 'accent'),
 ];
+/**
+ * RAL Classic 常用色（sRGB 為公開對照表的近似值；RAL 本身以實體色卡為準）。
+ * 這裡的 code 是標準色號（非商標色名），用於溝通與施工圖標示。
+ */
+const ral = (code: string, zh: string, en: string, hex: string, family: ColorCard['family']): ColorCard => ({
+  library: 'RAL',
+  code: `RAL ${code}`,
+  zh,
+  en,
+  hex,
+  family,
+});
+export const RAL_CARDS: ColorCard[] = [
+  ral('9010', '純白', 'Pure white', '#f1ece1', 'white'),
+  ral('9016', '交通白', 'Traffic white', '#f1f0ea', 'white'),
+  ral('9003', '信號白', 'Signal white', '#ecece7', 'white'),
+  ral('9001', '奶油色', 'Cream', '#e9e0d2', 'white'),
+  ral('9002', '灰白', 'Grey white', '#d7d5cb', 'neutral'),
+  ral('1013', '牡蠣白', 'Oyster white', '#e3d9c6', 'neutral'),
+  ral('1015', '淺象牙', 'Light ivory', '#e6d2b5', 'neutral'),
+  ral('1001', '米色', 'Beige', '#d0b084', 'neutral'),
+  ral('1000', '綠米色', 'Green beige', '#cdba88', 'neutral'),
+  ral('1019', '灰米色', 'Grey beige', '#a48f7a', 'earth'),
+  ral('7044', '絲灰', 'Silk grey', '#b7b3a8', 'grey'),
+  ral('7035', '淺灰', 'Light grey', '#cbd0cc', 'grey'),
+  ral('7047', '電信灰 4', 'Telegrey 4', '#d0d0d0', 'grey'),
+  ral('7001', '銀灰', 'Silver grey', '#8f999f', 'grey'),
+  ral('7024', '石墨灰', 'Graphite grey', '#45494e', 'dark'),
+  ral('7016', '炭灰', 'Anthracite grey', '#383e42', 'dark'),
+  ral('9005', '墨黑', 'Jet black', '#0a0a0d', 'dark'),
+  ral('6019', '粉綠', 'Pastel green', '#b9ceac', 'green'),
+  ral('6021', '淡綠', 'Pale green', '#8a9977', 'green'),
+  ral('6011', '木犀草綠', 'Reseda green', '#587f40', 'green'),
+  ral('6005', '苔綠', 'Moss green', '#0f4336', 'green'),
+  ral('5024', '粉藍', 'Pastel blue', '#6093ac', 'blue'),
+  ral('5014', '鴿藍', 'Pigeon blue', '#637d96', 'blue'),
+  ral('5010', '龍膽藍', 'Gentian blue', '#13447c', 'blue'),
+  ral('5002', '群青藍', 'Ultramarine blue', '#20214f', 'blue'),
+  ral('8025', '淡褐', 'Pale brown', '#75584b', 'earth'),
+  ral('8011', '堅果褐', 'Nut brown', '#5a3826', 'earth'),
+  ral('8017', '巧克力褐', 'Chocolate brown', '#45302b', 'earth'),
+  ral('3009', '氧化紅', 'Oxide red', '#6d342d', 'earth'),
+  ral('3000', '火焰紅', 'Flame red', '#a72920', 'accent'),
+];
+
+// ── 品牌色號庫（使用者匯入；FE-FIN-05）──────────────────────────────
+const LIB_KEY = 'colorLibraries';
+/** 匯入的品牌色卡：品牌 → 色卡清單（本機保存） */
+export function brandLibraries(): Record<string, ColorCard[]> {
+  try {
+    return JSON.parse(localStorage.getItem(LIB_KEY) ?? '{}') as Record<string, ColorCard[]>;
+  } catch {
+    return {};
+  }
+}
+function saveLibraries(x: Record<string, ColorCard[]>) {
+  try {
+    localStorage.setItem(LIB_KEY, JSON.stringify(x));
+  } catch {
+    /* 私密模式 */
+  }
+}
+/** 由色碼粗分色系（匯入的色卡沒有色系欄位時） */
+export function familyOf(hex: string): ColorCard['family'] {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 510;
+  if (l > 0.86) return 'white';
+  if (l < 0.25) return 'dark';
+  if (max - min < 18) return 'grey';
+  if (max - min > 120) return 'accent';
+  if (g >= r && g >= b) return 'green';
+  if (b >= r && b >= g) return 'blue';
+  return l > 0.65 ? 'neutral' : 'earth';
+}
+/**
+ * 解析色卡 CSV：每列「品牌,色號,名稱,#RRGGBB」（第一列若是標題會略過；名稱可含中文）。
+ * 回傳成功的筆數與錯誤列號；hex 也接受不含 # 的 6 碼。
+ */
+export function parseColorCsv(text: string): { cards: ColorCard[]; errors: number[] } {
+  const cards: ColorCard[] = [];
+  const errors: number[] = [];
+  text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .forEach((line, i) => {
+      if (!line) return;
+      const cols = line.split(/,|\t/).map((x) => x.trim().replace(/^"|"$/g, ''));
+      const hex = (cols[3] ?? '').replace(/^#?/, '#').toLowerCase();
+      if (cols.length < 4 || !/^#[0-9a-f]{6}$/.test(hex)) {
+        if (i > 0) errors.push(i + 1);
+        return;
+      }
+      const [brand, code, name] = cols as [string, string, string];
+      cards.push({ library: brand, code, zh: name, en: name, hex, family: familyOf(hex) });
+    });
+  return { cards, errors };
+}
+/** 合併匯入（同品牌同色號覆蓋） */
+export function importColorCards(cards: readonly ColorCard[]) {
+  const libs = brandLibraries();
+  for (const c of cards) {
+    const lib = c.library ?? 'custom';
+    const list = (libs[lib] ?? []).filter((x) => x.code !== c.code);
+    libs[lib] = [...list, c];
+  }
+  saveLibraries(libs);
+}
+export function removeColorLibrary(brand: string) {
+  const libs = brandLibraries();
+  delete libs[brand];
+  saveLibraries(libs);
+}
+/** 全部色卡（NCS＋RAL＋匯入品牌） */
+export function allColorCards(): ColorCard[] {
+  return [
+    ...COLOR_CARDS.map((c) => ({ ...c, library: 'NCS' })),
+    ...RAL_CARDS,
+    ...Object.values(brandLibraries()).flat(),
+  ];
+}
+
 export const COLOR_FAMILIES = [
   'white',
   'neutral',
@@ -99,10 +227,11 @@ export function pushRecentColor(hex: string) {
     /* 私密模式 */
   }
 }
-export function searchColors(q: string): ColorCard[] {
+export function searchColors(q: string, library?: string | null): ColorCard[] {
   const k = q.trim().toLowerCase();
-  if (!k) return COLOR_CARDS;
-  return COLOR_CARDS.filter(
+  const pool = allColorCards().filter((c) => !library || c.library === library);
+  if (!k) return pool;
+  return pool.filter(
     (x) =>
       x.code.toLowerCase().includes(k) ||
       x.zh.includes(q.trim()) ||

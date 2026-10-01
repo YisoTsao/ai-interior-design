@@ -12,6 +12,7 @@ import { addToGallery, dataUrlToBlob, download } from '../media';
 import { exportProjectFile, PROJECT_EXT } from '../projectFile';
 import { useEditor, useEditorStore } from './context';
 import { HudDialog } from './HudDialog';
+import { cropSize, useCameraFx } from './CameraControl';
 
 const RES = { hd: [1920, 1080], '2k': [2560, 1440], '4k': [3840, 2160] } as const;
 type Res = keyof typeof RES;
@@ -69,7 +70,9 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         blob: await dataUrlToBlob(url),
       });
   };
-  const [w, h] = RES[res];
+  // 構圖比例（FE-V3D-10）：長邊沿用解析度，短邊依比例
+  const crop = useCameraFx((st) => st.crop);
+  const [w, h] = cropSize(crop, RES[res][0], [RES[res][0], RES[res][1]]);
   const btn = (
     key: string,
     icon: React.ReactNode,
@@ -164,6 +167,9 @@ export function ExportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
                 </button>
               ))}
             </div>
+            <span className="font-mono text-[11px] text-accent" data-testid="export-size">
+              {t('exports.outputSize', { w, h, crop: crop === 'free' ? t('camera.cropFree') : crop })}
+            </span>
             <label className="flex items-center gap-1 text-xs">
               <input
                 type="checkbox"

@@ -24,6 +24,8 @@ export const MIGRATIONS: Migration[] = [
   { from: '1.1.0', to: '1.2.0', up: (s) => ({ ...s, schemaVersion: '1.2.0' }) },
   // 1.3.0：貼圖參數、護牆板／線板、天花造型（皆選填）→ 只升版號
   { from: '1.2.0', to: '1.3.0', up: (s) => ({ ...s, schemaVersion: '1.3.0' }) },
+  // 1.4.0：標註 angle／arrow／tag、弧形牆 arcGroup、燈光群組與情境（皆選填）→ 只升版號
+  { from: '1.3.0', to: '1.4.0', up: (s) => ({ ...s, schemaVersion: '1.4.0' }) },
 ];
 
 const parse = (v: string) => v.split('.').map((n) => Number(n)) as [number, number, number];

@@ -1,10 +1,15 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
+import { Arrow, Circle, Group, Image as KImage, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import type Konva from 'konva';
 import { useStore } from 'zustand';
 import {
   activeLevel,
   addAnnotation,
+  arcChain,
+  arcMidpoint,
+  reshapeArc,
+  angleDegrees,
+  nextTagNumber,
   addObject,
   addOpening,
   addRectRoom,
@@ -39,8 +44,10 @@ import {
   wallQuad,
   type SnapResult,
   type Vec2,
+  exteriorDimensionChains,
+  offsetPolyline,
 } from '@interiorai/core-geometry';
-import type { Level, Opening, OpeningStyle } from '@interiorai/scene-schema';
+import { newId, type Level, type Opening, type OpeningStyle } from '@interiorai/scene-schema';
 import { plan2dApi } from './api.js';
 import { collisionInputs, flat, footprintOf, openingEnds } from './model.js';
 import {
@@ -96,6 +103,12 @@ export interface Plan2DProps {
   heatmap?: { step: number; cells: { x: number; z: number; color: string }[] } | null;
   /** 留言釘選（FE-SHR-03） */
   pins?: CommentPin[];
+  /** 自動外部尺寸（FE-PLAN-10）：分段＋總尺寸 */
+  autoDims?: boolean;
+  /** 家具俯視縮圖（FE-PLAN-12）：catalogId → 圖（沒有＝畫符號） */
+  furnitureImages?: ReadonlyMap<string, string>;
+  /** 畫牆的定位線（FE-PLAN-15）：點擊的線是牆中心、左側面或右側面（沿繪製方向） */
+  wallReference?: 'center' | 'left' | 'right';
   onPinClick?: (id: string) => void;
 }
 export interface CommentPin {
@@ -176,6 +189,7 @@ type Drag =
   | { kind: 'box'; start: Vec2; end: Vec2 }
   | { kind: 'rect'; start: Vec2; end: Vec2 }
   | { kind: 'annotation'; id: string; start: Vec2; delta: Vec2 }
+  | { kind: 'arc'; group: string; through: Vec2 | null }
   | { kind: 'pan'; start: Vec2; view: ViewTransform };
 
 /** 物件拖曳的對齊參考線（世界座標；FE-PLAN-06 智慧參考線） */
@@ -198,6 +212,9 @@ export function Plan2D({
   heatmap,
   pins,
   onPinClick,
+  autoDims,
+  furnitureImages,
+  wallReference = 'center',
   theme: baseTheme,
 }: Omit<Plan2DProps, 'theme'> & { theme: Plan2DTheme }) {
   const theme = useMemo(
@@ -328,11 +345,20 @@ export function Plan2D({
 
   const finishDraft = useCallback(
     (closed = false) => {
-      if (draft.length >= 2) exec(addWalls(levelId, draft, { closed }));
+      if (draft.length >= 2) {
+        // 定位線（FE-PLAN-15）：點的是牆面 → 中心線往牆身方向平移半個牆厚。
+        // 平面 y 軸向下，offsetPolyline 的正方向（[-dz, dx]）在畫面上是繪製方向的右側。
+        const half = DEFAULTS.wallThickness / 2;
+        const pts =
+          wallReference === 'center'
+            ? draft
+            : offsetPolyline(draft, wallReference === 'left' ? half : -half, closed);
+        exec(addWalls(levelId, pts, { closed }));
+      }
       setDraft([]);
       setLenBuf('');
     },
-    [draft, exec, levelId],
+    [draft, exec, levelId, wallReference],
   );
 
   // 畫牆鍵盤：數字輸入長度、Enter 完成、Esc 取消、Backspace 退一步
@@ -351,7 +377,7 @@ export function Plan2D({
         setArcDraft([]);
         return;
       }
-      if (tool === 'dimension' && e.key === 'Escape') {
+      if ((tool === 'dimension' || tool === 'angle' || tool === 'arrow') && e.key === 'Escape') {
         setDimDraft([]);
         return;
       }
@@ -492,6 +518,42 @@ export function Plan2D({
       }
       return;
     }
+    // 角度（FE-PLAN-10）：頂點 → 第一邊 → 第二邊
+    if (tool === 'angle') {
+      const q = doSnap(p);
+      if (dimDraft.length < 2) setDimDraft([...dimDraft, q]);
+      else {
+        const [center, a] = dimDraft as [Vec2, Vec2];
+        exec(addAnnotation(levelId, { type: 'angle', data: { center, a, b: q } }));
+        setDimDraft([]);
+      }
+      return;
+    }
+    // 箭頭：起點 → 箭頭端
+    if (tool === 'arrow') {
+      const q = doSnap(p);
+      if (!dimDraft.length) setDimDraft([q]);
+      else {
+        exec(addAnnotation(levelId, { type: 'arrow', data: { a: dimDraft[0]!, b: q } }));
+        setDimDraft([]);
+      }
+      return;
+    }
+    // 編號標記：自動編號，說明文字可留空（之後在屬性面板或標記清單補）
+    if (tool === 'tag') {
+      const q = doSnap(p);
+      const number = nextTagNumber(level);
+      void (requestText?.('') ?? Promise.resolve(window.prompt(t('tools.tagPrompt')) ?? '')).then((text) => {
+        if (text === null) return;
+        exec(
+          addAnnotation(levelId, {
+            type: 'tag',
+            data: { position: q, number, ...(text.trim() ? { text: text.trim() } : {}) },
+          }),
+        );
+      });
+      return;
+    }
     if (tool === 'text') {
       const q = doSnap(p);
       void (requestText?.('') ?? Promise.resolve(window.prompt(t('tools.textPrompt')) ?? null)).then(
@@ -512,7 +574,7 @@ export function Plan2D({
           setArcDraft([...arcDraft, q]);
       } else {
         const pts = arcPoints(arcDraft[0]!, arcDraft[1]!, q);
-        exec(addWalls(levelId, pts));
+        exec(addWalls(levelId, pts, { arcGroup: newId('arc') }));
         setArcDraft([]);
       }
       return;
@@ -582,6 +644,10 @@ export function Plan2D({
       setDrag({ kind: 'vertex', wallId, end, preview: null });
       return;
     }
+    if (name === 'arcHandle') {
+      setDrag({ kind: 'arc', group: id.slice('arc:'.length), through: null });
+      return;
+    }
     if (name === 'object' || name === 'wall' || name === 'opening') {
       const additive = e.evt.shiftKey;
       if (!s.selection.includes(id) || additive) s.select([id], additive);
@@ -612,7 +678,14 @@ export function Plan2D({
     lastPointer.current = p;
     if (!drag) {
       if (drafting) setHover(doSnap(p, { angleFrom: draft[draft.length - 1] }));
-      else if (tool === 'place' || tool === 'rect' || tool === 'measure' || tool === 'dimension')
+      else if (
+        tool === 'place' ||
+        tool === 'rect' ||
+        tool === 'measure' ||
+        tool === 'dimension' ||
+        tool === 'angle' ||
+        tool === 'arrow'
+      )
         setHover(doSnap(p));
       else setHover(p);
       return;
@@ -627,6 +700,9 @@ export function Plan2D({
         });
         break;
       }
+      case 'arc':
+        setDrag({ ...drag, through: doSnap(p) });
+        break;
       case 'vertex': {
         const q = doSnap(p, {
           excludeWallIds: level.walls
@@ -759,6 +835,9 @@ export function Plan2D({
     if (!drag) return;
     const s = store.getState();
     switch (drag.kind) {
+      case 'arc':
+        if (drag.through) exec(reshapeArc(levelId, drag.group, drag.through));
+        break;
       case 'vertex':
         if (drag.preview) {
           const w = drag.preview.level.walls.find((x) => x.id === drag.wallId)!;
@@ -1017,6 +1096,7 @@ export function Plan2D({
               t={t}
               areaUnit={areaUnit}
               roomFill={planStyle === 'color' ? (k) => ROOM_KIND_FILL[k ?? 'other'] : undefined}
+              furnitureImages={furnitureImages}
             />
             {heatmap && (
               <Shape
@@ -1153,6 +1233,44 @@ export function Plan2D({
                     ))
                   : [];
               })}
+            {tool === 'select' &&
+              [...new Set(selection.map((id) => dimLevel.walls.find((x) => x.id === id)?.arcGroup))]
+                .filter((g): g is string => !!g)
+                .map((g) => {
+                  const chain = arcChain(dimLevel, g);
+                  const m = arcMidpoint(dimLevel, g);
+                  if (!chain || !m) return null;
+                  const through = drag?.kind === 'arc' && drag.group === g ? drag.through : null;
+                  return (
+                    <Group key={`arc:${g}`}>
+                      {through && (
+                        <Line
+                          listening={false}
+                          points={flat(arcPoints(chain.A, chain.B, through))}
+                          stroke={theme.primary}
+                          strokeWidth={DEFAULTS.wallThickness}
+                          opacity={0.35}
+                        />
+                      )}
+                      <Rect
+                        id={`arc:${g}`}
+                        name="arcHandle"
+                        x={(through ?? m)[0]}
+                        y={(through ?? m)[1]}
+                        width={12 * px}
+                        height={12 * px}
+                        offsetX={6 * px}
+                        offsetY={6 * px}
+                        rotation={45}
+                        fill={theme.primary}
+                        stroke={theme.bg}
+                        strokeWidth={1.5}
+                        strokeScaleEnabled={false}
+                        hitStrokeWidth={14}
+                      />
+                    </Group>
+                  );
+                })}
             {tool === 'arc' && arcDraft.length > 0 && hover && (
               <Line
                 points={flat(
@@ -1326,6 +1444,26 @@ export function Plan2D({
                 selected
               />
             )}
+            {(tool === 'angle' || tool === 'arrow') && dimDraft.length > 0 && hover && (
+              <AnnotationShape
+                a={
+                  tool === 'arrow'
+                    ? { id: 'preview', type: 'arrow', data: { a: dimDraft[0], b: hover } }
+                    : dimDraft.length === 1
+                      ? { id: 'preview', type: 'arrow', data: { a: dimDraft[0], b: hover } }
+                      : {
+                          id: 'preview',
+                          type: 'angle',
+                          data: { center: dimDraft[0], a: dimDraft[1], b: hover },
+                        }
+                }
+                px={px}
+                unit={lengthUnit}
+                theme={theme}
+                selected
+              />
+            )}
+            {autoDims && <AutoDimensions level={level} px={px} unit={lengthUnit} theme={theme} />}
             {snapInfo && snapInfo.kind !== 'none' && (tool !== 'select' || drag) && (
               <Circle
                 x={snapInfo.point[0]}
@@ -1405,6 +1543,12 @@ export function Plan2D({
         {tool === 'arc' && ` · ${t('hint.arcTool')}`}
         {tool === 'measure' && ` · ${t('hint.measureTool')}`}
         {tool === 'dimension' && ` · ${t('hint.dimensionTool')}`}
+        {tool === 'angle' && ` · ${t('hint.angleTool')}`}
+        {tool === 'arrow' && ` · ${t('hint.arrowTool')}`}
+        {tool === 'tag' && ` · ${t('hint.tagTool')}`}
+        {tool === 'select' &&
+          selection.some((id) => level.walls.find((w) => w.id === id)?.arcGroup) &&
+          ` · ${t('hint.arcHandle')}`}
       </div>
     </div>
   );
@@ -1496,6 +1640,7 @@ interface StaticProps {
   t: Plan2DProps['t'];
   areaUnit: AreaUnit;
   roomFill?: ((kind: string | undefined) => string | undefined) | undefined;
+  furnitureImages?: ReadonlyMap<string, string> | undefined;
 }
 
 /** 靜態圖層：拖曳期間 props 不變 → 不重畫（ADR-010） */
@@ -1512,6 +1657,7 @@ const StaticPlan = memo(function StaticPlan({
   t,
   areaUnit,
   roomFill,
+  furnitureImages,
 }: StaticProps) {
   const outline = useMemo(
     () => wallOutline({ walls: level.walls.filter((w) => !hidden.has(w.id)) }),
@@ -1619,6 +1765,9 @@ const StaticPlan = memo(function StaticPlan({
                   perfectDrawEnabled={false}
                 />
                 {ptype === 'stairs' && <StairSymbol o={o} catalog={catalog} theme={theme} />}
+                {e && furnitureImages?.get(o.catalogId) && ptype !== 'stairs' && ptype !== 'mep' && (
+                  <TopImage o={o} src={furnitureImages.get(o.catalogId)!} catalog={catalog} />
+                )}
                 {ptype === 'mep' && (
                   <MepSymbol
                     id={o.id}
@@ -1634,7 +1783,7 @@ const StaticPlan = memo(function StaticPlan({
                     theme={theme}
                   />
                 )}
-                {e && ptype !== 'mep' && (
+                {e && ptype !== 'mep' && !furnitureImages?.get(o.catalogId) && (
                   <Text
                     x={c[0]}
                     y={c[1] - 6 * px}
@@ -1761,6 +1910,68 @@ function Dimensions({
   );
 }
 
+/** 自動外部尺寸（FE-PLAN-10）：分段＋總尺寸，跟著牆即時更新（不入 Scene） */
+function AutoDimensions({
+  level,
+  px,
+  unit,
+  theme,
+}: {
+  level: Level;
+  px: number;
+  unit: LengthUnit;
+  theme: Plan2DTheme;
+}) {
+  const chains = useMemo(() => exteriorDimensionChains(level), [level]);
+  const tick = 6 * px;
+  return (
+    <Group listening={false} name="auto-dimensions">
+      {chains.map((c, ci) => {
+        const horiz = c.side === 'top' || c.side === 'bottom';
+        const out = c.side === 'top' || c.side === 'left' ? -1 : 1;
+        return (
+          <Group key={ci}>
+            <Line points={flat([c.a, c.b])} stroke={theme.muted} strokeWidth={1} strokeScaleEnabled={false} />
+            {c.ticks.map((p, i) => (
+              <Line
+                key={i}
+                points={[p[0] - tick, p[1] + tick, p[0] + tick, p[1] - tick]}
+                stroke={theme.muted}
+                strokeWidth={1.5}
+                strokeScaleEnabled={false}
+              />
+            ))}
+            {c.ticks.slice(1).map((p, i) => {
+              const q = c.ticks[i]!;
+              const L = Math.abs(horiz ? p[0] - q[0] : p[1] - q[1]);
+              if (L / px < 28) return null;
+              const mx = (p[0] + q[0]) / 2;
+              const my = (p[1] + q[1]) / 2;
+              return (
+                <Text
+                  key={i}
+                  x={horiz ? mx : mx + out * 12 * px}
+                  y={horiz ? my + out * 12 * px : my}
+                  rotation={horiz ? 0 : -90}
+                  offsetX={40 * px}
+                  offsetY={6 * px}
+                  width={80 * px}
+                  align="center"
+                  text={formatLength(L, unit)}
+                  fontSize={(c.kind === 'total' ? 11 : 10) * px}
+                  fontStyle={c.kind === 'total' ? 'bold' : 'normal'}
+                  fontFamily="JetBrains Mono, ui-monospace, monospace"
+                  fill={theme.muted}
+                />
+              );
+            })}
+          </Group>
+        );
+      })}
+    </Group>
+  );
+}
+
 function centroid(poly: readonly Vec2[]): Vec2 {
   if (poly.length === 0) return [0, 0];
   const a = signedArea(poly);
@@ -1785,13 +1996,13 @@ const v2 = (x: unknown): Vec2 | null =>
 
 /** 標註的所有參考點（框選用） */
 export function annotationPoints(d: AnnData): Vec2[] {
-  return [v2(d.a), v2(d.b), v2(d.position), v2(d.target)].filter((p): p is Vec2 => !!p);
+  return [v2(d.a), v2(d.b), v2(d.position), v2(d.target), v2(d.center)].filter((p): p is Vec2 => !!p);
 }
 
 /** 平移標註（所有座標欄位一起動） */
 export function moveAnnotation(d: AnnData, delta: Vec2): AnnData {
   const out: AnnData = { ...d };
-  for (const k of ['a', 'b', 'position', 'target']) {
+  for (const k of ['a', 'b', 'position', 'target', 'center']) {
     const p = v2(d[k]);
     if (p) out[k] = [p[0] + delta[0], p[1] + delta[1]];
   }
@@ -1871,6 +2082,120 @@ function AnnotationShape({
           fontSize={12 * px}
           fontFamily="JetBrains Mono, ui-monospace, monospace"
           fill={color}
+        />
+      </Group>
+    );
+  }
+  if (a.type === 'arrow') {
+    const A = v2(d.a);
+    const B = v2(d.b);
+    if (!A || !B) return null;
+    return (
+      <Arrow
+        id={a.id}
+        name={a.id === 'preview' ? undefined : 'annotation'}
+        points={flat([A, B])}
+        stroke={color}
+        fill={color}
+        strokeWidth={1.5}
+        strokeScaleEnabled={false}
+        pointerLength={12 * px}
+        pointerWidth={9 * px}
+        hitStrokeWidth={10}
+      />
+    );
+  }
+  if (a.type === 'angle') {
+    const C = v2(d.center);
+    const A = v2(d.a);
+    const B = v2(d.b);
+    if (!C || !A || !B) return null;
+    const a0 = Math.atan2(A[1] - C[1], A[0] - C[0]);
+    const a1 = Math.atan2(B[1] - C[1], B[0] - C[0]);
+    let sweep = a1 - a0;
+    while (sweep > Math.PI) sweep -= 2 * Math.PI;
+    while (sweep < -Math.PI) sweep += 2 * Math.PI;
+    const r =
+      Math.min(Math.hypot(A[0] - C[0], A[1] - C[1]), Math.hypot(B[0] - C[0], B[1] - C[1]), 60 * px * 10) *
+      0.45;
+    const arc: Vec2[] = [];
+    for (let i = 0; i <= 24; i++) {
+      const t = a0 + (sweep * i) / 24;
+      arc.push([C[0] + Math.cos(t) * r, C[1] + Math.sin(t) * r]);
+    }
+    const mid = a0 + sweep / 2;
+    const deg = angleDegrees({ center: C, a: A, b: B });
+    return (
+      <Group>
+        <Line
+          id={a.id}
+          name={a.id === 'preview' ? undefined : 'annotation'}
+          points={flat([A, C, B])}
+          stroke={color}
+          strokeWidth={1}
+          strokeScaleEnabled={false}
+          hitStrokeWidth={10}
+        />
+        <Line
+          listening={false}
+          points={flat(arc)}
+          stroke={color}
+          strokeWidth={1.5}
+          strokeScaleEnabled={false}
+        />
+        <Text
+          listening={false}
+          x={C[0] + Math.cos(mid) * (r + 16 * px)}
+          y={C[1] + Math.sin(mid) * (r + 16 * px)}
+          offsetX={30 * px}
+          offsetY={6 * px}
+          width={60 * px}
+          align="center"
+          text={`${deg.toFixed(deg < 10 ? 1 : 0)}°`}
+          fontSize={12 * px}
+          fontFamily="JetBrains Mono, ui-monospace, monospace"
+          fill={color}
+        />
+      </Group>
+    );
+  }
+  if (a.type === 'tag') {
+    const P = v2(d.position);
+    if (!P) return null;
+    const T = v2(d.target);
+    const R = 11 * px;
+    return (
+      <Group>
+        {T && (
+          <Line
+            listening={false}
+            points={flat([P, T])}
+            stroke={color}
+            strokeWidth={1}
+            strokeScaleEnabled={false}
+          />
+        )}
+        <Circle
+          id={a.id}
+          name={a.id === 'preview' ? undefined : 'annotation'}
+          x={P[0]}
+          y={P[1]}
+          radius={R}
+          fill={selected ? theme.primary : theme.bg}
+          stroke={color}
+          strokeWidth={1.5}
+          strokeScaleEnabled={false}
+        />
+        <Text
+          listening={false}
+          x={P[0] - R}
+          y={P[1] - 6 * px}
+          width={R * 2}
+          align="center"
+          text={String(d.number ?? '?')}
+          fontSize={12 * px}
+          fontStyle="bold"
+          fill={selected ? theme.bg : color}
         />
       </Group>
     );
@@ -2173,6 +2498,29 @@ function WindowSymbol({
 }
 
 /** 載入圖片（底圖用）；src 變更時重新載入 */
+/** 家具俯視縮圖（FE-PLAN-12）：貼在佔地矩形上，跟物件一起旋轉／鏡像 */
+function TopImage({ o, src, catalog }: { o: Level['objects'][number]; src: string; catalog: Catalog }) {
+  const img = useImage(src);
+  const e = catalog.get(o.catalogId);
+  if (!img || !e) return null;
+  const { w, d } = objectDims(e, o.params, o.scale);
+  return (
+    <KImage
+      image={img}
+      listening={false}
+      x={o.position[0]}
+      y={o.position[2]}
+      width={w}
+      height={d}
+      offsetX={w / 2}
+      offsetY={d / 2}
+      rotation={(-o.rotationY * 180) / Math.PI}
+      scaleX={o.mirrored ? -1 : 1}
+      opacity={o.appearance?.hidden ? 0.35 : 1}
+    />
+  );
+}
+
 function useImage(src: string | null): HTMLImageElement | null {
   const [img, setImg] = useState<HTMLImageElement | null>(null);
   useEffect(() => {

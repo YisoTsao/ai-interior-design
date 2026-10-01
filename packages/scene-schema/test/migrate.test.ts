@@ -2,7 +2,10 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { CURRENT_SCHEMA_VERSION, migrate, SchemaUnsupportedError, validateScene } from '../src/index.js';
-import { sampleScene } from './helpers.js';
+import Ajv2020 from 'ajv/dist/2020.js';
+import { jsonSchema, sampleScene } from './helpers.js';
+
+const validateJson = new Ajv2020({ strict: false, allErrors: true }).compile(jsonSchema());
 
 const golden = (name: string) => fileURLToPath(new URL(`./golden/${name}`, import.meta.url));
 
@@ -39,6 +42,24 @@ describe('migrate', () => {
     expect(validateScene(s).ok).toBe(true);
     s.levels[0]!.rooms[0]!.ceiling = { type: 'tray', dropMm: 5, borderMm: 600 };
     expect(validateScene(s).ok).toBe(false);
+  });
+  it('1.4.0 標註 angle／arrow／tag、弧牆 arcGroup、燈光群組與情境通過驗證，超出範圍被拒', () => {
+    const s = structuredClone({ ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION });
+    const lv = s.levels[0]!;
+    lv.annotations = [
+      { id: 'ann_1', type: 'angle', data: { center: [0, 0], a: [1000, 0], b: [0, 1000] } },
+      { id: 'ann_2', type: 'arrow', data: { a: [0, 0], b: [500, 500] } },
+      { id: 'ann_3', type: 'tag', data: { position: [100, 100], number: 1, text: '電視櫃' } },
+    ];
+    lv.walls[0]!.arcGroup = 'arc_1';
+    lv.objects[0]!.light = { group: '客廳主燈' };
+    s.lightScenes = [{ id: 'ls_1', name: '晚餐', states: { [lv.objects[0]!.id]: { on: true, level: 0.4 } } }];
+    expect(validateScene(s).ok).toBe(true);
+    const j = validateJson(s);
+    expect(j).toBe(true);
+    s.lightScenes = [{ id: 'ls_1', name: '晚餐', states: { [lv.objects[0]!.id]: { on: true, level: 2 } } }];
+    expect(validateScene(s).ok).toBe(false);
+    expect(validateJson(s)).toBe(false);
   });
   it('1.1.0 外觀／光源／環境欄位通過驗證，超出範圍被拒', () => {
     const s = structuredClone({ ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION });

@@ -8,3 +8,4 @@ export * from './bom.js';
 export * from './collision.js';
 export * from './place.js';
 export * from './sun.js';
+export * from './dimensions.js';

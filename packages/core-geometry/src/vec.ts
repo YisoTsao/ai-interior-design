@@ -62,3 +62,31 @@ export function pointInPolygon(p: Vec2, poly: readonly Vec2[]): boolean {
   }
   return inside;
 }
+
+/**
+ * 折線平移（FE-PLAN-15 牆的定位線）：每段沿左法線 [-dy, dx] 平移 d（負值＝右側），轉角以斜接相交；
+ * closed＝封閉多邊形（首尾也斜接）。平行相鄰段（無交點）直接沿用平移後的端點。
+ */
+export function offsetPolyline(pts: readonly Vec2[], d: number, closed = false): Vec2[] {
+  const n = pts.length;
+  if (n < 2 || d === 0) return pts.map((p) => [p[0], p[1]] as Vec2);
+  const segs: { p: Vec2; u: Vec2 }[] = [];
+  const m = closed ? n : n - 1;
+  for (let i = 0; i < m; i++) {
+    const a = pts[i]!;
+    const b = pts[(i + 1) % n]!;
+    const u = norm(sub(b, a));
+    segs.push({ p: add(a, scale(perp(u), d)), u });
+  }
+  const out: Vec2[] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = closed ? segs[(i - 1 + m) % m] : segs[i - 1];
+    const next = closed ? segs[i % m] : segs[i];
+    if (prev && next) {
+      const x = lineIntersect(prev.p, prev.u, next.p, next.u);
+      out.push(x ?? add(pts[i]!, scale(perp(next.u), d)));
+    } else if (next) out.push(next.p);
+    else out.push(add(pts[i]!, scale(perp(prev!.u), d)));
+  }
+  return out.map(roundVec);
+}

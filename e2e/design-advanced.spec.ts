@@ -44,7 +44,9 @@ test('訂製櫃設計器：分欄、格位、把手 → 參數', async ({ page }
   expect(o.params.x_layout.startsWith('d,')).toBe(true);
   expect(o.params.x_handle).toBe('bar');
   await page.getByTestId('view-3d').click();
-  await page.waitForFunction(() => (window as any).__editor.viewer3d()?.info().calls > 0, null, { timeout: 60_000 });
+  await page.waitForFunction(() => (window as any).__editor.viewer3d()?.info().calls > 0, null, {
+    timeout: 60_000,
+  });
 });
 
 /** FE-UX-03／07：自訂快捷鍵、調整面板寬度 */

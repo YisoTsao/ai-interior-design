@@ -133,7 +133,11 @@
     "measureTotal": "Total",
     "measureArea": "Area",
     "paint": "Paint",
-    "arc": "Curved wall (3 points)"
+    "arc": "Curved wall (3 points)",
+    "angle": "Angle",
+    "arrow": "Arrow",
+    "tag": "Numbered tag",
+    "tagPrompt": "Tag description (optional)"
   },
   "layers": {
     "title": "Layers",
@@ -190,7 +194,8 @@
       "classic": "Classic",
       "luxury": "Luxury",
       "midcentury": "Mid-century",
-      "minimal": "Minimal"
+      "minimal": "Minimal",
+      "boho": "Boho"
     },
     "colors": {
       "white": "White",
@@ -207,7 +212,26 @@
       "p2": "5k–20k",
       "p3": "20k–50k",
       "p4": "> 50k"
-    }
+    },
+    "material": "Material",
+    "materials": {
+      "wood": "Wood",
+      "fabric": "Fabric",
+      "metal": "Metal",
+      "stone": "Stone",
+      "other": "Other"
+    },
+    "dim": {
+      "w": "W",
+      "d": "D",
+      "h": "H",
+      "min": "min",
+      "max": "max"
+    },
+    "brand": "Brand",
+    "brandOwn": "InteriorAI originals",
+    "brandUpload": "My uploads",
+    "customizable": "Customizable size only"
   },
   "outline": {
     "title": "Outline",
@@ -335,7 +359,11 @@
     "polygonTool": "Click points; click the first point or press Enter to close",
     "measureTool": "Click to measure; click the start to get area; Enter to finish, Esc to clear",
     "dimensionTool": "Click two points, then move and click to place the line",
-    "arcTool": "Click start, end, then a point on the arc; Esc cancels"
+    "arcTool": "Click start, end, then a point on the arc; Esc cancels",
+    "angleTool": "Click vertex → first side → second side; Esc cancels",
+    "arrowTool": "Click start → arrow tip; Esc cancels",
+    "tagTool": "Click to place a numbered tag (auto-increment)",
+    "arcHandle": "Drag the diamond handle to change the arc bulge"
   },
   "warn": {
     "title": "Warnings",
@@ -423,7 +451,8 @@
     "replyComment": "reply to comment",
     "resolveComment": "change comment status",
     "deleteComment": "delete comment",
-    "autoLayout": "auto kitchen/bath layout"
+    "autoLayout": "auto kitchen/bath layout",
+    "reshapeArc": "Reshape arc wall"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -619,7 +648,8 @@
     "ao": "Ambient occlusion",
     "bloom": "Bloom",
     "beams": "Volumetric beams",
-    "grade": "Color grade & vignette"
+    "grade": "Color grade & vignette",
+    "dynamicRes": "Lower resolution while interacting"
   },
   "stats": {
     "title": "Scene stats",
@@ -825,7 +855,15 @@
     "rotation": "Rotation",
     "offset": "Line offset",
     "dimension": "Dimension",
-    "note": "Note"
+    "note": "Note",
+    "angle": "Angle",
+    "arrow": "Arrow",
+    "tag": "Numbered tag",
+    "number": "Number",
+    "degrees": "Angle {{deg}}°",
+    "tagList": "Tag list",
+    "tagEmpty": "No tags yet. Use the Numbered tag tool and click on the plan.",
+    "noText": "(no description)"
   },
   "shapes": {
     "square": "Square",
@@ -1051,7 +1089,8 @@
     "working": "Working…",
     "failed": "Export failed: {{message}}",
     "drawings": "Construction drawings (print / PDF)",
-    "drawingsHint": "A3 landscape: dimensioned plan, furniture, flooring, ceiling & circuits, MEP points, room elevations."
+    "drawingsHint": "A3 landscape: dimensioned plan, furniture, flooring, ceiling & circuits, MEP points, room elevations.",
+    "outputSize": "Output {{w}}×{{h}} (crop {{crop}})"
   },
   "history": {
     "title": "History",
@@ -1174,7 +1213,16 @@
     "calibrateHint": "Measure a known length on the image with the Measure tool (M), then press Calibrate and enter the real length.",
     "calibrateNeed": "Measure two points with the Measure tool first",
     "calibratePrompt": "Measured {{mm}} mm on the image. What is the real length in mm?",
-    "calibrated": "Underlay calibrated (× {{k}})"
+    "calibrated": "Underlay calibrated (× {{k}})",
+    "autoDims": "Auto exterior dimensions (segments + overall)",
+    "furnitureThumbs": "Show furniture as top-view images",
+    "wallReference": "Wall location line",
+    "wallRefs": {
+      "center": "Wall centerline",
+      "left": "Left face (drawing direction)",
+      "right": "Right face (drawing direction)"
+    },
+    "wallRefHint": "When drawing a room clockwise, the right face is the interior face, so you click the clear interior dimensions."
   },
   "assetDetail": {
     "open": "Details of “{{name}}”",
@@ -1237,7 +1285,15 @@
       "earth": "Earth",
       "dark": "Dark",
       "accent": "Accent"
-    }
+    },
+    "library": "Colour system",
+    "allLibraries": "All colour systems",
+    "ncs": "NCS (approx.)",
+    "ral": "RAL Classic (approx.)",
+    "import": "Import",
+    "importHint": "CSV rows: brand,code,name,#RRGGBB (from your paint supplier's chart)",
+    "imported": "Imported {{n}} colours ({{bad}} rows skipped)",
+    "removeLibrary": "Remove colour library {{name}}"
   },
   "userMaterial": {
     "title": "Upload custom material",
@@ -1252,7 +1308,13 @@
     "hint": "The texture is one repeat unit at real size (e.g. a 60×60 cm tile); it is resized to ≤ 1024 px and stored locally.",
     "save": "Add to library",
     "delete": "Delete “{{name}}”",
-    "deleteConfirm": "Delete material “{{name}}”? Surfaces using it fall back to a default color."
+    "deleteConfirm": "Delete material “{{name}}”? Surfaces using it fall back to a default color.",
+    "maps": {
+      "normal": "Normal map",
+      "roughness": "Roughness map (greyscale)",
+      "none": "none",
+      "pick": "Choose"
+    }
   },
   "mood": {
     "title": "Style explorer",
@@ -1494,5 +1556,60 @@
       "failed": "Failed",
       "canceled": "Canceled"
     }
+  },
+  "camera": {
+    "title": "Camera",
+    "dof": "Depth of field (dollhouse)",
+    "fStop": "Aperture f/{{f}}",
+    "dofHint": "Focuses on the orbit target; smaller f-numbers blur more. Paused while orbiting.",
+    "crop": "Crop ratio",
+    "cropFree": "Free (viewport)"
+  },
+  "featureWall": {
+    "title": "Feature wall templates",
+    "side": "Apply to side",
+    "sides": {
+      "A": "Side A",
+      "B": "Side B"
+    },
+    "kinds": {
+      "marbleTv": "Marble TV wall",
+      "walnutSlat": "Walnut slats",
+      "classicPanel": "Classic panels",
+      "twoTone": "Two-tone wall",
+      "wallpaperAccent": "Wallpaper accent",
+      "zellige": "Zellige tile"
+    },
+    "hint": "Templates combine wall material, wainscot and crown molding; fine-tune each below."
+  },
+  "float": {
+    "handle": "Drag to move panel",
+    "dock": "Dock to side",
+    "toggleLeft": "Float tools panel",
+    "toggleRight": "Float properties panel"
+  },
+  "photoStyle": {
+    "title": "Restyle a photo",
+    "previewNote": "Local preview: shows the style mood with colour transfer; it does not generate new furniture or change shapes. Connect an AI provider for real generation.",
+    "pick": "Upload a room photo (JPG/PNG/WEBP)",
+    "original": "Original photo",
+    "result": "Restyled result",
+    "compare": "Before / after",
+    "pickResult": "Result {{n}}",
+    "style": "Style",
+    "styles": {
+      "boho": "Boho"
+    },
+    "prompt": "Prompt (optional)",
+    "promptPh": "e.g. warm, bright Japandi living room",
+    "count": "Results",
+    "generate": "Generate",
+    "working": "Working…",
+    "inpaintHint": "Partial repaint: pick a result, brush the area to change, then Repaint selection.",
+    "brush": "Brush",
+    "clearMask": "Clear mask",
+    "inpaint": "Repaint selection",
+    "save": "Save to gallery",
+    "saved": "Saved to gallery"
   }
 }

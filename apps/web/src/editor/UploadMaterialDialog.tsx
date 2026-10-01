@@ -26,6 +26,8 @@ export function UploadMaterialDialog({
   const [metal, setMetal] = useState(0);
   const [price, setPrice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [normal, setNormal] = useState<File | null>(null);
+  const [roughMap, setRoughMap] = useState<File | null>(null);
   useEffect(() => {
     if (!file) return setPreview(null);
     const u = URL.createObjectURL(file);
@@ -36,6 +38,8 @@ export function UploadMaterialDialog({
     if (!open) {
       setFile(null);
       setName('');
+      setNormal(null);
+      setRoughMap(null);
     }
   }, [open]);
   const save = async () => {
@@ -49,6 +53,8 @@ export function UploadMaterialDialog({
         realSizeMm: { w, h },
         roughness: rough,
         metalness: metal,
+        normalFile: normal,
+        roughnessFile: roughMap,
         ...(Number(price) > 0 ? { pricePerM2Twd: Number(price) } : {}),
       });
       onOpenChange(false);
@@ -111,6 +117,29 @@ export function UploadMaterialDialog({
           />
         </label>
         <div className="space-y-2">
+          {(
+            [
+              ['normal', normal, setNormal],
+              ['roughness', roughMap, setRoughMap],
+            ] as const
+          ).map(([k, f, setF]) => (
+            <label key={k} className="flex items-center justify-between gap-2 text-xs">
+              <span className="text-muted">{t(`userMaterial.maps.${k}`)}</span>
+              <span className="truncate font-mono text-[11px]">
+                {f ? f.name : t('userMaterial.maps.none')}
+              </span>
+              <span className="btn cursor-pointer px-2 py-0.5">
+                {t('userMaterial.maps.pick')}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  data-testid={`material-${k}-file`}
+                  onChange={(e) => setF(e.target.files?.[0] ?? null)}
+                />
+              </span>
+            </label>
+          ))}
           <label className="block text-xs">
             <span className="mb-1 block text-muted">{t('userMaterial.name')}</span>
             <input

@@ -34,6 +34,12 @@ interface Prefs {
   setDisplayMode(m: DisplayMode): void;
   levelsMode: LevelsMode;
   setLevelsMode(m: LevelsMode): void;
+  /** 2D 顯示選項：自動外部尺寸（PLAN-10）、家具俯視縮圖（PLAN-12）、畫牆定位線（PLAN-15） */
+  plan2d: { autoDims: boolean; furnitureThumbs: boolean; wallReference: 'center' | 'left' | 'right' };
+  setPlan2d(p: Partial<Prefs['plan2d']>): void;
+  /** 浮動面板（FE-UX-07）：是否浮動與視窗位置（畫布內 px） */
+  panelFloat: { left: boolean; right: boolean; leftPos: [number, number]; rightPos: [number, number] };
+  setPanelFloat(p: Partial<Prefs['panelFloat']>): void;
   /** 面板寬度（FE-UX-07） */
   panelWidths: { left: number; right: number };
   setPanelWidths(p: Partial<{ left: number; right: number }>): void;
@@ -100,6 +106,29 @@ export const usePrefs = create<Prefs>((set) => ({
   setDisplayMode: (displayMode) => (write('displayMode', displayMode), set({ displayMode })),
   levelsMode: read<LevelsMode>('levelsMode', 'active'),
   setLevelsMode: (levelsMode) => (write('levelsMode', levelsMode), set({ levelsMode })),
+  plan2d: readJson<Prefs['plan2d']>('plan2d', {
+    autoDims: false,
+    furnitureThumbs: false,
+    wallReference: 'center',
+  }),
+  setPlan2d: (p) =>
+    set((st) => {
+      const plan2d = { ...st.plan2d, ...p };
+      write('plan2d', JSON.stringify(plan2d));
+      return { plan2d };
+    }),
+  panelFloat: readJson<Prefs['panelFloat']>('panelFloat', {
+    left: false,
+    right: false,
+    leftPos: [16, 16],
+    rightPos: [420, 16],
+  }),
+  setPanelFloat: (p) =>
+    set((st) => {
+      const panelFloat = { ...st.panelFloat, ...p };
+      write('panelFloat', JSON.stringify(panelFloat));
+      return { panelFloat };
+    }),
   panelWidths: readJson('panelWidths', { left: 300, right: 320 }),
   setPanelWidths: (p) =>
     set((st) => {

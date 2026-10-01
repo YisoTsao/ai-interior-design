@@ -24,7 +24,11 @@ export async function initUserMaterials() {
 }
 export const listUserMaterials = async () => (await get<Material[]>(KEY, store)) ?? [];
 
-async function toDataUrl(file: File, max = 1024): Promise<{ url: string; color: string }> {
+async function toDataUrl(
+  file: File,
+  type: 'image/jpeg' | 'image/png' = 'image/jpeg',
+  max = 1024,
+): Promise<{ url: string; color: string }> {
   const img = new Image();
   img.src = URL.createObjectURL(file);
   await img.decode();
@@ -51,7 +55,7 @@ async function toDataUrl(file: File, max = 1024): Promise<{ url: string; color: 
     Math.round(v / m)
       .toString(16)
       .padStart(2, '0');
-  return { url: c.toDataURL('image/jpeg', 0.88), color: `#${hex(r)}${hex(gg)}${hex(b)}` };
+  return { url: c.toDataURL(type, 0.88), color: `#${hex(r)}${hex(gg)}${hex(b)}` };
 }
 
 export async function saveUserMaterial(o: {
@@ -62,8 +66,13 @@ export async function saveUserMaterial(o: {
   roughness: number;
   metalness: number;
   pricePerM2Twd?: number;
+  /** 法線／粗糙度貼圖（FE-FIN-06，選填） */
+  normalFile?: File | null;
+  roughnessFile?: File | null;
 }): Promise<Material> {
   const { url, color } = await toDataUrl(o.file);
+  const normalUrl = o.normalFile ? (await toDataUrl(o.normalFile, 'image/png')).url : undefined;
+  const roughnessUrl = o.roughnessFile ? (await toDataUrl(o.roughnessFile, 'image/png')).url : undefined;
   const m = MaterialSchema.parse({
     id: `um_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`,
     nameZh: o.name,
@@ -72,6 +81,8 @@ export async function saveUserMaterial(o: {
     color,
     pattern: 'image',
     textureUrl: url,
+    ...(normalUrl ? { normalUrl } : {}),
+    ...(roughnessUrl ? { roughnessUrl } : {}),
     realSizeMm: { w: Math.max(1, Math.round(o.realSizeMm.w)), h: Math.max(1, Math.round(o.realSizeMm.h)) },
     roughness: o.roughness,
     metalness: o.metalness,

@@ -3,7 +3,7 @@ import { ImagePlus, Ruler, Trash2 } from 'lucide-react';
 import { plan2dApi, type PlanStyle } from '@interiorai/editor-2d';
 import { usePrefs } from '../prefs';
 import { useEditorStore } from './context';
-import { NumberField, Section, SliderField, ToggleField } from './fields';
+import { NumberField, Section, SelectField, SliderField, ToggleField } from './fields';
 import { underlayFromFile, useUnderlay } from './underlay';
 
 /**
@@ -13,7 +13,7 @@ import { underlayFromFile, useUnderlay } from './underlay';
 export function PlanSettings() {
   const { t } = useTranslation();
   const store = useEditorStore();
-  const { planStyle, setPlanStyle, snap, setSnap } = usePrefs();
+  const { planStyle, setPlanStyle, snap, setSnap, plan2d, setPlan2d } = usePrefs();
   const { rec, update, replace } = useUnderlay();
   const calibrate = () => {
     const pts = plan2dApi.get()?.measurePoints() ?? [];
@@ -47,6 +47,29 @@ export function PlanSettings() {
             </button>
           ))}
         </div>
+        <ToggleField
+          label={t('plan.autoDims')}
+          checked={plan2d.autoDims}
+          onChange={(v) => setPlan2d({ autoDims: v })}
+          testId="plan-auto-dims"
+        />
+        <ToggleField
+          label={t('plan.furnitureThumbs')}
+          checked={plan2d.furnitureThumbs}
+          onChange={(v) => setPlan2d({ furnitureThumbs: v })}
+          testId="plan-furniture-thumbs"
+        />
+        <SelectField
+          label={t('plan.wallReference')}
+          value={plan2d.wallReference}
+          onChange={(v) => setPlan2d({ wallReference: v })}
+          options={(['center', 'left', 'right'] as const).map((v) => ({
+            value: v,
+            label: t(`plan.wallRefs.${v}`),
+          }))}
+          testId="plan-wall-ref"
+        />
+        <p className="text-[11px] text-muted">{t('plan.wallRefHint')}</p>
         <ToggleField
           label={t('plan.showGrid')}
           checked={snap.showGrid}

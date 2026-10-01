@@ -1,7 +1,7 @@
 import type { Draft } from 'immer';
 import { current, isDraft } from 'immer';
 import { objectDims, type Catalog } from '@interiorai/catalog';
-import { mergeWallPair, objectFootprint, splitWallAt, type Vec2 } from '@interiorai/core-geometry';
+import { arcPoints, mergeWallPair, objectFootprint, splitWallAt, type Vec2 } from '@interiorai/core-geometry';
 import {
   newId,
   type Level,
@@ -61,10 +61,51 @@ export interface NoteData extends TextData {
   /** 引出線指向的點 */
   target: Vec2;
 }
+/** 角度標註（v1.4）：頂點 center，兩邊方向 a、b */
+export interface AngleData {
+  center: Vec2;
+  a: Vec2;
+  b: Vec2;
+}
+/** 箭頭（v1.4）：從 a 指向 b */
+export interface ArrowData {
+  a: Vec2;
+  b: Vec2;
+}
+/** 編號標記（v1.4）：圓圈編號＋說明文字，對應「標記清單」；target＝引出線指向的點 */
+export interface TagData {
+  position: Vec2;
+  number: number;
+  text?: string;
+  target?: Vec2;
+}
 export type AnnotationInput =
   | { type: 'dimension'; data: DimensionData }
   | { type: 'text'; data: TextData }
-  | { type: 'note'; data: NoteData };
+  | { type: 'note'; data: NoteData }
+  | { type: 'angle'; data: AngleData }
+  | { type: 'arrow'; data: ArrowData }
+  | { type: 'tag'; data: TagData };
+
+/** 下一個編號標記的號碼（目前最大號＋1） */
+export function nextTagNumber(level: Pick<Level, 'annotations'>): number {
+  const ns = (level.annotations ?? [])
+    .filter((a) => a.type === 'tag')
+    .map((a) => Number((a.data as { number?: unknown } | undefined)?.number))
+    .filter((n) => Number.isFinite(n));
+  return ns.length ? Math.max(...ns) + 1 : 1;
+}
+
+/** 兩邊夾角（度，0–180） */
+export function angleDegrees(d: AngleData): number {
+  const u = [d.a[0] - d.center[0], d.a[1] - d.center[1]];
+  const v = [d.b[0] - d.center[0], d.b[1] - d.center[1]];
+  const lu = Math.hypot(u[0]!, u[1]!);
+  const lv = Math.hypot(v[0]!, v[1]!);
+  if (lu < 1e-9 || lv < 1e-9) return 0;
+  const c = (u[0]! * v[0]! + u[1]! * v[1]!) / (lu * lv);
+  return (Math.acos(Math.max(-1, Math.min(1, c))) * 180) / Math.PI;
+}
 
 export function addAnnotation(levelId: string, a: AnnotationInput & { id?: string }): Command {
   return {
@@ -737,5 +778,109 @@ export function deleteComment(threadId: string): Command {
     id: cid('delComment'),
     label: 'command.deleteComment',
     do: (d) => withComments(d, (l) => l.filter((c) => c.id !== threadId)),
+  };
+}
+
+// ── 弧形牆凸度（PLAN-02）─────────────────────────────────────────
+
+const plainObj = plain;
+const plainLevel = (lv: Draft<Level> | Level): Level => plain(lv) as Level;
+
+/** 同一 arcGroup 的牆依首尾相接排成鏈；回傳有序的牆與每段是否反向 */
+export function arcChain(level: Pick<Level, 'walls'>, group: string) {
+  const ws = level.walls.filter((w) => w.arcGroup === group);
+  if (!ws.length) return null;
+  const key = (p: readonly number[]) => `${p[0]},${p[1]}`;
+  const deg = new Map<string, number>();
+  for (const w of ws) for (const p of [w.a, w.b]) deg.set(key(p), (deg.get(key(p)) ?? 0) + 1);
+  const startW = ws.find((w) => deg.get(key(w.a)) === 1) ?? ws.find((w) => deg.get(key(w.b)) === 1) ?? ws[0]!;
+  let cur: Vec2 = deg.get(key(startW.a)) === 1 ? [startW.a[0], startW.a[1]] : [startW.b[0], startW.b[1]];
+  const out: { w: Wall; reversed: boolean }[] = [];
+  const left = new Set(ws.map((w) => w.id));
+  while (left.size) {
+    const next = ws.find((w) => left.has(w.id) && (key(w.a) === key(cur) || key(w.b) === key(cur)));
+    if (!next) break;
+    const reversed = key(next.b) === key(cur);
+    out.push({ w: next, reversed });
+    left.delete(next.id);
+    cur = reversed ? [next.a[0], next.a[1]] : [next.b[0], next.b[1]];
+  }
+  const first = out[0]!;
+  const last = out.at(-1)!;
+  const A: Vec2 = first.reversed ? [first.w.b[0], first.w.b[1]] : [first.w.a[0], first.w.a[1]];
+  const B: Vec2 = last.reversed ? [last.w.a[0], last.w.a[1]] : [last.w.b[0], last.w.b[1]];
+  return { segs: out, A, B };
+}
+
+/** 弧鏈的中點（沿弧長一半處；拖曳凸度把手的位置） */
+export function arcMidpoint(level: Pick<Level, 'walls'>, group: string): Vec2 | null {
+  const c = arcChain(level, group);
+  if (!c) return null;
+  const lens = c.segs.map((s) => Math.hypot(s.w.b[0] - s.w.a[0], s.w.b[1] - s.w.a[1]));
+  let half = lens.reduce((a, b) => a + b, 0) / 2;
+  for (let i = 0; i < c.segs.length; i++) {
+    const s = c.segs[i]!;
+    const L = lens[i]!;
+    if (half <= L) {
+      const p0 = s.reversed ? s.w.b : s.w.a;
+      const p1 = s.reversed ? s.w.a : s.w.b;
+      const t = L ? half / L : 0;
+      return [Math.round(p0[0] + (p1[0] - p0[0]) * t), Math.round(p0[1] + (p1[1] - p0[1]) * t)];
+    }
+    half -= L;
+  }
+  return c.B;
+}
+
+/**
+ * 調整弧形牆凸度（FE-PLAN-02）：保留兩端點（與其他牆的連接不變），以新的弧上一點重算分段；
+ * 牆的厚度、材質、外觀沿用；門窗依「沿弧長的比例位置」搬到新分段（放不下的移除）。單一 undo。
+ */
+export function reshapeArc(levelId: string, group: string, through: Vec2): Command {
+  return {
+    id: cid('arc'),
+    label: 'command.reshapeArc',
+    do: (d) => {
+      const lv = levelOf(d, levelId);
+      const c = arcChain(plainLevel(lv), group);
+      if (!c) throw new CommandRejected([{ code: 'TARGET_NOT_FOUND', id: group, message: '找不到弧形牆' }]);
+      const pts = arcPoints(c.A, c.B, through);
+      if (pts.length < 3)
+        throw new CommandRejected([{ code: 'ARC_DEGENERATE', id: group, message: '三點共線，無法形成弧' }]);
+      const lens = c.segs.map((s) => Math.hypot(s.w.b[0] - s.w.a[0], s.w.b[1] - s.w.a[1]));
+      const total = lens.reduce((a, b) => a + b, 0) || 1;
+      // 門窗：沿鏈的中心位置（比例）
+      const ids = new Set(c.segs.map((s) => s.w.id));
+      const moved: { o: Opening; t: number }[] = [];
+      let acc = 0;
+      c.segs.forEach((s, i) => {
+        for (const o of lv.openings.filter((x) => x.wallId === s.w.id)) {
+          const mid = o.offset + o.width / 2;
+          moved.push({
+            o: { ...(plainObj(o) as Opening) },
+            t: (acc + (s.reversed ? lens[i]! - mid : mid)) / total,
+          });
+        }
+        acc += lens[i]!;
+      });
+      const proto = plainObj(c.segs[0]!.w) as Wall;
+      const fresh: Wall[] = [];
+      for (let i = 1; i < pts.length; i++)
+        fresh.push({ ...proto, id: newId('w'), a: pts[i - 1]!, b: pts[i]! });
+      lv.walls = [...lv.walls.filter((w) => !ids.has(w.id)), ...fresh] as Draft<Wall>[];
+      const fLens = fresh.map((w) => Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]));
+      const fTotal = fLens.reduce((a, b) => a + b, 0);
+      const kept: Opening[] = [];
+      for (const { o, t } of moved) {
+        let s = t * fTotal;
+        let k = 0;
+        while (k < fresh.length - 1 && s > fLens[k]!) s -= fLens[k++]!;
+        if (o.width > fLens[k]!) continue;
+        const offset = Math.round(Math.max(0, Math.min(fLens[k]! - o.width, s - o.width / 2)));
+        kept.push({ ...o, wallId: fresh[k]!.id, offset });
+      }
+      lv.openings = [...lv.openings.filter((o) => !ids.has(o.wallId)), ...kept] as Draft<Opening>[];
+      lv.rooms = syncRooms(plainLevel(lv)) as Draft<Level['rooms'][number]>[];
+    },
   };
 }

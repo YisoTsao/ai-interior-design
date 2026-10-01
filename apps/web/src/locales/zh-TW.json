@@ -133,7 +133,11 @@
     "measureTotal": "總長",
     "measureArea": "面積",
     "paint": "油漆",
-    "arc": "弧形牆（三點）"
+    "arc": "弧形牆（三點）",
+    "angle": "角度標註",
+    "arrow": "箭頭",
+    "tag": "編號標記",
+    "tagPrompt": "標記說明（可留空）"
   },
   "layers": {
     "title": "圖層",
@@ -190,7 +194,8 @@
       "classic": "古典",
       "luxury": "輕奢",
       "midcentury": "中古世紀",
-      "minimal": "極簡"
+      "minimal": "極簡",
+      "boho": "波西米亞"
     },
     "colors": {
       "white": "白",
@@ -207,7 +212,26 @@
       "p2": "5 千–2 萬",
       "p3": "2–5 萬",
       "p4": "> 5 萬"
-    }
+    },
+    "material": "材質",
+    "materials": {
+      "wood": "木",
+      "fabric": "布／皮",
+      "metal": "金屬",
+      "stone": "石材",
+      "other": "其他"
+    },
+    "dim": {
+      "w": "寬",
+      "d": "深",
+      "h": "高",
+      "min": "最小",
+      "max": "最大"
+    },
+    "brand": "品牌",
+    "brandOwn": "InteriorAI 原創",
+    "brandUpload": "我的上傳",
+    "customizable": "只看可訂製尺寸"
   },
   "outline": {
     "title": "物件清單",
@@ -335,7 +359,11 @@
     "polygonTool": "逐點點擊繪製房間，點回起點或 Enter 封閉",
     "measureTool": "點擊量測，點回起點量面積，Enter 完成、Esc 清除",
     "dimensionTool": "點兩點，再移動滑鼠決定尺寸線位置後點擊",
-    "arcTool": "點起點、終點，再點弧上一點；Esc 取消"
+    "arcTool": "點起點、終點，再點弧上一點；Esc 取消",
+    "angleTool": "點頂點 → 第一邊 → 第二邊；Esc 取消",
+    "arrowTool": "點起點 → 箭頭端；Esc 取消",
+    "tagTool": "點選位置放置編號（自動遞增）",
+    "arcHandle": "拖曳菱形把手調整弧形牆凸度"
   },
   "warn": {
     "title": "警示",
@@ -423,7 +451,8 @@
     "replyComment": "回覆留言",
     "resolveComment": "變更留言狀態",
     "deleteComment": "刪除留言",
-    "autoLayout": "廚衛自動配置"
+    "autoLayout": "廚衛自動配置",
+    "reshapeArc": "調整弧形牆"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -619,7 +648,8 @@
     "ao": "環境光遮蔽",
     "bloom": "光暈",
     "beams": "體積光束",
-    "grade": "調色與暗角"
+    "grade": "調色與暗角",
+    "dynamicRes": "互動中降低解析度"
   },
   "stats": {
     "title": "場景統計",
@@ -825,7 +855,15 @@
     "rotation": "旋轉",
     "offset": "尺寸線偏移",
     "dimension": "尺寸標註",
-    "note": "引線備註"
+    "note": "引線備註",
+    "angle": "角度標註",
+    "arrow": "箭頭",
+    "tag": "編號標記",
+    "number": "編號",
+    "degrees": "夾角 {{deg}}°",
+    "tagList": "標記清單",
+    "tagEmpty": "尚無編號標記：用「編號標記」工具在平面上點選位置。",
+    "noText": "（未填說明）"
   },
   "shapes": {
     "square": "方形",
@@ -1051,7 +1089,8 @@
     "working": "處理中…",
     "failed": "匯出失敗：{{message}}",
     "drawings": "施工圖集（列印／PDF）",
-    "drawingsHint": "A3 橫式：平面尺寸、家具配置、地坪、天花燈具迴路、水電點位、各房間立面。"
+    "drawingsHint": "A3 橫式：平面尺寸、家具配置、地坪、天花燈具迴路、水電點位、各房間立面。",
+    "outputSize": "輸出 {{w}}×{{h}}（構圖 {{crop}}）"
   },
   "history": {
     "title": "歷史紀錄",
@@ -1174,7 +1213,16 @@
     "calibrateHint": "先用測量工具（M）量圖上一段已知長度，再按「校正比例」輸入實際長度。",
     "calibrateNeed": "請先用測量工具量兩點",
     "calibratePrompt": "量到 {{mm}} mm（圖上）。實際長度是多少 mm？",
-    "calibrated": "底圖比例已校正（× {{k}}）"
+    "calibrated": "底圖比例已校正（× {{k}}）",
+    "autoDims": "自動外部尺寸（分段＋總尺寸）",
+    "furnitureThumbs": "家具顯示為俯視縮圖",
+    "wallReference": "畫牆定位線",
+    "wallRefs": {
+      "center": "牆中心線",
+      "left": "左側牆面（沿繪製方向）",
+      "right": "右側牆面（沿繪製方向）"
+    },
+    "wallRefHint": "順時針畫房間時，「右側牆面」＝室內面：點的線就是室內淨尺寸。"
   },
   "assetDetail": {
     "open": "「{{name}}」詳情",
@@ -1237,7 +1285,15 @@
       "earth": "大地",
       "dark": "深色",
       "accent": "亮色"
-    }
+    },
+    "library": "色卡系統",
+    "allLibraries": "全部色卡",
+    "ncs": "NCS（近似）",
+    "ral": "RAL Classic（近似）",
+    "import": "匯入色卡",
+    "importHint": "CSV 每列：品牌,色號,名稱,#RRGGBB（可從塗料廠商色卡整理）",
+    "imported": "已匯入 {{n}} 色（{{bad}} 列無法辨識）",
+    "removeLibrary": "移除色卡「{{name}}」"
   },
   "userMaterial": {
     "title": "上傳自訂材質",
@@ -1252,7 +1308,13 @@
     "hint": "貼圖代表一個重複單元的真實尺寸（例如 60×60 cm 的磁磚）；會縮到 1024 px 以內存在本機。",
     "save": "加入材質庫",
     "delete": "刪除「{{name}}」",
-    "deleteConfirm": "確定刪除材質「{{name}}」？已使用的表面會改用預設顏色。"
+    "deleteConfirm": "確定刪除材質「{{name}}」？已使用的表面會改用預設顏色。",
+    "maps": {
+      "normal": "法線貼圖",
+      "roughness": "粗糙度貼圖（灰階）",
+      "none": "未選",
+      "pick": "選擇"
+    }
   },
   "mood": {
     "title": "風格探索",
@@ -1494,5 +1556,60 @@
       "failed": "失敗",
       "canceled": "已取消"
     }
+  },
+  "camera": {
+    "title": "相機",
+    "dof": "景深（剖面模型）",
+    "fStop": "光圈 f/{{f}}",
+    "dofHint": "對焦在畫面中心（注視點）；f 值越小背景越模糊。旋轉時暫停景深。",
+    "crop": "構圖比例",
+    "cropFree": "自由（視埠）"
+  },
+  "featureWall": {
+    "title": "背景牆模板",
+    "side": "套用的牆面",
+    "sides": {
+      "A": "A 面",
+      "B": "B 面"
+    },
+    "kinds": {
+      "marbleTv": "大理石電視牆",
+      "walnutSlat": "胡桃木格柵",
+      "classicPanel": "法式線板",
+      "twoTone": "半腰撞色",
+      "wallpaperAccent": "壁紙主牆",
+      "zellige": "手工磚牆"
+    },
+    "hint": "模板由牆面材質、護牆板、頂角線組成，套用後可在下方個別調整。"
+  },
+  "float": {
+    "handle": "拖曳移動面板",
+    "dock": "停靠回側邊",
+    "toggleLeft": "浮動工具面板",
+    "toggleRight": "浮動屬性面板"
+  },
+  "photoStyle": {
+    "title": "照片換風格",
+    "previewNote": "本機預覽：以色彩轉移呈現風格氛圍，不會生成新的家具或改變形狀。接上 AI 供應商後改為真實生成。",
+    "pick": "上傳現況照片（JPG／PNG／WEBP）",
+    "original": "原始照片",
+    "result": "換風格結果",
+    "compare": "前後比較",
+    "pickResult": "結果 {{n}}",
+    "style": "風格",
+    "styles": {
+      "boho": "波西米亞"
+    },
+    "prompt": "提示詞（選填）",
+    "promptPh": "例：溫暖、明亮的日式客廳",
+    "count": "結果張數",
+    "generate": "產生",
+    "working": "處理中…",
+    "inpaintHint": "局部重繪：選一張結果，用筆刷塗出要改的區域，再按「重繪選取區」。",
+    "brush": "筆刷",
+    "clearMask": "清除遮罩",
+    "inpaint": "重繪選取區",
+    "save": "存入圖庫",
+    "saved": "已存入圖庫"
   }
 }

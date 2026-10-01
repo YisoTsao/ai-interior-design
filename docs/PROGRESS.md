@@ -11,7 +11,7 @@
 - 單 Job 成本上限：見 services/api/models.yaml `budgets`
 - 結構驗證門檻狀態：**未校準**（mock 通過不代表有效，ADR-012）；ai-eval mock 結果見下方 P4 量測
 - 工具鏈：Node 24.14、pnpm 9.15.9（corepack）、TypeScript 6.0.3
-- 最後更新：2026-10-01｜目前 Phase：P6（前台 11 規格 P0 兩批已完成，接著 P1／P2）
+- 最後更新：2026-10-01｜目前 Phase：P6（前台 11 規格 P0、P1 完成，進行 P2）
 
 ## Phase 狀態
 | Phase | 內容 | 狀態 | Gate 是否通過 | 備註 |
@@ -75,7 +75,16 @@
 - P5.6（使用者要求）：ADR-024——移除前端登入／註冊；API `AUTH_MODE=none`（開發預設，本機身分）；
   平面圖辨識移到瀏覽器（`@interiorai/plan-recognition`：DXF＋點陣，Web Worker），上傳 → 校正 → 2D/3D 不需後端；
   物件儲存介面 `ObjectStorage`（S3 實作＋Supabase 佔位）與前端 `BlobStore`。量測：合成點陣圖 8 房全部辨識、外框誤差 < 3%；DXF 門窗 15/15。
-- 已知：`@interiorai/assistant` 尚無測試檔，`pnpm test` 在該套件以「No test files」失敗（P6 進行中，非本次改動造成）。
+- 修正（使用者回報，2026-10-01）：日光牆高與夜間同規則（內牆全高、近側外牆牆腳）；點陣辨識移除尺寸線／家具外框等細筆畫
+  （以主牆厚 45% 做 opening；合成 5 風格 24 張結果不變）；夜間無燈房間補虛擬吸頂光；多格式 3D 模型上傳（瀏覽器轉 GLB）；
+  3D 拖曳即時預覽（資產庫拖入幽靈物件、多選整組拖曳）。E2E `e2e/fixes.spec.ts`。
+- 前台第七批（P1 收尾）：Scene Schema 1.4.0（標註 angle／arrow／tag、牆 arcGroup、燈光群組 light.group 與 lightScenes；皆選填，migration 只升版號）；
+  弧牆凸度、自動外部尺寸、編號標記清單、家具俯視縮圖、牆定位線、資產篩選擴充（材質／寬深高／品牌／可訂製；目錄新增選填 brand）、
+  壁紙 16 款與背景牆模板、RAL 近似色卡與 CSV 品牌色號匯入、法線／粗糙度貼圖、景深與構圖比例、互動降解析度、浮動面板、
+  照片換風格（本機色彩轉移預覽＋PhotoStyleProvider 介面）。E2E `e2e/batch-a.spec.ts` 6/6。
+- 第六批（Haiku 撰寫）經審查：訂製櫃、廚衛自動佈局、批次渲染、自訂快捷鍵、面板調寬、光束把手的 E2E 8/8 通過，規格狀態已補登。
+- 已解決：`@interiorai/assistant` 補上測試（7）。
+- 已知（歷史）：`@interiorai/assistant` 尚無測試檔，`pnpm test` 在該套件以「No test files」失敗（P6 進行中，非本次改動造成）。
 
 ## 阻礙與待人決策（⚠ 項須寫「解除條件」）
 | Phase | 項目 | 已用什麼替代 | 解除條件 |
@@ -85,6 +94,8 @@
 | P4 | ⚠ 真實 AI 供應商呼叫與評測（未驗證） | mock provider；OpenAI/FLUX 卡片以 HTTP mock 測試；OpenAI 端點/參數已依官方文件核對（2026-09-30） | 提供 OPENAI_API_KEY / BFL_API_KEY，跑 `pnpm ai-eval run --provider openai|flux` 並完成人工評分 |
 | P5 | ⚠ 平面圖辨識真實資料評測 | 合成資料（5 風格）評測＋回歸 baseline | 取得可商用授權的在地資料集，跑 `python -m eval.run` 對應的真實資料版本 |
 | P5 | ⚠ DWG／向量 PDF 匯入 | 拒絕並請使用者轉 DXF | 法務確認 ODA/LibreDWG 授權；PDF 向量抽取（PyMuPDF，AGPL 需評估） |
+| P6 | ⚠ 照片換風格真實 AI（FE-AI-01） | 本機色彩轉移預覽（介面標示非 AI）＋PhotoStyleProvider 介面 | 後端新增照片輸入端點（img2img／inpaint）並提供供應商金鑰 |
+| P6 | ⚠ SKP 匯入（FE-AST-11） | 提示使用者從 SketchUp 匯出 GLB／DAE／FBX | 取得可商用的 SKP 解析器（SketchUp SDK 授權）或後端轉檔服務 |
 | P4 | ⚠ 結構驗證門檻校準 | 〔假設〕0.65/0.80/0.90，`calibrated: false` | 真實供應商評測集結果（見上）＋人工評分後定案 |
 
 ## 未達標清單（軟性指標未達假設目標時填寫；P8 逐項處理）

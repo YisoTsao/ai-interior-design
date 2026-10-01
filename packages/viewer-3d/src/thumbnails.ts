@@ -52,6 +52,66 @@ function shoot(obj: THREE.Object3D): string | null {
   return r.domElement.toDataURL('image/png');
 }
 
+/**
+ * 俯視圖（2D 平面家具顯示為縮圖，FE-PLAN-12）：正交相機由上往下，畫面範圍＝物件的寬×深，
+ * 所以把圖貼到 2D 的佔地矩形（同樣的旋轉）就剛好對齊。+Z（物件正面）朝圖的下方，與 2D 平面座標一致。
+ */
+function shootTop(obj: THREE.Object3D, w: number, d: number): string | null {
+  const r = setup();
+  if (!r) return null;
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight('#ffffff', '#b8a58c', 1.6));
+  const sun = new THREE.DirectionalLight('#fff1dc', 1.8);
+  sun.position.set(-0.6, 2, 0.8);
+  scene.add(sun);
+  scene.add(obj);
+  const box = new THREE.Box3().setFromObject(obj);
+  const top = box.max.y + 10;
+  const cam = new THREE.OrthographicCamera(-w / 2, w / 2, d / 2, -d / 2, 1, top + 100);
+  cam.up.set(0, 0, -1);
+  cam.position.set(0, top, 0);
+  cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
+  r.setClearColor(0x000000, 0);
+  r.render(scene, cam);
+  return r.domElement.toDataURL('image/png');
+}
+const topCache = new Map<string, string>();
+
+/** 參數化家具／上傳模型的俯視圖（快取；上傳模型需先載入） */
+export async function catalogTopView(
+  entry: CatalogEntry,
+  materials: ReadonlyMap<string, Material>,
+): Promise<string | null> {
+  const hit = topCache.get(entry.id);
+  if (hit) return hit;
+  const { w, d } = entry.dimsMm;
+  let obj: THREE.Object3D | null = null;
+  let dispose = () => {};
+  if (entry.model.kind === 'glb') {
+    const m = await loadModel(entry.model.url);
+    const c = m.root.clone(true);
+    c.scale.set(
+      w / Math.max(1e-6, m.size.x),
+      entry.dimsMm.h / Math.max(1e-6, m.size.y),
+      d / Math.max(1e-6, m.size.z),
+    );
+    obj = c;
+  } else {
+    obj = await buildPreviewObject(entry, materials);
+    const mesh = obj as THREE.Mesh | null;
+    dispose = () => {
+      mesh?.geometry?.dispose();
+      (Array.isArray(mesh?.material) ? mesh.material : [mesh?.material]).forEach((x) => x?.dispose());
+    };
+  }
+  if (!obj) return null;
+  const url = shootTop(obj, w, d);
+  dispose();
+  if (url) topCache.set(entry.id, url);
+  return url;
+}
+
 /** 任意物件的縮圖（上傳預覽用；不快取） */
 export function renderThumbnail(obj: THREE.Object3D): string | null {
   return shoot(obj);

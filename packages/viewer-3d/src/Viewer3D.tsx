@@ -83,6 +83,7 @@ import {
   mutedColor,
   presetDirection,
   sameSet,
+  type DepthOfField,
   type GraphicsSettings,
   type ViewPreset,
   type ViewStyle,
@@ -114,6 +115,8 @@ export interface Viewer3DProps {
   showCollisions?: boolean;
   /** 剖切（FE-V3D-07） */
   section?: Section;
+  /** 景深（FE-V3D-10，剖面模型風格）：null＝關閉 */
+  dof?: DepthOfField | null;
   /** FPS 過低時回呼一次（FE-V3D-12） */
   onPerfLow?: () => void;
   /** 留言釘選（FE-SHR-03）：世界座標 mm */
@@ -200,6 +203,7 @@ function SceneContent({
   levelsMode = 'active',
   showCollisions = true,
   section,
+  dof,
   onPerfLow,
   pins,
   onPinClick,
@@ -1269,6 +1273,14 @@ function SceneContent({
             outline={outline}
             outlineColor={night ? '#ffd166' : theme.primary}
             capture={capture}
+            dof={
+              dof && !walking
+                ? {
+                    fStop: dof.fStop,
+                    focus: () => camera.position.distanceTo(controls.current?.target ?? new THREE.Vector3()),
+                  }
+                : null
+            }
           />
           {pools && (
             <FixtureLights

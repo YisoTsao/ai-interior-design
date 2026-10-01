@@ -90,7 +90,7 @@ const withRooms = (lv: Draft<Level>) => {
 export function addWalls(
   levelId: string,
   points: Vec2[],
-  opts: { closed?: boolean; thickness?: number; type?: Wall['type'] } = {},
+  opts: { closed?: boolean; thickness?: number; type?: Wall['type']; arcGroup?: string } = {},
 ): Command {
   return {
     id: cid('addWalls'),
@@ -111,6 +111,7 @@ export function addWalls(
           type: opts.type ?? 'partition',
           materialId: DEFAULTS.wallMaterialId,
           materialIdB: DEFAULTS.wallMaterialId,
+          ...(opts.arcGroup ? { arcGroup: opts.arcGroup } : {}),
         };
         if (wallLength(w) < 100)
           throw new CommandRejected([

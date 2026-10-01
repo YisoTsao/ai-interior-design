@@ -625,3 +625,13 @@ body {
     gap: 4px;
   }
 }
+
+/* 浮動面板（FE-UX-07）：外框＋陰影；內部沿用 hud-panel */
+.hud-float {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  backdrop-filter: blur(6px);
+}
+.hud-float > div > aside {
+  max-height: 100%;
+}

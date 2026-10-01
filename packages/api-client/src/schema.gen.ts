@@ -2096,6 +2096,7 @@ export interface components {
             };
             /** @enum {unknown} */
             baseboardProfile?: "flat" | "cove" | "step";
+            arcGroup?: components["schemas"]["id"];
         };
         opening: {
             id: components["schemas"]["id"];
@@ -2152,6 +2153,7 @@ export interface components {
             castShadow?: boolean;
             shadowSoftness?: number;
             rangeMm?: number;
+            group?: string;
         };
         object: {
             id: components["schemas"]["id"];
@@ -2176,7 +2178,7 @@ export interface components {
         annotation: {
             id: components["schemas"]["id"];
             /** @enum {unknown} */
-            type: "dimension" | "text" | "note";
+            type: "dimension" | "text" | "note" | "angle" | "arrow" | "tag";
             data?: Record<string, never>;
         };
         level: {
@@ -2219,8 +2221,19 @@ export interface components {
             sunElevationDeg?: number;
             sunIntensity?: number;
         };
+        /** @description 燈光情境（v1.4） */
+        lightScene: {
+            id: components["schemas"]["id"];
+            name: string;
+            states: {
+                [key: string]: {
+                    on: boolean;
+                    level?: number;
+                };
+            };
+        };
         /**
-         * Scene Graph v1.3.0
+         * Scene Graph v1.4.0
          * @description 唯一事實來源。長度單位一律為 mm 整數；座標為 (x, z) 平面，Y 軸向上；角度為弧度。；上限與座標範圍為〔假設〕，見 ADR-013。
          */
         "scene.schema": {
@@ -2232,6 +2245,7 @@ export interface components {
             cameras?: components["schemas"]["camera"][];
             meta?: components["schemas"]["meta"];
             environment?: components["schemas"]["environment"];
+            lightScenes?: components["schemas"]["lightScene"][];
             $defs: {
                 /** @description 程式產生用『前綴_ULID』；可讀 ID（如 w_01）僅限 fixtures（ADR-013） */
                 id: string;
@@ -2282,6 +2296,7 @@ export interface components {
                     };
                     /** @enum {unknown} */
                     baseboardProfile?: "flat" | "cove" | "step";
+                    arcGroup?: components["schemas"]["id"];
                 };
                 opening: {
                     id: components["schemas"]["id"];
@@ -2347,7 +2362,7 @@ export interface components {
                 annotation: {
                     id: components["schemas"]["id"];
                     /** @enum {unknown} */
-                    type: "dimension" | "text" | "note";
+                    type: "dimension" | "text" | "note" | "angle" | "arrow" | "tag";
                     data?: Record<string, never>;
                 };
                 camera: {
@@ -2394,6 +2409,7 @@ export interface components {
                     castShadow?: boolean;
                     shadowSoftness?: number;
                     rangeMm?: number;
+                    group?: string;
                 };
                 /** @description 場景環境（v1.1） */
                 environment: {
@@ -2418,6 +2434,17 @@ export interface components {
                     borderWidth?: number;
                     borderMaterialId?: components["schemas"]["id"];
                     waste?: number;
+                };
+                /** @description 燈光情境（v1.4） */
+                lightScene: {
+                    id: components["schemas"]["id"];
+                    name: string;
+                    states: {
+                        [key: string]: {
+                            on: boolean;
+                            level?: number;
+                        };
+                    };
                 };
             };
         };

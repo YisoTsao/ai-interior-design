@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { materialMap, type CatalogEntry } from '@interiorai/catalog';
-import { cachedThumbnail, catalogThumbnail, modelThumbnail } from '@interiorai/viewer-3d';
-import { materials } from '../catalogData';
+import { cachedThumbnail, catalogThumbnail, catalogTopView, modelThumbnail } from '@interiorai/viewer-3d';
+import { catalog, materials } from '../catalogData';
 
 const lib = materialMap(materials);
 const waiting = new Map<string, { entry: CatalogEntry; subs: Set<(u: string | null) => void> }>();
@@ -60,4 +60,40 @@ export function useThumbnail(entry: CatalogEntry | undefined): string | null | u
     };
   }, [entry]);
   return url;
+}
+
+/**
+ * 2D 家具俯視縮圖（FE-PLAN-12）：場景用到的品項逐一渲染俯視圖（離屏、快取），完成一批就更新。
+ * enabled＝false 時回傳空 Map（2D 畫符號）。
+ */
+export function useTopViews(catalogIds: readonly string[], enabled: boolean): ReadonlyMap<string, string> {
+  const [map, setMap] = useState<ReadonlyMap<string, string>>(new Map());
+  const key = enabled ? [...new Set(catalogIds)].sort().join('|') : '';
+  useEffect(() => {
+    if (!key) return setMap(new Map());
+    let alive = true;
+    void (async () => {
+      const out = new Map<string, string>();
+      for (const id of key.split('|')) {
+        const e = catalog.get(id);
+        if (
+          !e ||
+          (e.model.kind === 'parametric' && ['door', 'window', 'mep', 'stairs'].includes(e.model.type))
+        )
+          continue;
+        try {
+          const u = await catalogTopView(e, lib);
+          if (u) out.set(id, u);
+        } catch {
+          /* 模型載入失敗：畫符號 */
+        }
+        if (!alive) return;
+      }
+      setMap(out);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  return map;
 }

@@ -284,6 +284,8 @@ export interface GraphicsSettings {
   beams: boolean;
   /** 暗角＋調色（遊戲感） */
   grade: boolean;
+  /** 互動中（旋轉／拖曳）降低渲染解析度，放開後恢復（FE-V3D-12） */
+  dynamicRes?: boolean;
 }
 export const DEFAULT_GRAPHICS: GraphicsSettings = {
   quality: 'balanced',
@@ -291,6 +293,7 @@ export const DEFAULT_GRAPHICS: GraphicsSettings = {
   bloom: 1,
   beams: true,
   grade: true,
+  dynamicRes: true,
 };
 /** 各畫質等級的資源預算 */
 export const QUALITY_BUDGET: Record<
@@ -311,3 +314,14 @@ export const QUALITY_BUDGET: Record<
 
 /** 日光預設（與 ADR-017 的固定主光方向一致） */
 export const SUN_DEFAULT = { azimuthDeg: -39, elevationDeg: 55, intensity: 2.6 } as const;
+
+/** 相機景深（FE-V3D-10）：光圈 f 值；對焦距離由檢視器以相機到注視點的距離自動決定 */
+export interface DepthOfField {
+  fStop: number;
+}
+/**
+ * f 值 → BokehPass aperture。BokehShader 的模糊量＝(對焦距離＋viewZ)×aperture（UV 單位，上限 maxblur），
+ * 場景單位是 mm：f/2.8 時離焦 2 m 約 0.3% 畫面寬的模糊，剖面模型的近景／遠景柔化而主體清楚。
+ */
+export const dofAperture = (fStop: number) => 1.5e-6 * (2.8 / Math.max(1, fStop));
+export const DOF_MAX_BLUR = 0.006;

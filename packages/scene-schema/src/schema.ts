@@ -11,7 +11,7 @@ export const LIMITS = {
   minWallLength: 100,
 } as const;
 
-export const CURRENT_SCHEMA_VERSION = '1.3.0';
+export const CURRENT_SCHEMA_VERSION = '1.4.0';
 
 const id = z
   .string()
@@ -57,6 +57,8 @@ export const LightOverrideSchema = z.strictObject({
   castShadow: z.boolean().optional(),
   shadowSoftness: z.number().min(0).max(20).optional(),
   rangeMm: z.int().min(0).max(100_000).optional(),
+  /** 燈光群組名稱（v1.4，FE-LGT-05）：同群組的燈一起開關／調光 */
+  group: z.string().min(1).max(40).optional(),
 });
 
 /** 門窗樣式（v1.2，FE-PLAN-04）：決定 2D 符號與 3D 門扇／窗框造型 */
@@ -157,6 +159,8 @@ export const WallSchema = z.strictObject({
   crown: z.strictObject({ height: z.int().min(20).max(300), profile: z.enum(MOLDING_PROFILES) }).optional(),
   /** 踢腳板斷面（v1.3，FE-FIN-04） */
   baseboardProfile: z.enum(MOLDING_PROFILES).optional(),
+  /** 弧形牆分段所屬的弧（v1.4，FE-PLAN-02）：同一 arcGroup 的牆可一起調整凸度 */
+  arcGroup: id.optional(),
 });
 
 export const OpeningSchema = z.strictObject({
@@ -217,7 +221,8 @@ export const ObjectSchema = z.strictObject({
 
 export const AnnotationSchema = z.looseObject({
   id,
-  type: z.enum(['dimension', 'text', 'note']),
+  /** v1.4 新增 angle（角度）、arrow（箭頭）、tag（編號標記，FE-PLAN-10） */
+  type: z.enum(['dimension', 'text', 'note', 'angle', 'arrow', 'tag']),
   data: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -252,12 +257,23 @@ export const MetaSchema = z.looseObject({
     .optional(),
 });
 
+/**
+ * 燈光情境（v1.4，FE-LGT-05）：一組燈的開關與亮度比例（0–1，乘在燈具光通量上）。
+ * states 以物件 id 為鍵；沒有列出的燈維持目前狀態。
+ */
+export const LightSceneSchema = z.strictObject({
+  id,
+  name: z.string().min(1).max(40),
+  states: z.record(id, z.strictObject({ on: z.boolean(), level: z.number().min(0).max(1).optional() })),
+});
+
 export const SceneSchema = z.strictObject({
   schemaVersion: z.string().regex(/^1\.\d+\.\d+$/),
   units: z.literal('mm'),
   levels: z.array(LevelSchema).min(1),
   cameras: z.array(CameraSchema).max(LIMITS.cameras).optional(),
   environment: EnvironmentSchema.optional(),
+  lightScenes: z.array(LightSceneSchema).max(50).optional(),
   meta: MetaSchema.optional(),
 });
 
@@ -267,6 +283,7 @@ export type Room = z.infer<typeof RoomSchema>;
 export type SceneObject = z.infer<typeof ObjectSchema>;
 export type Level = z.infer<typeof LevelSchema>;
 export type Camera = z.infer<typeof CameraSchema>;
+export type LightScene = z.infer<typeof LightSceneSchema>;
 export type Scene = z.infer<typeof SceneSchema>;
 export type Appearance = z.infer<typeof AppearanceSchema>;
 export type LightOverride = z.infer<typeof LightOverrideSchema>;

@@ -23,6 +23,7 @@ import {
 } from '@interiorai/scene-schema';
 import { useEditor, useEditorStore } from './context';
 import { ColorField, Section, SelectField, SliderField, ToggleField } from './fields';
+import { FEATURE_WALL_SWATCH, FEATURE_WALLS, featureWallPatch } from './featureWalls';
 
 /** 護牆板／腰牆、頂角線、踢腳板斷面（FE-FIN-02／04） */
 export function WallFinishSection({ w, levelId }: { w: Wall; levelId: string }) {
@@ -110,6 +111,49 @@ export function WallFinishSection({ w, levelId }: { w: Wall; levelId: string }) 
 }
 
 /** 貼圖參數（FE-PROP-04）：縮放、旋轉、偏移（每個面各自） */
+/** 背景牆模板（FE-FIN-02）：選面（A／B）→ 點模板，單一 undo */
+export function FeatureWallSection({ w, levelId }: { w: Wall; levelId: string }) {
+  const { t } = useTranslation();
+  const exec = useEditorStore().getState().exec;
+  const [side, setSide] = useState<'A' | 'B'>('A');
+  return (
+    <Section title={t('featureWall.title')} testId="section-feature-wall">
+      <div className="hud-seg" role="radiogroup" aria-label={t('featureWall.side')}>
+        {(['A', 'B'] as const).map((s) => (
+          <button
+            key={s}
+            aria-pressed={side === s}
+            onClick={() => setSide(s)}
+            data-testid={`feature-side-${s}`}
+          >
+            {t(`featureWall.sides.${s}`)}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-1">
+        {FEATURE_WALLS.map((k) => {
+          const [a, b] = FEATURE_WALL_SWATCH[k];
+          return (
+            <button
+              key={k}
+              className="inv-slot flex flex-col items-stretch gap-1 p-1 text-[10px]"
+              onClick={() => exec(updateWall(levelId, w.id, featureWallPatch(k, side, w)))}
+              data-testid={`feature-${k}`}
+            >
+              <span
+                className="block h-8 w-full"
+                style={{ background: `linear-gradient(${b} 0 55%, ${a} 55%)` }}
+              />
+              {t(`featureWall.kinds.${k}`)}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-muted">{t('featureWall.hint')}</p>
+    </Section>
+  );
+}
+
 export function UvSection({
   look,
   onChange,

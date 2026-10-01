@@ -23,6 +23,9 @@ import {
   Trash2,
   Unlock,
   Upload,
+  TriangleRight,
+  MoveUpRight,
+  Hash,
 } from 'lucide-react';
 import { activeLevel, updateObject, type Tool } from '@interiorai/app-state';
 import { materialMap, STYLE_TAGS, type CatalogEntry, type Material } from '@interiorai/catalog';
@@ -40,6 +43,19 @@ import { AssetDetail } from './AssetDetail';
 import { SetsList } from './SetsList';
 import { UserAssetsDialog } from './UserAssetsDialog';
 import { dragPayload } from './dragPayload';
+import {
+  activeFilters,
+  brandOf,
+  COLOR_FAMILIES,
+  EMPTY_FILTER,
+  MATERIAL_KINDS,
+  matchAsset,
+  OWN_BRAND,
+  PRICE_BANDS,
+  SWATCH,
+  UPLOAD_BRAND,
+  type AssetFilter,
+} from './assetFilter';
 
 const TOOLS: { tool: Tool; icon: typeof MousePointer2; key: string; hotkey?: string }[] = [
   { tool: 'select', icon: MousePointer2, key: 'tools.select', hotkey: 'V' },
@@ -52,6 +68,9 @@ const TOOLS: { tool: Tool; icon: typeof MousePointer2; key: string; hotkey?: str
   { tool: 'measure', icon: Ruler, key: 'tools.measure', hotkey: 'M' },
   { tool: 'dimension', icon: MoveHorizontal, key: 'tools.dimension', hotkey: 'K' },
   { tool: 'text', icon: Type, key: 'tools.text', hotkey: 'T' },
+  { tool: 'angle', icon: TriangleRight, key: 'tools.angle' },
+  { tool: 'arrow', icon: MoveUpRight, key: 'tools.arrow' },
+  { tool: 'tag', icon: Hash, key: 'tools.tag' },
   { tool: 'pan', icon: Hand, key: 'tools.pan', hotkey: '␣' },
 ];
 const CATS: CatalogEntry['category'][] = [
@@ -176,48 +195,6 @@ export function LeftPanel() {
 }
 
 type Special = 'mine' | 'fav' | 'recent' | 'used' | 'sets';
-const PRICE_BANDS = [
-  { key: 'p1', min: 0, max: 5000 },
-  { key: 'p2', min: 5000, max: 20000 },
-  { key: 'p3', min: 20000, max: 50000 },
-  { key: 'p4', min: 50000, max: Infinity },
-] as const;
-const COLOR_FAMILIES = ['white', 'grey', 'black', 'beige', 'brown', 'green', 'blue', 'red'] as const;
-type ColorFamily = (typeof COLOR_FAMILIES)[number];
-const SWATCH: Record<ColorFamily, string> = {
-  white: '#f2f0eb',
-  grey: '#9c9a96',
-  black: '#2b2b2b',
-  beige: '#d8cbb5',
-  brown: '#7a5537',
-  green: '#6f8f5f',
-  blue: '#5a7fa8',
-  red: '#a8513a',
-};
-/** 由色碼判斷色系（資產主色篩選，FE-AST-02） */
-export function colorFamily(hex: string): ColorFamily {
-  const n = parseInt(hex.replace('#', ''), 16);
-  const r = ((n >> 16) & 255) / 255;
-  const g = ((n >> 8) & 255) / 255;
-  const b = (n & 255) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  const sat = max === min ? 0 : l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
-  let h = 0;
-  if (max !== min) {
-    const d = max - min;
-    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
-    h *= 60;
-  }
-  if (l < 0.22) return 'black';
-  if (sat < 0.12) return l > 0.82 ? 'white' : 'grey';
-  if (h >= 70 && h < 170) return 'green';
-  if (h >= 170 && h < 280) return 'blue';
-  if (h < 20 || h >= 330) return 'red';
-  return l > 0.62 ? 'beige' : 'brown';
-}
-
 /** 虛擬化格狀清單（FE-AST-04）：只渲染可見的列，萬件資產也不卡 */
 function VirtualGrid<T>({
   items,
@@ -294,10 +271,8 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
   const prefs = useAssetPrefs();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState<CatalogEntry['category'] | Special | null>(null);
-  const [style, setStyle] = useState<string | null>(null);
-  const [color, setColor] = useState<ColorFamily | null>(null);
-  const [price, setPrice] = useState<string | null>(null);
-  const [maxW, setMaxW] = useState(0);
+  const [f, setF] = useState<AssetFilter>(EMPTY_FILTER);
+  const upd = (p: Partial<AssetFilter>) => setF((x) => ({ ...x, ...p }));
   const [showFilters, setShowFilters] = useState(false);
   const [detail, setDetail] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
@@ -316,23 +291,13 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
             : cat === 'used'
               ? catalog.search({ text: q }).filter((e) => used.has(e.id))
               : catalog.search({ text: q, category: cat === 'sets' ? undefined : (cat ?? undefined) });
-    const band = PRICE_BANDS.find((b) => b.key === price);
-    const filtered = base.filter(
-      (e) =>
-        (!style || e.styleTags.includes(style)) &&
-        (!color ||
-          colorFamily(materialsById.get(e.materialSlots[0]?.defaultMaterialId ?? '')?.color ?? '#cfc6b8') ===
-            color) &&
-        (!band ||
-          (e.unitPriceTwd !== undefined && e.unitPriceTwd >= band.min && e.unitPriceTwd < band.max)) &&
-        (!maxW || e.dimsMm.w <= maxW),
-    );
+    const filtered = base.filter((e) => matchAsset(e, f, materialsById));
     if (cat === 'fav' || cat === 'recent') return filtered;
     return filtered
       .map((e, i) => ({ e, i }))
       .sort((a, b) => CATS.indexOf(a.e.category) - CATS.indexOf(b.e.category) || a.i - b.i)
       .map((x) => x.e);
-  }, [q, cat, version, prefs, used, style, color, price, maxW]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [q, cat, version, prefs, used, f]); // eslint-disable-line react-hooks/exhaustive-deps
   const mine = useMemo(() => catalog.all().filter(isUserAsset).length, [version]); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (e: CatalogEntry) => {
     const s = store.getState();
@@ -344,7 +309,8 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
       s.setView('2d');
     else if (s.view === '3d') s.notify('info', t('assets.dragHint'));
   };
-  const active = [style, color, price, maxW || null].filter(Boolean).length;
+  const active = activeFilters(f);
+  const brands = useMemo(() => [...new Set(catalog.all().map(brandOf))].sort(), [version]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="space-y-2">
       <div className="flex gap-1">
@@ -388,8 +354,8 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
               <button
                 key={st}
                 className="hud-chip"
-                aria-pressed={style === st}
-                onClick={() => setStyle(style === st ? null : st)}
+                aria-pressed={f.style === st}
+                onClick={() => upd({ style: f.style === st ? null : st })}
                 data-testid={`filter-style-${st}`}
               >
                 {t(`assets.styles.${st}`)}
@@ -403,14 +369,27 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
                 className="h-5 w-5 border"
                 style={{
                   background: SWATCH[c],
-                  borderColor: color === c ? 'var(--primary)' : 'var(--border)',
-                  boxShadow: color === c ? 'var(--glow)' : undefined,
+                  borderColor: f.color === c ? 'var(--primary)' : 'var(--border)',
+                  boxShadow: f.color === c ? 'var(--glow)' : undefined,
                 }}
-                aria-pressed={color === c}
+                aria-pressed={f.color === c}
                 aria-label={t(`assets.colors.${c}`)}
                 title={t(`assets.colors.${c}`)}
-                onClick={() => setColor(color === c ? null : c)}
+                onClick={() => upd({ color: f.color === c ? null : c })}
               />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1" role="group" aria-label={t('assets.material')}>
+            {MATERIAL_KINDS.map((m) => (
+              <button
+                key={m}
+                className="hud-chip"
+                aria-pressed={f.material === m}
+                onClick={() => upd({ material: f.material === m ? null : m })}
+                data-testid={`filter-material-${m}`}
+              >
+                {t(`assets.materials.${m}`)}
+              </button>
             ))}
           </div>
           <div className="flex flex-wrap gap-1">
@@ -418,37 +397,62 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
               <button
                 key={b.key}
                 className="hud-chip"
-                aria-pressed={price === b.key}
-                onClick={() => setPrice(price === b.key ? null : b.key)}
+                aria-pressed={f.price === b.key}
+                onClick={() => upd({ price: f.price === b.key ? null : b.key })}
               >
                 {t(`assets.prices.${b.key}`)}
               </button>
             ))}
           </div>
+          {(['w', 'd', 'h'] as const).map((k) => (
+            <div key={k} className="flex items-center gap-1" data-testid={`filter-size-${k}`}>
+              <span className="w-8 whitespace-nowrap">{t(`assets.dim.${k}`)}</span>
+              {(['min', 'max'] as const).map((b) => (
+                <input
+                  key={b}
+                  type="number"
+                  className="field w-16 px-1 py-0.5"
+                  min={0}
+                  step={10}
+                  placeholder={t(`assets.dim.${b}`)}
+                  aria-label={`${t(`assets.dim.${k}`)} ${t(`assets.dim.${b}`)}`}
+                  value={f[k][b] ? f[k][b] / 10 : ''}
+                  onChange={(e) =>
+                    upd({ [k]: { ...f[k], [b]: Math.max(0, Number(e.target.value) || 0) * 10 } })
+                  }
+                  data-testid={`filter-${k}-${b}`}
+                />
+              ))}
+              <span className="text-muted">{t('units.cm')}</span>
+            </div>
+          ))}
           <label className="flex items-center gap-2">
-            <span className="whitespace-nowrap">{t('assets.maxWidth')}</span>
+            <span className="whitespace-nowrap">{t('assets.brand')}</span>
+            <select
+              className="field min-w-0 flex-1 py-0.5"
+              value={f.brand ?? ''}
+              onChange={(e) => upd({ brand: e.target.value || null })}
+              data-testid="filter-brand"
+            >
+              <option value="">{t('assets.any')}</option>
+              {brands.map((b) => (
+                <option key={b} value={b}>
+                  {b === UPLOAD_BRAND ? t('assets.brandUpload') : b === OWN_BRAND ? t('assets.brandOwn') : b}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
             <input
-              type="range"
-              className="hud-range"
-              min={0}
-              max={3000}
-              step={100}
-              value={maxW}
-              style={{ ['--fill' as string]: `${(maxW / 3000) * 100}%` }}
-              onChange={(e) => setMaxW(Number(e.target.value))}
+              type="checkbox"
+              checked={f.customizable}
+              onChange={(e) => upd({ customizable: e.target.checked })}
+              data-testid="filter-customizable"
             />
-            <span className="w-12 font-mono">{maxW ? `${maxW / 10}cm` : t('assets.any')}</span>
+            {t('assets.customizable')}
           </label>
           {active > 0 && (
-            <button
-              className="btn px-2 py-0.5"
-              onClick={() => {
-                setStyle(null);
-                setColor(null);
-                setPrice(null);
-                setMaxW(0);
-              }}
-            >
+            <button className="btn px-2 py-0.5" onClick={() => setF(EMPTY_FILTER)} data-testid="filter-clear">
               {t('assets.clear')}
             </button>
           )}
@@ -510,10 +514,7 @@ function AssetLibrary({ scroller }: { scroller: React.RefObject<HTMLElement | nu
                 onClick={() => {
                   setQ('');
                   setCat(null);
-                  setStyle(null);
-                  setColor(null);
-                  setPrice(null);
-                  setMaxW(0);
+                  setF(EMPTY_FILTER);
                 }}
               >
                 {t('assets.clear')}
@@ -739,6 +740,15 @@ function Outline() {
   );
   if (!level.walls.length && !level.objects.length)
     return <p className="text-xs text-muted">{t('outline.empty')}</p>;
+  // 編號標記清單（FE-PLAN-10）：依號碼排序，點選定位
+  const tags = (level.annotations ?? [])
+    .filter((a) => a.type === 'tag')
+    .map((a) => ({
+      id: a.id,
+      number: Number((a.data as { number?: number } | undefined)?.number ?? 0),
+      text: String((a.data as { text?: string } | undefined)?.text ?? ''),
+    }))
+    .sort((x, y) => x.number - y.number);
   const group = (title: string, n: number, children: React.ReactNode) => (
     <section>
       <h3 className="hud-title mb-1 text-[11px]">
@@ -805,6 +815,15 @@ function Outline() {
             hidden,
           );
         }),
+      )}
+      {group(
+        t('annotation.tagList'),
+        tags.length,
+        tags.length ? (
+          tags.map((a) => item(a.id, `${a.number}. ${a.text || t('annotation.noText')}`))
+        ) : (
+          <li className="text-[11px] text-muted">{t('annotation.tagEmpty')}</li>
+        ),
       )}
     </nav>
   );
