@@ -290,3 +290,31 @@ export function indirectEstimate(
       .padStart(2, '0');
   return { lux, color: `#${hex(r)}${hex(g)}${hex(b)}`, reflectance: rho };
 }
+
+/**
+ * 反解光束方向（FE-LGT-06）：世界方向 → 燈具的俯仰／水平角（度），與 aim()／rotDir() 互為反函數。
+ * facing＝燈具的發光面朝向（down／up／front）。
+ */
+export function aimInverse(
+  facing: 'down' | 'up' | 'front',
+  world: Vec3,
+  rotationY: number,
+): { tiltDeg: number; panDeg: number } {
+  const len = Math.hypot(world[0], world[1], world[2]) || 1;
+  const [x, y, z] = rotDir([world[0] / len, world[1] / len, world[2] / len], -rotationY);
+  const deg = (r: number) => Math.round(((r * 180) / Math.PI) * 10) / 10;
+  if (facing === 'front')
+    return { tiltDeg: deg(Math.asin(Math.max(-1, Math.min(1, y)))), panDeg: deg(Math.atan2(x, z)) };
+  const sign = facing === 'down' ? -1 : 1;
+  // down：(sin t·sin p, −cos t, sin t·cos p)；up：(−sin t·sin p, cos t, −sin t·cos p)
+  const tilt = Math.atan2(Math.hypot(x, z), sign * y);
+  const pan = facing === 'down' ? Math.atan2(x, z) : Math.atan2(-x, -z);
+  return { tiltDeg: deg(tilt), panDeg: tilt < 1e-6 ? 0 : deg(pan) };
+}
+/** 測試／外部用：燈具局部 aim 後轉到世界座標 */
+export const aimWorld = (
+  facing: 'down' | 'up' | 'front',
+  tiltDeg: number,
+  panDeg: number,
+  rotationY: number,
+): Vec3 => rotDir(aim(FACING[facing]!, tiltDeg, panDeg), rotationY);

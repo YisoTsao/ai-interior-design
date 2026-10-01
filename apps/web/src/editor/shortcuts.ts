@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { type EditorStore } from '@interiorai/app-state';
 import { viewer3dApi } from '@interiorai/viewer-3d';
 import { editActions } from './actions';
+import { translateKey } from './keymap';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
@@ -89,7 +90,9 @@ export function useShortcuts(
       if (mod && k === 'a') return (e.preventDefault(), act.selectAll());
       if (mod && k === 'g') return (e.preventDefault(), e.shiftKey ? act.ungroup() : act.group());
       if (mod || e.altKey) return;
-      switch (k) {
+      const tk = translateKey(k);
+      if (tk === null) return;
+      switch (tk) {
         case 'v':
           return s.setTool('select');
         case 'w':

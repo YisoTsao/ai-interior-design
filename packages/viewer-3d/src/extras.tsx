@@ -264,3 +264,84 @@ export function PerfWatch({ onLow }: { onLow?: () => void }) {
   });
   return null;
 }
+
+/**
+ * 光束方向拖曳把手（FE-LGT-06）：聚光燈的光束落點顯示一顆球，拖曳即改變方向（在視平面上移動），
+ * 放開時回傳新的俯仰／水平角（由宿主寫回 light.tiltDeg／panDeg，一次 undo）。
+ */
+export function BeamHandle({
+  position,
+  direction,
+  color,
+  onDragging,
+  onCommit,
+}: {
+  position: [number, number, number];
+  direction: [number, number, number];
+  color: string;
+  onDragging?: (on: boolean) => void;
+  onCommit: (worldDir: [number, number, number]) => void;
+}) {
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const invalidate = useThree((s) => s.invalidate);
+  const P = useMemo(() => new THREE.Vector3(...position), [position]);
+  const start = useMemo(() => {
+    const d = new THREE.Vector3(...direction).normalize();
+    const len = d.y < -0.05 ? Math.max(300, Math.min(6000, P.y / -d.y)) : 1400;
+    return P.clone().addScaledVector(d, len);
+  }, [P, direction]);
+  const [tip, setTip] = useState<THREE.Vector3 | null>(null);
+  const at = tip ?? start;
+  const line = useMemo(() => [P, at] as [THREE.Vector3, THREE.Vector3], [P, at]);
+  return (
+    <group userData={{ gkind: 'beamHandle' }}>
+      <Line points={line} color={color} lineWidth={2} dashed dashSize={80} gapSize={60} depthTest={false} />
+      <mesh
+        position={at}
+        renderOrder={20}
+        data-testid="beam-handle"
+        userData={{ gkind: 'beamHandle' }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onDragging?.(true);
+          const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+            camera.getWorldDirection(new THREE.Vector3()),
+            at.clone(),
+          );
+          const ray = new THREE.Raycaster();
+          let last = at.clone();
+          const move = (ev: PointerEvent) => {
+            const r = gl.domElement.getBoundingClientRect();
+            ray.setFromCamera(
+              new THREE.Vector2(
+                ((ev.clientX - r.left) / r.width) * 2 - 1,
+                -((ev.clientY - r.top) / r.height) * 2 + 1,
+              ),
+              camera,
+            );
+            const hit = ray.ray.intersectPlane(plane, new THREE.Vector3());
+            if (hit) {
+              last = hit;
+              setTip(hit.clone());
+              invalidate();
+            }
+          };
+          const up = () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            onDragging?.(false);
+            const d = last.clone().sub(P);
+            if (d.lengthSq() > 1) onCommit([d.x, d.y, d.z]);
+            setTip(null);
+          };
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', up);
+        }}
+      >
+        <sphereGeometry args={[70, 16, 16]} />
+        <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.9} />
+      </mesh>
+    </group>
+  );
+}

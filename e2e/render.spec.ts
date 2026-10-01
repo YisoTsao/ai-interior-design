@@ -57,3 +57,35 @@ test('AI 渲染：產生效果圖、比較、局部重繪', async ({ page }) => 
   await expect.poll(balance).toBe(b0 - 2);
   await panel.screenshot({ path: 'e2e/results/render-inpaint.png' });
 });
+
+/** FE-RND-03：批次渲染兩個相機書籤 → 佇列完成、效果圖進圖庫 */
+test('批次渲染：兩個書籤依序完成並存入圖庫', async ({ page }) => {
+  test.setTimeout(240_000);
+  await newSampleProject(page);
+  await page.getByTestId('view-3d').click();
+  await page.waitForFunction(() => (window as any).__editor.viewer3d()?.info().calls > 0, null, {
+    timeout: 60_000,
+  });
+  for (const p of ['iso-se', 'iso-nw']) {
+    await page.evaluate((pp) => {
+      const e = (window as any).__editor;
+      e.viewer3d().viewPreset(pp);
+      const cam = e.viewer3d().currentCamera();
+      e.store.getState().exec({
+        id: `c${pp}`,
+        label: 'command.saveCamera',
+        do: (d: any) => {
+          d.cameras = [...(d.cameras ?? []), { id: `cam_${pp.replace('-', '')}`, name: pp, ...cam }];
+        },
+      });
+    }, p);
+  }
+  await page.getByTestId('open-render').click();
+  await page.getByTestId('batch-cam-cam_isose').check();
+  await page.getByTestId('batch-cam-cam_isonw').check();
+  await page.getByTestId('batch-run').click();
+  const q = page.getByTestId('batch-queue').locator('li');
+  await expect(q).toHaveCount(2);
+  await expect(q.nth(0)).toHaveAttribute('data-state', 'done', { timeout: 90_000 });
+  await expect(q.nth(1)).toHaveAttribute('data-state', 'done', { timeout: 90_000 });
+});

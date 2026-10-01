@@ -109,7 +109,9 @@
       "all": "All floors"
     },
     "lens": "Lens",
-    "twoPoint": "Two-point"
+    "twoPoint": "Two-point",
+    "resizeLeft": "Resize left panel",
+    "resizeRight": "Resize right panel"
   },
   "tools": {
     "title": "Tools",
@@ -420,7 +422,8 @@
     "addComment": "add comment",
     "replyComment": "reply to comment",
     "resolveComment": "change comment status",
-    "deleteComment": "delete comment"
+    "deleteComment": "delete comment",
+    "autoLayout": "auto kitchen/bath layout"
   },
   "saved": {
     "camera": "Saved view “{{name}}” (usable for renders)"
@@ -1102,7 +1105,10 @@
     "gizmo": "3D move / rotate / scale",
     "frame": "Frame all (3D)",
     "walk": "Walk / run",
-    "style": "Copy / paste style"
+    "style": "Copy / paste style",
+    "customize": "Customize shortcuts",
+    "pressKey": "Press a key…",
+    "reset": "Reset all"
   },
   "sun": {
     "title": "Sun study",
@@ -1414,5 +1420,69 @@
     "border": "Border width",
     "kelvin": "Strip color temperature",
     "hint": "Turn on “Show ceiling” in 3D to preview."
+  },
+  "kitchen": {
+    "title": "Kitchen / bath auto layout",
+    "shape": "Kitchen shape",
+    "shapes": {
+      "I": "Straight (I)",
+      "L": "L-shaped",
+      "U": "U-shaped"
+    },
+    "replace": "Replace existing units in the room",
+    "runKitchen": "Lay out kitchen",
+    "runBath": "Lay out bathroom",
+    "none": "Not enough free wall length",
+    "done": "Placed {{n}} items (Ctrl+Z to undo)"
+  },
+  "cabinet": {
+    "open": "Cabinet designer",
+    "title": "Custom cabinet designer",
+    "apply": "Apply",
+    "preview": "Front view",
+    "w": "Width",
+    "h": "Height",
+    "d": "Depth",
+    "columns": "Columns: {{n}}",
+    "column": "Column {{n}} (top to bottom)",
+    "addCol": "Add column",
+    "removeCol": "Remove column",
+    "addRow": "Add section",
+    "removeRow": "Remove section",
+    "cells": {
+      "d": "Door",
+      "dr": "Drawer",
+      "o": "Open shelf",
+      "h": "Hanging rail"
+    },
+    "handle": "Handle",
+    "handles": {
+      "bar": "Bar",
+      "knob": "Knob",
+      "groove": "Groove",
+      "none": "None (push)"
+    },
+    "presets": {
+      "wardrobe": "Wardrobe",
+      "bookcase": "Bookcase",
+      "sideboard": "Sideboard",
+      "tv": "TV unit",
+      "shoe": "Shoe cabinet"
+    }
+  },
+  "batch": {
+    "title": "Batch render (camera bookmarks)",
+    "noCams": "Save some camera bookmarks in 3D to batch-render them.",
+    "run": "Render {{n}}",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "prefix": "Batch",
+    "states": {
+      "queued": "Queued",
+      "running": "Rendering",
+      "done": "Done",
+      "failed": "Failed",
+      "canceled": "Canceled"
+    }
   }
 }

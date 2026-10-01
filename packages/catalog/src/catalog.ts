@@ -135,6 +135,9 @@ export function resolveParams(
       out[k] = typeof v === 'string' && (p.values ?? []).includes(v) ? v : String(p.default);
     }
   }
+  // 設計器資料（例：訂製櫃 x_layout／x_handle）：以 x_ 開頭的字串參數原樣保留（上限 200 字）
+  for (const [k, v] of Object.entries(overrides))
+    if (k.startsWith('x_') && typeof v === 'string' && v.length <= 200) out[k] = v;
   return out;
 }
 

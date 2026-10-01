@@ -10,3 +10,4 @@ export * from './light-presets.js';
 export * from './stack.js';
 export * from './sets.js';
 export * from './versions.js';
+export * from './kitchen.js';

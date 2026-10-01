@@ -23,7 +23,8 @@ import { objectDims, resolveParams, type CatalogEntry } from '@interiorai/catalo
 import { detectRooms, wallLength } from '@interiorai/core-geometry';
 import { SunStudy } from './SunStudy';
 import { PlanSettings } from './PlanSettings';
-import { CeilingSection, UvSection, WallFinishSection } from './finishes';
+import { CabinetDesigner } from './CabinetDesigner';
+import { CeilingSection, KitchenSection, UvSection, WallFinishSection } from './finishes';
 import { LightingAnalysis } from './LightingAnalysis';
 import { useLuxResult } from './luxResult';
 import { formatArea } from '@interiorai/editor-2d';
@@ -112,7 +113,7 @@ export function Inspector({
   return (
     <aside
       className="hud-panel hud-panel-right flex shrink-0 flex-col gap-3 overflow-y-auto p-3"
-      style={{ width: 320 }}
+      style={{ width: 'var(--right-w, 320px)' }}
       aria-label={t('inspector.title')}
       data-tour="inspector"
     >
@@ -140,6 +141,7 @@ function ObjectPanel({
   const exec = store.getState().exec;
   const id = obj.id;
   const e = catalog.get(obj.catalogId);
+  const [designer, setDesigner] = useState(false);
   const thumb = useThumbnail(e);
   const dims = e ? objectDims(e, obj.params, obj.scale) : null;
   const params = e ? resolveParams(e, obj.params) : {};
@@ -336,6 +338,18 @@ function ObjectPanel({
         )}
       </Section>
 
+      {e?.model.kind === 'parametric' && e.model.type === 'cabinet' && (
+        <>
+          <button
+            className="btn w-full justify-center"
+            onClick={() => setDesigner(true)}
+            data-testid="open-cabinet-designer"
+          >
+            {t('cabinet.open')}
+          </button>
+          <CabinetDesigner open={designer} onOpenChange={setDesigner} obj={obj} entry={e} levelId={levelId} />
+        </>
+      )}
       <div className="flex flex-wrap gap-2 pt-1">
         <button
           className="btn"
@@ -885,6 +899,7 @@ function RoomPanel({ room, area, levelId }: { room: Level['rooms'][number]; area
       </Section>
       <UvSection look={room.floorAppearance} onChange={floorLook} title={t('uv.floorTitle')} />
       <CeilingSection room={room} levelId={levelId} />
+      <KitchenSection room={room} />
     </div>
   );
 }

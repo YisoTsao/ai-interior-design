@@ -109,7 +109,9 @@
       "all": "全部樓層"
     },
     "lens": "焦距",
-    "twoPoint": "兩點透視"
+    "twoPoint": "兩點透視",
+    "resizeLeft": "調整左側面板寬度",
+    "resizeRight": "調整右側面板寬度"
   },
   "tools": {
     "title": "工具",
@@ -420,7 +422,8 @@
     "addComment": "新增留言",
     "replyComment": "回覆留言",
     "resolveComment": "變更留言狀態",
-    "deleteComment": "刪除留言"
+    "deleteComment": "刪除留言",
+    "autoLayout": "廚衛自動配置"
   },
   "saved": {
     "camera": "已儲存視角「{{name}}」（渲染時可用）"
@@ -1102,7 +1105,10 @@
     "gizmo": "3D 移動／旋轉／縮放",
     "frame": "全景（3D）",
     "walk": "漫遊移動／奔跑",
-    "style": "複製／貼上樣式"
+    "style": "複製／貼上樣式",
+    "customize": "自訂快捷鍵",
+    "pressKey": "按下新鍵…",
+    "reset": "全部還原預設"
   },
   "sun": {
     "title": "日照模擬",
@@ -1414,5 +1420,69 @@
     "border": "周邊寬度",
     "kelvin": "燈條色溫",
     "hint": "在 3D 開啟「顯示天花板」可預覽。"
+  },
+  "kitchen": {
+    "title": "廚房／衛浴自動配置",
+    "shape": "廚具型式",
+    "shapes": {
+      "I": "一字型",
+      "L": "L 型",
+      "U": "ㄈ字型（U）"
+    },
+    "replace": "先移除房內既有設備",
+    "runKitchen": "配置廚具",
+    "runBath": "配置衛浴",
+    "none": "空間不足或找不到可用的牆面",
+    "done": "已配置 {{n}} 件（Ctrl+Z 復原）"
+  },
+  "cabinet": {
+    "open": "訂製櫃設計器",
+    "title": "訂製櫃設計器",
+    "apply": "套用",
+    "preview": "正視圖",
+    "w": "寬",
+    "h": "高",
+    "d": "深",
+    "columns": "分欄：{{n}}",
+    "column": "第 {{n}} 欄（由上而下）",
+    "addCol": "增加一欄",
+    "removeCol": "減少一欄",
+    "addRow": "增加格位",
+    "removeRow": "移除格位",
+    "cells": {
+      "d": "門片",
+      "dr": "抽屜",
+      "o": "開放層板",
+      "h": "吊衣桿"
+    },
+    "handle": "把手",
+    "handles": {
+      "bar": "長條把手",
+      "knob": "圓鈕",
+      "groove": "隱藏溝槽",
+      "none": "無把手（按壓）"
+    },
+    "presets": {
+      "wardrobe": "衣櫃",
+      "bookcase": "書櫃",
+      "sideboard": "餐邊櫃",
+      "tv": "電視櫃",
+      "shoe": "鞋櫃"
+    }
+  },
+  "batch": {
+    "title": "批次渲染（相機書籤）",
+    "noCams": "先在 3D 存幾個相機書籤，即可一次批次出圖。",
+    "run": "送出 {{n}} 張",
+    "cancel": "取消",
+    "retry": "重試",
+    "prefix": "批次",
+    "states": {
+      "queued": "排隊中",
+      "running": "渲染中",
+      "done": "完成",
+      "failed": "失敗",
+      "canceled": "已取消"
+    }
   }
 }

@@ -14,6 +14,7 @@ import {
 } from '../cloud/render';
 import { snapshotToCloud } from '../cloud/sync';
 import { useEditor, useEditorStore } from './context';
+import { BatchRender } from './BatchRender';
 
 type Pricing = { render: Record<'1k' | '2k' | '4k', number>; inpaint: number; styles: string[] };
 const STRICTNESS = ['free', 'balanced', 'strict'] as const;
@@ -277,6 +278,7 @@ function RenderForm() {
       )}
 
       {result && <ResultView result={result} clay={clay} onAccept={() => void accept()} />}
+      <BatchRender settings={settings} />
 
       {result?.state === 'succeeded' && (
         <fieldset className="space-y-2 border-t border-border pt-3" disabled={busy}>

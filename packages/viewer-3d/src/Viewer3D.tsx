@@ -18,6 +18,7 @@ import {
   setMaterial,
   stackElevation,
   transformObject,
+  updateObject,
   type EditorStore,
 } from '@interiorai/app-state';
 import { materialMap, objectDims, type Catalog, type CatalogEntry, type Material } from '@interiorai/catalog';
@@ -43,6 +44,7 @@ import {
   effectiveLight,
   fixtureLights,
   indirectEstimate,
+  aimInverse,
   kelvinToHex,
   pickActive,
   windowLights,
@@ -55,6 +57,7 @@ import {
   DisplayModeEffect,
   Measure3D,
   OtherLevels,
+  BeamHandle,
   PerfWatch,
   SectionPlanes,
   type Section,
@@ -1466,6 +1469,24 @@ function SceneContent({
         </SelectedObject>
       )}
       {selectedLight && <LightGizmo light={selectedLight} color={night ? '#ffd166' : theme.primary} />}
+      {selectedLight && single && selectedLight.kind === 'spot' && !walking && (
+        <BeamHandle
+          position={selectedLight.position}
+          direction={selectedLight.direction}
+          color={night ? '#ffd166' : theme.primary}
+          onDragging={(on) => {
+            if (controls.current) controls.current.enabled = !on;
+          }}
+          onCommit={(d) => {
+            const facing = (catalog.get(single.catalogId)?.light?.facing ?? 'down') as
+              'down' | 'up' | 'front';
+            const { tiltDeg, panDeg } = aimInverse(facing, d, single.rotationY);
+            store
+              .getState()
+              .exec(updateObject(level.id, single.id, { light: { ...single.light, tiltDeg, panDeg } }));
+          }}
+        />
+      )}
     </>
   );
 }

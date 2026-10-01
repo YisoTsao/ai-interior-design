@@ -98,7 +98,7 @@ export function LeftPanel() {
   return (
     <aside
       className="hud-panel hud-panel-left flex shrink-0 flex-col"
-      style={{ width: 300 }}
+      style={{ width: 'var(--left-w, 300px)' }}
       aria-label={t('tools.title')}
     >
       <section className="space-y-3 border-b border-border p-3">

@@ -34,6 +34,9 @@ interface Prefs {
   setDisplayMode(m: DisplayMode): void;
   levelsMode: LevelsMode;
   setLevelsMode(m: LevelsMode): void;
+  /** 面板寬度（FE-UX-07） */
+  panelWidths: { left: number; right: number };
+  setPanelWidths(p: Partial<{ left: number; right: number }>): void;
 }
 const DEFAULT_SNAP: Prefs['snap'] = {
   gridMm: 100,
@@ -97,6 +100,13 @@ export const usePrefs = create<Prefs>((set) => ({
   setDisplayMode: (displayMode) => (write('displayMode', displayMode), set({ displayMode })),
   levelsMode: read<LevelsMode>('levelsMode', 'active'),
   setLevelsMode: (levelsMode) => (write('levelsMode', levelsMode), set({ levelsMode })),
+  panelWidths: readJson('panelWidths', { left: 300, right: 320 }),
+  setPanelWidths: (p) =>
+    set((st) => {
+      const panelWidths = { ...st.panelWidths, ...p };
+      write('panelWidths', JSON.stringify(panelWidths));
+      return { panelWidths };
+    }),
   snap: readJson('snapSettings', DEFAULT_SNAP),
   setSnap: (p) =>
     set((st) => {

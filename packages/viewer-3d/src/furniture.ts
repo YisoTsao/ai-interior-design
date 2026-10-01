@@ -121,6 +121,8 @@ function parts(type: string, w: number, d: number, h: number, p: Record<string, 
       return out;
     }
     case 'cabinet': {
+      if (typeof p.x_layout === 'string' && p.x_layout)
+        return cabinetParts(p.x_layout, String(p.x_handle ?? 'bar'), w, d, h);
       const doors = Number(p.doors ?? 2);
       const shelves = Number(p.shelves ?? 3);
       const out: Part[] = [box(w, h - 80, d, 0, 80, 0), box(w - 20, 80, d - 40, 0, 0, -20, DARK)];
@@ -1017,4 +1019,82 @@ export function buildOpeningFill(
   merged.addGroup(0, opaque, 0);
   if (total > opaque) merged.addGroup(opaque, total - opaque, 1);
   return merged;
+}
+
+/**
+ * 訂製櫃（FE-AST-07）：layout＝以「|」分欄、欄內以「,」由上而下分格；
+ * d＝門片、dr＝抽屜、o＝開放層板、h＝吊衣桿（開放）。handle：bar／knob／groove／none。
+ */
+export function parseCabinetLayout(layout: string): string[][] {
+  return layout
+    .split('|')
+    .map((c) =>
+      c
+        .split(',')
+        .map((x) => x.trim())
+        .filter((x) => ['d', 'dr', 'o', 'h'].includes(x)),
+    )
+    .filter((c) => c.length > 0)
+    .slice(0, 8);
+}
+function cabinetParts(layout: string, handle: string, w: number, d: number, h: number): Part[] {
+  const cols = parseCabinetLayout(layout);
+  if (!cols.length) return [box(w, h, d, 0, 0, 0)];
+  const PLINTH = 80;
+  const T = 18;
+  const out: Part[] = [
+    box(w, h - PLINTH, T, 0, PLINTH, -d / 2 + T / 2),
+    box(T, h - PLINTH, d, -w / 2 + T / 2, PLINTH, 0),
+    box(T, h - PLINTH, d, w / 2 - T / 2, PLINTH, 0),
+    box(w, T, d, 0, h - T, 0),
+    box(w, T, d, 0, PLINTH, 0),
+    box(w - 20, PLINTH, d - 40, 0, 0, -20, DARK),
+  ];
+  const cw = (w - T) / cols.length;
+  const innerH = h - PLINTH - 2 * T;
+  cols.forEach((rows, ci) => {
+    const x0 = -w / 2 + T / 2 + cw * ci;
+    const cx = x0 + cw / 2;
+    if (ci > 0) out.push(box(T, innerH, d - 4, x0, PLINTH + T, 0));
+    // 抽屜固定 200 mm 高，其餘平分
+    const fixedH = rows.filter((r) => r === 'dr').length * 200;
+    const flexN = rows.filter((r) => r !== 'dr').length;
+    const flexH = flexN ? Math.max(150, (innerH - fixedH) / flexN) : 0;
+    let top = h - T;
+    rows.forEach((r, ri) => {
+      const rh = r === 'dr' ? 200 : flexH;
+      const y0 = Math.max(PLINTH + T, top - rh);
+      const hh = top - y0;
+      const fz = d / 2 - 9;
+      if (r === 'd' || r === 'dr') {
+        out.push(box(cw - 6, hh - 6, 18, cx, y0 + 3, fz));
+        if (handle === 'bar') {
+          const vertical = r === 'd';
+          const hx = r === 'd' ? (ci % 2 ? x0 + 60 : x0 + cw - 60) : cx;
+          out.push(
+            vertical
+              ? box(12, Math.min(300, hh * 0.4), 20, hx, y0 + hh / 2 - Math.min(150, hh * 0.2), fz + 18, DARK)
+              : box(Math.min(260, cw * 0.5), 12, 20, hx, y0 + hh / 2 - 6, fz + 18, DARK),
+          );
+        } else if (handle === 'knob') {
+          const hx = r === 'd' ? (ci % 2 ? x0 + 60 : x0 + cw - 60) : cx;
+          out.push(cyl(14, 14, 24, hx, y0 + hh / 2 - 12, fz + 18, DARK, 12));
+        } else if (handle === 'groove') {
+          out.push(box(cw - 20, 10, 6, cx, y0 + hh - 16, fz + 10, DARK));
+        }
+      } else {
+        // 開放格：深色背板＋（吊衣桿）
+        out.push(box(cw - 8, hh, 4, cx, y0, -d / 2 + T + 2, ACCENT));
+        if (r === 'h') {
+          const rod = cyl(12, 12, cw - 30, cx, y0 + hh - 90, 0, DARK, 12);
+          rod.g.rotateZ(Math.PI / 2);
+          rod.y = y0 + hh - 90;
+          out.push(rod);
+        }
+      }
+      if (ri < rows.length - 1) out.push(box(cw - 4, T, d - 20, cx, y0 - T / 2, -10));
+      top = y0 - (ri < rows.length - 1 ? T / 2 : 0);
+    });
+  });
+  return out;
 }

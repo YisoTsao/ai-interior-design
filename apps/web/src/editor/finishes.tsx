@@ -1,5 +1,18 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { updateRoom, updateWall } from '@interiorai/app-state';
+import {
+  activeLevel,
+  autoDecorate,
+  batch,
+  deleteEntities,
+  planBath,
+  planKitchen,
+  updateRoom,
+  updateWall,
+  type KitchenShape,
+} from '@interiorai/app-state';
+import { detectRooms, pointInPolygon } from '@interiorai/core-geometry';
+import { catalog } from '../catalogData';
 import {
   CEILING_TYPES,
   MOLDING_PROFILES,
@@ -8,7 +21,7 @@ import {
   type Level,
   type Wall,
 } from '@interiorai/scene-schema';
-import { useEditorStore } from './context';
+import { useEditor, useEditorStore } from './context';
 import { ColorField, Section, SelectField, SliderField, ToggleField } from './fields';
 
 /** 護牆板／腰牆、頂角線、踢腳板斷面（FE-FIN-02／04） */
@@ -209,6 +222,77 @@ export function CeilingSection({ room, levelId }: { room: Level['rooms'][number]
         />
       )}
       <p className="text-[11px] text-muted">{t('ceiling.hint')}</p>
+    </Section>
+  );
+}
+
+const KITCHEN_TYPES = new Set(['counter', 'upper_cabinet', 'fridge', 'stove', 'sink', 'range_hood']);
+const BATH_TYPES = new Set(['toilet', 'basin', 'shower', 'bathtub', 'mirror']);
+
+/** 廚房／衛浴自動佈局（FE-AST-08）：I／L／U 型；可選擇先移除房內既有廚具／衛浴設備（一次 undo） */
+export function KitchenSection({ room }: { room: Level['rooms'][number] }) {
+  const { t } = useTranslation();
+  const store = useEditorStore();
+  const level = useEditor(activeLevel);
+  const [shape, setShape] = useState<KitchenShape>('L');
+  const [replace, setReplace] = useState(true);
+  const run = (kind: 'kitchen' | 'bath') => {
+    const s = store.getState();
+    const pl =
+      kind === 'kitchen' ? planKitchen(level, catalog, room.id, shape) : planBath(level, catalog, room.id);
+    if (!pl.length) return s.notify('warn', t('kitchen.none'));
+    const types = kind === 'kitchen' ? KITCHEN_TYPES : BATH_TYPES;
+    const det = detectRooms(level).rooms.find((d) => d.key === [...room.wallIds].sort().join('|'));
+    const old =
+      replace && det
+        ? level.objects.filter((o) => {
+            const e = catalog.get(o.catalogId);
+            return (
+              e?.model.kind === 'parametric' &&
+              types.has(e.model.type) &&
+              pointInPolygon([o.position[0], o.position[2]], det.floor)
+            );
+          })
+        : [];
+    const cmds = [
+      ...(old.length
+        ? [
+            deleteEntities(
+              level.id,
+              old.map((o) => o.id),
+            ),
+          ]
+        : []),
+      autoDecorate(level.id, pl),
+    ];
+    if (s.exec(batch(cmds, 'command.autoLayout'))) s.notify('info', t('kitchen.done', { n: pl.length }));
+  };
+  return (
+    <Section
+      title={t('kitchen.title')}
+      defaultOpen={room.kind === 'kitchen' || room.kind === 'bath'}
+      testId="section-kitchen"
+    >
+      <SelectField
+        label={t('kitchen.shape')}
+        value={shape}
+        onChange={setShape}
+        options={(['I', 'L', 'U'] as const).map((x) => ({ value: x, label: t(`kitchen.shapes.${x}`) }))}
+        testId="kitchen-shape"
+      />
+      <ToggleField label={t('kitchen.replace')} checked={replace} onChange={setReplace} />
+      <div className="flex gap-2">
+        <button
+          className="btn flex-1 justify-center"
+          onClick={() => run('kitchen')}
+          data-testid="kitchen-run"
+        >
+          {t('kitchen.runKitchen')}
+        </button>
+        <button className="btn flex-1 justify-center" onClick={() => run('bath')} data-testid="bath-run">
+          {t('kitchen.runBath')}
+        </button>
+      </div>
     </Section>
   );
 }

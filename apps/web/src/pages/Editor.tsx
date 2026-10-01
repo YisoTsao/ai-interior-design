@@ -53,6 +53,7 @@ import { usePlaceMaterial } from '../editor/placeMaterial';
 import { useLuxOverlay } from '../editor/LightingAnalysis';
 import { illuminance, luxColor } from '../ai/illuminance';
 import { useLuxResult } from '../editor/luxResult';
+import { ResizeHandle } from '../editor/ResizeHandle';
 import { SectionControl, useSection } from '../editor/SectionControl';
 import { placeSetAt } from '../editor/SetsList';
 import { BookmarksMenu } from '../editor/BookmarksMenu';
@@ -199,6 +200,8 @@ function EditorShell() {
   const lighting = usePrefs((s) => s.lighting);
   const graphics = usePrefs((s) => s.graphics);
   const displayMode = usePrefs((s) => s.displayMode);
+  const panelW = usePrefs((s) => s.panelWidths);
+  const setPanelW = usePrefs((s) => s.setPanelWidths);
   const section = useSection((s) => s.section);
   const levelsMode = usePrefs((s) => s.levelsMode);
   const catalogVersion = useCatalogVersion();
@@ -458,7 +461,10 @@ function EditorShell() {
   };
 
   return (
-    <div className="game-ui flex h-full flex-col">
+    <div
+      className="game-ui flex h-full flex-col"
+      style={{ ['--left-w' as string]: `${panelW.left}px`, ['--right-w' as string]: `${panelW.right}px` }}
+    >
       <a href="#canvas" className="sr-only focus:not-sr-only">
         {t('app.skip')}
       </a>
@@ -473,7 +479,17 @@ function EditorShell() {
         />
       )}
       <div className="flex min-h-0 flex-1">
-        {showLeft && !presenting && <LeftPanel />}
+        {showLeft && !presenting && (
+          <>
+            <LeftPanel />
+            <ResizeHandle
+              side="left"
+              width={panelW.left}
+              def={300}
+              onChange={(v) => setPanelW({ left: v })}
+            />
+          </>
+        )}
         <main
           id="canvas"
           className="relative min-w-0 flex-1 bg-bg"
@@ -614,7 +630,15 @@ function EditorShell() {
           {prompt.node}
         </main>
         {showRight && !presenting && (
-          <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
+          <>
+            <ResizeHandle
+              side="right"
+              width={panelW.right}
+              def={320}
+              onChange={(v) => setPanelW({ right: v })}
+            />
+            <Inspector uniformScale={uniformScale} setUniformScale={setUniformScale} />
+          </>
         )}
       </div>
       {!presenting && <BottomBar />}
