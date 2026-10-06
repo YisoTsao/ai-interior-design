@@ -1,12 +1,59 @@
 import { useEffect } from 'react';
-import { deleteEntities, duplicateObjects, type EditorStore } from '@interiorai/app-state';
+import { type EditorStore } from '@interiorai/app-state';
+import { viewer3dApi } from '@interiorai/viewer-3d';
+import { editActions } from './actions';
+import { translateKey } from './keymap';
 
 export type TransformMode = 'translate' | 'rotate' | 'scale';
 
+/** 快捷鍵一覽（FE-UX-03）：[按鍵, 說明 i18n key, 分組] */
+export const SHORTCUT_LIST: [string, string, 'general' | 'tools' | 'edit' | 'view'][] = [
+  ['Ctrl/⌘ K', 'shortcuts.palette', 'general'],
+  ['?', 'shortcuts.help', 'general'],
+  ['\\', 'shortcuts.panels', 'general'],
+  ['Ctrl/⌘ Z', 'shortcuts.undo', 'general'],
+  ['Ctrl/⌘ Shift Z · Ctrl Y', 'shortcuts.redo', 'general'],
+  ['V', 'tools.select', 'tools'],
+  ['W', 'tools.wall', 'tools'],
+  ['P', 'tools.polygon', 'tools'],
+  ['C', 'tools.arc', 'tools'],
+  ['D', 'tools.door', 'tools'],
+  ['N', 'tools.window', 'tools'],
+  ['M', 'tools.measure', 'tools'],
+  ['K', 'tools.dimension', 'tools'],
+  ['T', 'tools.text', 'tools'],
+  ['Space', 'tools.pan', 'tools'],
+  ['Esc', 'shortcuts.escape', 'tools'],
+  ['Ctrl/⌘ C · X · V', 'shortcuts.clipboard', 'edit'],
+  ['Ctrl/⌘ D', 'shortcuts.duplicate', 'edit'],
+  ['Ctrl/⌘ Shift C · V', 'shortcuts.style', 'edit'],
+  ['Ctrl/⌘ A', 'shortcuts.selectAll', 'edit'],
+  ['Ctrl/⌘ G · Shift G', 'shortcuts.group', 'edit'],
+  ['Q · E', 'shortcuts.rotate', 'edit'],
+  ['L', 'shortcuts.lock', 'edit'],
+  ['H', 'shortcuts.hide', 'edit'],
+  ['Delete', 'shortcuts.delete', 'edit'],
+  ['Tab', 'shortcuts.toggleView', 'view'],
+  ['G · R · S', 'shortcuts.gizmo', 'view'],
+  ['F', 'shortcuts.frame', 'view'],
+  ['W A S D · Shift', 'shortcuts.walk', 'view'],
+];
+
+export interface ShortcutExtras {
+  palette?: () => void;
+  help?: () => void;
+  togglePanels?: () => void;
+}
+
 /** 02 §4 快捷鍵。輸入框聚焦或事件已被畫布消費（defaultPrevented）時不處理。 */
-export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => void) {
+export function useShortcuts(
+  store: EditorStore,
+  setMode: (m: TransformMode) => void,
+  extras: ShortcutExtras = {},
+) {
   useEffect(() => {
     let spacePrev: ReturnType<EditorStore['getState']>['tool'] | null = null;
+    const act = editActions(store);
     const onDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       const el = e.target as HTMLElement | null;
@@ -21,6 +68,9 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
       const s = store.getState();
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
+      if (mod && k === 'k') return (e.preventDefault(), extras.palette?.());
+      if (!mod && e.key === '?') return (e.preventDefault(), extras.help?.());
+      if (!mod && e.key === '\\') return (e.preventDefault(), extras.togglePanels?.());
       if (mod && k === 'z') {
         e.preventDefault();
         if (e.shiftKey) s.redo();
@@ -30,17 +80,19 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
       if (mod && k === 'y') return (e.preventDefault(), s.redo());
       if (mod && k === 'd') {
         e.preventDefault();
-        const objs = s.selection.filter((id) =>
-          s.scene.levels.some((l) => l.objects.some((o) => o.id === id)),
-        );
-        if (objs.length) {
-          const c = duplicateObjects(s.levelId, objs);
-          if (s.exec(c)) s.select(c.newIds);
-        }
-        return;
+        return act.duplicate();
       }
+      if (mod && e.shiftKey && k === 'c') return (e.preventDefault(), act.copyStyle());
+      if (mod && e.shiftKey && k === 'v') return (e.preventDefault(), act.pasteStyle());
+      if (mod && k === 'c') return act.copy();
+      if (mod && k === 'x') return (e.preventDefault(), act.cut());
+      if (mod && k === 'v') return (e.preventDefault(), act.paste());
+      if (mod && k === 'a') return (e.preventDefault(), act.selectAll());
+      if (mod && k === 'g') return (e.preventDefault(), e.shiftKey ? act.ungroup() : act.group());
       if (mod || e.altKey) return;
-      switch (k) {
+      const tk = translateKey(k);
+      if (tk === null) return;
+      switch (tk) {
         case 'v':
           return s.setTool('select');
         case 'w':
@@ -55,6 +107,26 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
           return setMode('rotate');
         case 's':
           return setMode('scale');
+        case 'h':
+          return act.toggleHide();
+        case 'l':
+          return act.toggleLock();
+        case 'e':
+          return act.rotate(90);
+        case 'q':
+          return act.rotate(-90);
+        case 'p':
+          return s.view === '2d' && s.setTool('polygon');
+        case 'c':
+          return s.view === '2d' && s.setTool('arc');
+        case 'm':
+          return s.view === '2d' && s.setTool('measure');
+        case 'k':
+          return s.view === '2d' && s.setTool('dimension');
+        case 't':
+          return s.view === '2d' && s.setTool('text');
+        case 'f':
+          return s.view === '3d' && viewer3dApi.get()?.frameAll();
         case 'tab':
           e.preventDefault();
           return s.setView(s.view === '2d' ? '3d' : '2d');
@@ -62,7 +134,7 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
         case 'backspace':
           if (s.selection.length) {
             e.preventDefault();
-            s.exec(deleteEntities(s.levelId, s.selection));
+            act.del();
           }
           return;
         case 'escape':
@@ -89,5 +161,5 @@ export function useShortcuts(store: EditorStore, setMode: (m: TransformMode) => 
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
     };
-  }, [store, setMode]);
+  }, [store, setMode, extras.palette, extras.help, extras.togglePanels]);
 }

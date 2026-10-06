@@ -1,0 +1,127 @@
+{
+  "id": "21-kitchen",
+  "kind": "kitchen",
+  "scene": {
+    "schemaVersion": "1.0.0",
+    "units": "mm",
+    "levels": [
+      {
+        "id": "lvl_01M3RD8HHRJ0TXXYQPEFNV1WCA",
+        "name": "1F",
+        "elevation": 0,
+        "height": 2800,
+        "walls": [
+          {
+            "id": "w_01M3RD8HHRKESB6X406E533W3Y",
+            "a": [0, 0],
+            "b": [3900, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HHR78HJYS0RGPJQK23B",
+            "a": [3900, 0],
+            "b": [3900, 3600],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HHRQDXJX5Q603RTTG1A",
+            "a": [3900, 3600],
+            "b": [0, 3600],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HHRVB35Q3P96YTDSB8X",
+            "a": [0, 3600],
+            "b": [0, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          }
+        ],
+        "openings": [
+          {
+            "wallId": "w_01M3RD8HHRKESB6X406E533W3Y",
+            "type": "door",
+            "offset": 200,
+            "width": 900,
+            "height": 2100,
+            "sill": 0,
+            "id": "o_01M3RD8HHS7EWDK00TPN7YBS5J"
+          },
+          {
+            "wallId": "w_01M3RD8HHRQDXJX5Q603RTTG1A",
+            "type": "window",
+            "offset": 1250,
+            "width": 1400,
+            "height": 1300,
+            "sill": 900,
+            "id": "o_01M3RD8HHSCEKXMMXB1F5A8N42"
+          }
+        ],
+        "rooms": [
+          {
+            "id": "r_01M3RD8HHS97J32PQQJ8573DST",
+            "floorMaterialId": "mat_stone_terrazzo",
+            "wallIds": [
+              "w_01M3RD8HHR78HJYS0RGPJQK23B",
+              "w_01M3RD8HHRKESB6X406E533W3Y",
+              "w_01M3RD8HHRQDXJX5Q603RTTG1A",
+              "w_01M3RD8HHRVB35Q3P96YTDSB8X"
+            ],
+            "label": "廚房"
+          }
+        ],
+        "objects": [
+          {
+            "catalogId": "counter_base_900",
+            "position": [600, 0, 350],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHS1A0MYMKS4NVQH56E",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "fridge_a",
+            "position": [3400, 0, 400],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHSGCNNHC38ZMJQV87Q",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "island_1500",
+            "position": [1950, 0, 2000],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHSQB7QY1AJHV39PC1P",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "chair_dining_a",
+            "position": [1550, 0, 2700],
+            "rotationY": 3.141592653589793,
+            "id": "obj_01M3RD8HHS0BY4ZJ0MMCCNTXTA",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "chair_dining_a",
+            "position": [2350, 0, 2700],
+            "rotationY": 3.141592653589793,
+            "id": "obj_01M3RD8HHSR7Y34EZPYA6AK4Q2",
+            "scale": [1, 1, 1]
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "source": "manual"
+    }
+  }
+}

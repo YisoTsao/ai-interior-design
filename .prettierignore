@@ -3,3 +3,9 @@ pnpm-lock.yaml
 dist
 coverage
 .turbo
+
+# 由 openapi-typescript 產生（api-client 測試比對原始輸出）
+**/*.gen.ts
+
+# Python 服務（由 Python 工具產生/格式化）
+services/cv-service/

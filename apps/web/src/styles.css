@@ -4,6 +4,7 @@
 :root {
   --bg: #fafaf7;
   --surface: #ffffff;
+  --surface-2: #f3f2ee;
   --border: #e5e4df;
   --text: #1b1d21;
   --muted: #5f6570;
@@ -42,6 +43,7 @@
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-border: var(--border);
   --color-fg: var(--text);
   --color-muted: var(--muted);
@@ -140,4 +142,486 @@ body {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * 遊戲 HUD 風格（ADR-023）：編輯器外框（頂列、左右面板、底列）
+ * 參考建造類遊戲的「建造模式」介面：深色半透明面板、斜切角、金色主強調、青色次強調、
+ * 物品欄格子式資產庫、分節屬性面板與滑桿。以 .game-ui 範圍覆寫設計 token，
+ * 既有元件（.btn、.field、.icon-btn）自動套用；2D 畫布改讀此處的藍圖色。
+ * ────────────────────────────────────────────────────────────── */
+.game-ui {
+  --bg: #0d1117;
+  --surface: #151b24;
+  --surface-2: #1b2330;
+  --border: #2c3a4f;
+  --text: #e9eef5;
+  --muted: #9fb0c6;
+  --primary: #f2c14e;
+  --primary-fg: #1a1406;
+  --accent: #4fd6c8;
+  --danger: #ff6b5e;
+  --warn: #ffc857;
+  --ok: #58d68d;
+  --glow: 0 0 0 1px rgba(242, 193, 78, 0.55), 0 0 14px rgba(242, 193, 78, 0.35);
+  /* 2D 畫布：藍圖 */
+  --wall: #d7e1ee;
+  --floor: #182436;
+  --object: #2b3d57;
+  --grid: #131c29;
+  --grid-major: #1f2d42;
+  --hud-font: 'Rajdhani', 'Noto Sans TC', system-ui, sans-serif;
+  color-scheme: dark;
+  background: var(--bg);
+  color: var(--text);
+}
+.game-ui ::selection {
+  background: rgba(242, 193, 78, 0.35);
+}
+.game-ui ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.game-ui ::-webkit-scrollbar-thumb {
+  background: #2c3a4f;
+  border-radius: 4px;
+}
+.game-ui ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 面板：斜切角＋內框光 */
+.hud-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 120px),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 6px), var(--surface);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.hud-panel-left {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+}
+.hud-panel-right {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+}
+.hud-bar {
+  background: linear-gradient(180deg, #19212d, #111720);
+  box-shadow:
+    inset 0 -1px 0 var(--border),
+    0 2px 12px rgba(0, 0, 0, 0.35);
+}
+.hud-bar-bottom {
+  background: linear-gradient(0deg, #19212d, #111720);
+  box-shadow: inset 0 1px 0 var(--border);
+}
+
+/* 分節標題：金色菱形＋漸層細線 */
+.hud-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--hud-font);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.hud-title::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  background: var(--primary);
+  box-shadow: 0 0 8px rgba(242, 193, 78, 0.7);
+  flex: none;
+}
+.hud-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(242, 193, 78, 0.55), transparent);
+}
+.game-ui .panel-title {
+  font-family: var(--hud-font);
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+/* 可收合分節 */
+.hud-section {
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+.hud-section > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 10px;
+  background: linear-gradient(90deg, rgba(242, 193, 78, 0.1), transparent 70%);
+  border-bottom: 1px solid transparent;
+}
+.hud-section[open] > summary {
+  border-bottom-color: var(--border);
+}
+.hud-section > summary::-webkit-details-marker {
+  display: none;
+}
+.hud-section > summary .chev {
+  transition: transform 150ms;
+}
+.hud-section[open] > summary .chev {
+  transform: rotate(90deg);
+}
+.hud-section-body {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+/* 按鈕與欄位（遊戲化） */
+.game-ui .btn {
+  border-radius: 2px;
+  background: linear-gradient(180deg, #212b3a, #18202c);
+  border-color: var(--border);
+  font-family: var(--hud-font);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.game-ui .btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #2a3649, #1d2735);
+  box-shadow: inset 0 0 0 1px rgba(242, 193, 78, 0.45);
+}
+.game-ui .btn-primary {
+  background: linear-gradient(180deg, #ffd66e, #e0a82e);
+  color: var(--primary-fg);
+  border-color: #f2c14e;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.game-ui .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffe08d, #eab440);
+}
+.game-ui .btn-danger:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--danger);
+  color: var(--danger);
+}
+.game-ui .icon-btn {
+  border-radius: 3px;
+  color: var(--text);
+}
+.game-ui .icon-btn:hover:not(:disabled) {
+  background: rgba(79, 214, 200, 0.12);
+  color: var(--accent);
+}
+.game-ui .icon-btn[aria-pressed='true'],
+.game-ui .icon-btn[aria-pressed='true']:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffd66e, #e0a82e);
+  color: var(--primary-fg);
+  box-shadow: var(--glow);
+}
+.game-ui .field {
+  border-radius: 2px;
+  background: #0c1118;
+  border-color: #2a374b;
+  color: var(--text);
+}
+.game-ui .field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(79, 214, 200, 0.4);
+  outline: none;
+}
+.game-ui select.field option {
+  background: #151b24;
+}
+
+/* 工具快捷列（hotbar） */
+.hotbar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.hotbar-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background: linear-gradient(180deg, #1e2735, #131a24);
+  border: 1px solid var(--border);
+  color: var(--text);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+.hotbar-slot:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.hotbar-slot[aria-pressed='true'] {
+  background: linear-gradient(180deg, #ffd66e, #d99f26);
+  color: var(--primary-fg);
+  border-color: #ffe08d;
+  box-shadow: var(--glow);
+}
+.hotbar-slot:disabled {
+  opacity: 0.35;
+}
+.hotbar-key {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+/* 分頁 */
+.hud-tab {
+  flex: 1;
+  padding: 8px 6px;
+  font-family: var(--hud-font);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.02));
+}
+.hud-tab:hover {
+  color: var(--text);
+}
+.hud-tab[data-state='active'] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: linear-gradient(180deg, transparent, rgba(242, 193, 78, 0.08));
+}
+
+/* 分類篩選 chip */
+.hud-chip {
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: #121922;
+  color: var(--muted);
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+}
+.hud-chip:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.hud-chip[aria-pressed='true'] {
+  color: var(--primary-fg);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* 物品欄格子（資產卡） */
+.inv-slot {
+  --rarity: #6b7a90;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 4px 4px 6px;
+  text-align: left;
+  background:
+    radial-gradient(120% 90% at 50% 20%, color-mix(in srgb, var(--rarity) 22%, transparent), transparent 70%),
+    linear-gradient(180deg, #1c2533, #121821);
+  border: 1px solid #2a3749;
+  box-shadow: inset 0 -3px 0 var(--rarity);
+  transition:
+    transform 120ms,
+    border-color 120ms,
+    box-shadow 120ms;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.inv-slot:hover {
+  transform: translateY(-2px);
+  border-color: var(--rarity);
+  box-shadow:
+    inset 0 -3px 0 var(--rarity),
+    0 6px 16px rgba(0, 0, 0, 0.45);
+}
+.inv-slot[data-active='true'] {
+  border-color: var(--primary);
+  box-shadow:
+    inset 0 -3px 0 var(--primary),
+    var(--glow);
+}
+.inv-thumb {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+}
+.inv-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+}
+.inv-badge {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-family: var(--hud-font);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--rarity);
+  text-transform: uppercase;
+}
+.inv-price {
+  font-family: var(--hud-font);
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* 滑桿 */
+.hud-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  --fill: 50%;
+  --track: linear-gradient(90deg, var(--accent) var(--fill), #253246 var(--fill));
+}
+.hud-range::-webkit-slider-runnable-track {
+  height: 4px;
+  background: var(--track);
+  border-radius: 2px;
+}
+.hud-range::-moz-range-track {
+  height: 4px;
+  background: var(--track);
+}
+.hud-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  background: var(--primary);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px rgba(242, 193, 78, 0.7);
+}
+.hud-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  background: var(--primary);
+  transform: rotate(45deg);
+}
+.hud-range.kelvin {
+  --track: linear-gradient(90deg, #ff8a1f, #ffb46b 20%, #fff1e0 45%, #f4f6ff 65%, #cfe0ff);
+}
+
+/* 開關 */
+.hud-switch {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  flex: none;
+  background: #253246;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  transition: background 150ms;
+}
+.hud-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 150ms;
+}
+.hud-switch[aria-checked='true'] {
+  background: rgba(79, 214, 200, 0.35);
+  border-color: var(--accent);
+}
+.hud-switch[aria-checked='true']::after {
+  transform: translateX(16px);
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+/* 數值讀數（物理量） */
+.hud-stat {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+.hud-stat b {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* 分段切換（2D/3D、變形模式） */
+.hud-seg {
+  display: flex;
+  border: 1px solid var(--border);
+  background: #0f151e;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.hud-seg > button {
+  padding: 4px 10px;
+  font-family: var(--hud-font);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hud-seg > button:hover {
+  color: var(--text);
+}
+.hud-seg > button[aria-pressed='true'] {
+  color: var(--primary-fg);
+  background: linear-gradient(180deg, #ffd66e, #e0a82e);
+}
+
+/* 選取物件的標頭卡 */
+.hud-card {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  background: linear-gradient(90deg, rgba(79, 214, 200, 0.1), transparent);
+  border-left: 3px solid var(--accent);
+}
+.hud-card img {
+  width: 56px;
+  height: 42px;
+  object-fit: contain;
+}
+
+/* 下拉面板（環境／畫質） */
+.hud-popover {
+  background: #121922;
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+/* 觸控裝置（FE-MOB-01）：可點擊目標至少 44 px */
+@media (pointer: coarse) {
+  .game-ui .icon-btn,
+  .game-ui .hotbar-slot,
+  .game-ui .hud-seg > button,
+  .game-ui .btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .game-ui .hud-chip {
+    min-height: 36px;
+  }
+}
+/* 窄螢幕（FE-MOB-02）：頂列可橫向捲動、對話框滿版 */
+@media (max-width: 640px) {
+  .game-ui .hud-bar {
+    gap: 4px;
+  }
 }

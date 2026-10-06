@@ -1,0 +1,12 @@
+# cv-service 依賴（授權見 docs/licenses.md）
+fastapi>=0.115        # MIT
+uvicorn>=0.30         # BSD-3
+python-multipart>=0.0.9  # Apache-2.0
+pydantic>=2.7         # MIT
+ezdxf>=1.3            # MIT
+numpy>=1.26           # BSD-3
+opencv-python-headless>=4.10  # Apache-2.0
+scikit-image>=0.24    # BSD-3
+shapely>=2.0          # BSD-3
+pillow>=10            # MIT-CMU (HPND)
+pytesseract>=0.3      # Apache-2.0（需系統 tesseract，Apache-2.0；缺席時尺度走校正流程）

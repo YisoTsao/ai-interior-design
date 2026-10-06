@@ -14,6 +14,9 @@ export function BottomBar() {
   const scene = useEditor((s) => s.scene);
   const levelId = useEditor((s) => s.levelId);
   const notices = useEditor((s) => s.notices);
+  const view = useEditor((s) => s.view);
+  const tool = useEditor((s) => s.tool);
+  const selection = useEditor((s) => s.selection);
   const level = activeLevel({ scene, levelId });
   const name = (id: string) => {
     const o = level.objects.find((x) => x.id === id);
@@ -22,7 +25,17 @@ export function BottomBar() {
   };
   const warnings = useMemo(() => findCollisions(level, collisionInputs(level, catalog)), [level]);
   return (
-    <footer className="flex min-h-9 items-center gap-3 border-t border-border bg-surface px-3 py-1 text-xs">
+    <footer className="hud-bar-bottom flex min-h-9 items-center gap-3 px-3 py-1 text-xs">
+      <span className="flex items-center gap-2 font-mono text-[11px] text-muted" data-testid="status">
+        <span className="text-accent">{t(`top.${view === '2d' ? 'view2d' : 'view3d'}`)}</span>
+        <span>
+          {t('status.tool')} <b className="text-fg">{t(`tools.${tool}`)}</b>
+        </span>
+        <span>
+          {t('status.selected')} <b className="text-fg">{selection.length}</b>
+        </span>
+        <span className="hidden lg:inline">{t('status.keys')}</span>
+      </span>
       <div aria-live="polite" className="flex flex-1 flex-wrap items-center gap-2">
         {notices.map((n) => (
           <span
@@ -45,7 +58,7 @@ export function BottomBar() {
           {warnings.length ? t('warn.count', { count: warnings.length }) : t('warn.none')}
         </summary>
         {warnings.length > 0 && (
-          <ul className="absolute bottom-6 right-0 z-10 w-72 rounded-lg border border-border bg-surface p-2 shadow">
+          <ul className="hud-popover absolute right-0 bottom-6 z-10 w-72 p-2">
             {warnings.map((w, i) => (
               <li key={i}>
                 <button

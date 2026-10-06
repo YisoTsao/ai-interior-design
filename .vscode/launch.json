@@ -1,0 +1,61 @@
+{
+  // 使用方式見 README「5. 如何 Debug」
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Web: Chrome（Vite dev）",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/apps/web",
+      "sourceMaps": true,
+      "resolveSourceMapLocations": ["${workspaceFolder}/**", "!**/node_modules/**"]
+    },
+    {
+      "name": "API: 啟動並除錯",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/services/api/dist/main.js",
+      "cwd": "${workspaceFolder}/services/api",
+      "env": { "NODE_ENV": "development" },
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/services/api/dist/**/*.js"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "API: 附加到 9229",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/services/**/dist/**/*.js"]
+    },
+    {
+      "name": "Vitest: 目前檔案",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${fileDirname}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "vitest", "run", "${file}"],
+      "console": "integratedTerminal",
+      "autoAttachChildProcesses": true
+    },
+    {
+      "name": "Playwright: 目前檔案（除錯模式）",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "playwright", "test", "${file}", "--headed"],
+      "env": { "PWDEBUG": "1" },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "cv-service: 附加 debugpy 5678",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5678 },
+      "pathMappings": [{ "localRoot": "${workspaceFolder}/services/cv-service", "remoteRoot": "." }]
+    }
+  ]
+}

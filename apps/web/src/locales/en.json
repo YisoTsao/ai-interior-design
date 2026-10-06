@@ -16,9 +16,41 @@
     "stats": "{{walls}} walls · {{objects}} items",
     "updated": "Updated {{time}}",
     "loadError": "Couldn't read project: {{message}}",
-    "importSoon": "Upload floor plan (P5)",
     "sampleName": "Sample: 2-bedroom flat",
-    "sampleRooms": { "living": "Living", "bed1": "Master bedroom", "bed2": "Bedroom" }
+    "sampleRooms": {
+      "living": "Living",
+      "bed1": "Master bedroom",
+      "bed2": "Bedroom"
+    },
+    "newProject": "New project",
+    "copyName": "{{name}} (copy)",
+    "duplicate": "Duplicate",
+    "grid": "Grid",
+    "list": "List",
+    "layout": "Layout",
+    "noMatch": "No matching projects",
+    "openNamed": "Open “{{name}}”",
+    "search": "Search projects",
+    "sort": "Sort",
+    "sortBy": {
+      "updated": "Last updated",
+      "name": "Name",
+      "area": "Area"
+    },
+    "summary": "{{area}} · {{rooms}} rooms · {{objects}} items",
+    "active": "Projects",
+    "trash": "Trash ({{n}})",
+    "trashHint": "Deleted projects are kept for {{days}} days and can be restored.",
+    "restore": "Restore",
+    "deleteForever": "Delete forever",
+    "view": "View",
+    "tags": "Tags",
+    "tagsHint": "Comma-separated, e.g. Client A, Nordic",
+    "allTags": "All",
+    "exportFile": "Export project file",
+    "openFile": "Open project file",
+    "openFileHint": "Choose or drop .interiorai files onto this page",
+    "importFailed": "Could not import “{{name}}”: {{message}}"
   },
   "top": {
     "back": "Back to projects",
@@ -28,14 +60,58 @@
     "view2d": "2D plan",
     "view3d": "3D view",
     "name": "Project name",
-    "save": { "saved": "Saved", "dirty": "Unsaved", "saving": "Saving…", "error": "Save failed" },
-    "render": "AI render (P4)",
+    "save": {
+      "saved": "Saved",
+      "dirty": "Unsaved",
+      "saving": "Saving…",
+      "error": "Save failed"
+    },
+    "render": "AI render",
     "personView": "Eye level",
     "frameAll": "Frame all",
     "bookmark": "Save view",
     "ceiling": "Show ceiling",
     "settings": "Units",
-    "bookmarkName": "View {{n}}"
+    "bookmarkName": "View {{n}}",
+    "style": "3D style",
+    "styleSimple": "Simple",
+    "styleDollhouse": "Cutaway model",
+    "viewPreset": "View preset",
+    "preset": {
+      "iso-se": "Isometric SE",
+      "iso-sw": "Isometric SW",
+      "iso-nw": "Isometric NW",
+      "iso-ne": "Isometric NE",
+      "top": "Top"
+    },
+    "decorate": "Auto-decorate",
+    "decorateNone": "No free spots for decor",
+    "decorateDone": "Added {{n}} decor items",
+    "lighting": "Lighting",
+    "lightingNight": "Evening mood",
+    "lightingDay": "Daylight",
+    "screenshot": "Screenshot (PNG)",
+    "walk": "Walk mode (WASD)",
+    "walkHint": "WASD/arrows to move, Shift to run, drag or double-click to look, Esc to exit",
+    "toggleLeft": "Left panel",
+    "toggleRight": "Right panel",
+    "display": "Display mode",
+    "displayModes": {
+      "real": "Realistic",
+      "clay": "Clay",
+      "wire": "Wireframe",
+      "xray": "X-ray"
+    },
+    "levelsMode": "Floors shown",
+    "levelsModes": {
+      "active": "Current floor",
+      "below": "Current & below",
+      "all": "All floors"
+    },
+    "lens": "Lens",
+    "twoPoint": "Two-point",
+    "resizeLeft": "Resize left panel",
+    "resizeRight": "Resize right panel"
   },
   "tools": {
     "title": "Tools",
@@ -47,7 +123,17 @@
     "pan": "Pan (Space)",
     "translate": "Move (G)",
     "rotate": "Rotate (R)",
-    "scale": "Scale (S)"
+    "scale": "Scale (S)",
+    "place": "Place item",
+    "polygon": "Polygon room (P)",
+    "measure": "Measure (M)",
+    "dimension": "Dimension (K)",
+    "text": "Text (T)",
+    "textPrompt": "Annotation text",
+    "measureTotal": "Total",
+    "measureArea": "Area",
+    "paint": "Paint",
+    "arc": "Curved wall (3 points)"
   },
   "layers": {
     "title": "Layers",
@@ -75,7 +161,52 @@
       "lighting": "Lighting",
       "decor": "Decor",
       "openings": "Doors & windows",
-      "storage": "Storage"
+      "storage": "Storage",
+      "structure": "Structure",
+      "mep": "MEP"
+    },
+    "mine": "My uploads {{n}}",
+    "count": "{{n}} items",
+    "userBadge": "Upload",
+    "price": "NT$ {{n}}",
+    "filters": "Filters",
+    "color": "Colour",
+    "maxWidth": "Max width",
+    "any": "Any",
+    "dragHint": "In 3D, drag the item onto the view to place it",
+    "favorite": "Favourite {{name}}",
+    "unfavorite": "Unfavourite {{name}}",
+    "special": {
+      "fav": "Favourites",
+      "recent": "Recent",
+      "used": "In this project",
+      "sets": "Sets"
+    },
+    "styles": {
+      "modern": "Modern",
+      "nordic": "Nordic",
+      "japandi": "Japandi",
+      "industrial": "Industrial",
+      "classic": "Classic",
+      "luxury": "Luxury",
+      "midcentury": "Mid-century",
+      "minimal": "Minimal"
+    },
+    "colors": {
+      "white": "White",
+      "grey": "Grey",
+      "black": "Black",
+      "beige": "Beige",
+      "brown": "Brown",
+      "green": "Green",
+      "blue": "Blue",
+      "red": "Red/orange"
+    },
+    "prices": {
+      "p1": "< 5k",
+      "p2": "5k–20k",
+      "p3": "20k–50k",
+      "p4": "> 50k"
     }
   },
   "outline": {
@@ -87,7 +218,11 @@
     "wall": "Wall {{n}}",
     "door": "Door {{n}}",
     "window": "Window {{n}}",
-    "empty": "Scene is empty"
+    "empty": "Scene is empty",
+    "show": "Show {{name}}",
+    "hide": "Hide {{name}}",
+    "lock": "Lock {{name}}",
+    "unlock": "Unlock {{name}}"
   },
   "inspector": {
     "title": "Properties",
@@ -113,7 +248,13 @@
     "height": "Height",
     "sill": "Sill height",
     "swing": "Swing",
-    "swings": { "left": "Left", "right": "Right", "double": "Double", "sliding": "Sliding", "none": "None" },
+    "swings": {
+      "left": "Left",
+      "right": "Right",
+      "double": "Double",
+      "sliding": "Sliding",
+      "none": "None"
+    },
     "posX": "X",
     "posZ": "Z",
     "posY": "Elevation",
@@ -134,7 +275,30 @@
     "room": "Room",
     "door": "Door",
     "window": "Window",
-    "passage": "Passage"
+    "passage": "Passage",
+    "reset": "Reset to default",
+    "transform": "Transform",
+    "appearance": "Appearance",
+    "color": "Color",
+    "roughness": "Roughness",
+    "metalness": "Metalness",
+    "opacity": "Opacity",
+    "castShadow": "Cast shadow",
+    "hidden": "Hidden",
+    "objName": "Custom name",
+    "geometry": "Geometry",
+    "wallHeight": "Wall height",
+    "baseboard": "Baseboard",
+    "colorA": "Side A color",
+    "colorB": "Side B color",
+    "materials": "Materials",
+    "doorColor": "Door color",
+    "frameColor": "Frame color",
+    "glassOpacity": "Glass opacity",
+    "tint": "Tint",
+    "openAngle": "Door open angle",
+    "slotFrame": "Frame / legs",
+    "slotAccent": "Accent (cushions, handles)"
   },
   "param": {
     "width": "Width",
@@ -144,9 +308,18 @@
     "shelves": "Shelves",
     "swing": "Swing",
     "sill": "Sill",
-    "panes": "Panes"
+    "panes": "Panes",
+    "lightColor": "Light color",
+    "dimmer": "Brightness %",
+    "style": "Style",
+    "shape": "Shape",
+    "steps": "Steps",
+    "mepPoint": "Point type"
   },
-  "room": { "unnamed": "Unnamed room" },
+  "room": {
+    "unnamed": "Unnamed room",
+    "kind": "Room type"
+  },
   "snap": {
     "endpoint": "Snap: endpoint",
     "wall": "Snap: wall",
@@ -158,7 +331,11 @@
   "hint": {
     "openingNeedsWall": "Move the cursor onto a wall to place a door or window",
     "badLength": "Couldn't read that length. Try 3200 or 3.2m",
-    "wallTool": "Click to add points, double-click or Enter to finish, type a length, Esc to cancel"
+    "wallTool": "Click to add points, double-click or Enter to finish, type a length, Esc to cancel",
+    "polygonTool": "Click points; click the first point or press Enter to close",
+    "measureTool": "Click to measure; click the start to get area; Enter to finish, Esc to clear",
+    "dimensionTool": "Click two points, then move and click to place the line",
+    "arcTool": "Click start, end, then a point on the arc; Esc cancels"
   },
   "warn": {
     "title": "Warnings",
@@ -178,7 +355,11 @@
     "SCALE_INVALID": "Scale must be greater than 0",
     "notFound": "Project not found",
     "requestId": "Error code {{id}}",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "WALL_HEIGHT_OUT_OF_RANGE": "Wall height must be between 10 cm and the level height, and above its openings",
+    "LEVEL_HEIGHT_INVALID": "Level height must be 1.8–6 m and above openings and walls",
+    "LAST_LEVEL": "At least one level is required",
+    "ARRAY_INVALID": "Array count must be 1–200"
   },
   "units": {
     "length": "Length unit",
@@ -206,8 +387,1102 @@
     "duplicate": "duplicate",
     "setMaterial": "apply material",
     "renameRoom": "rename room",
-    "saveCamera": "save view"
+    "saveCamera": "save view",
+    "autoDecorate": "auto-decorate",
+    "importPlan": "import floor plan",
+    "updateRoom": "Edit room",
+    "environment": "Edit environment",
+    "addAnnotation": "Add annotation",
+    "updateAnnotation": "Edit annotation",
+    "align": "Align",
+    "distribute": "Distribute",
+    "paste": "Paste",
+    "group": "Group",
+    "ungroup": "Ungroup",
+    "mirror": "Mirror",
+    "arrayCopy": "Array copy",
+    "addLevel": "Add level",
+    "updateLevel": "Edit level",
+    "deleteLevel": "Delete level",
+    "duplicateLevel": "Duplicate level",
+    "updateCamera": "Edit view",
+    "deleteCamera": "Delete view",
+    "quote": "Edit quote",
+    "batch": "Batch edit",
+    "assistantProposal": "apply assistant proposal",
+    "projectInfo": "edit project info",
+    "site": "adjust sun study",
+    "lightPreset": "apply lighting preset",
+    "splitWall": "split wall",
+    "mergeWalls": "merge walls",
+    "pasteStyle": "paste style",
+    "placeSet": "place set",
+    "restoreVersion": "restore version",
+    "presentationNote": "edit speaker note",
+    "addComment": "add comment",
+    "replyComment": "reply to comment",
+    "resolveComment": "change comment status",
+    "deleteComment": "delete comment",
+    "autoLayout": "auto kitchen/bath layout"
   },
-  "saved": { "camera": "Saved view “{{name}}” (usable for renders)" },
-  "lang": "中文"
+  "saved": {
+    "camera": "Saved view “{{name}}” (usable for renders)"
+  },
+  "lang": "中文",
+  "render": {
+    "title": "AI render",
+    "close": "Close",
+    "balance": "{{n}} credits",
+    "style": "Style",
+    "styles": {
+      "modern": "Modern minimal",
+      "scandinavian": "Scandinavian",
+      "japandi": "Japandi",
+      "industrial": "Industrial",
+      "luxury": "Luxury"
+    },
+    "strictness": "Structure strictness",
+    "strict": {
+      "free": "Free",
+      "balanced": "Balanced",
+      "strict": "Strict"
+    },
+    "strictHint": {
+      "free": "More stylistic freedom; small structural drift allowed",
+      "balanced": "Keeps walls, openings and furniture in place (default)",
+      "strict": "Depth-controlled composition; minimal drift"
+    },
+    "resolution": "Resolution",
+    "res": {
+      "1k": "1K draft",
+      "2k": "2K",
+      "4k": "4K"
+    },
+    "confirm4k": "Confirm 4K ({{n}} credits)",
+    "extra": "Additional request (optional)",
+    "submit": "Generate ({{n}} credits)",
+    "need3d": "Switch to the 3D view first",
+    "state": {
+      "queued": "Queued",
+      "running": "Generating",
+      "validating": "Checking structure",
+      "succeeded": "Done",
+      "failed": "Failed",
+      "canceled": "Canceled"
+    },
+    "retries": "{{n}} retries",
+    "cancel": "Cancel",
+    "progress": "Progress",
+    "validation": "Structure score {{score}} (threshold {{threshold}})",
+    "uncalibrated": "threshold not calibrated",
+    "resultAlt": "AI render",
+    "clayAlt": "Clay model",
+    "compare": "Compare clay and render",
+    "accept": "Use anyway ({{n}} credits, unwatermarked)",
+    "download": "Download",
+    "inpaintHint": "Select objects in 3D to repaint them",
+    "inpaintSelected": "{{n}} objects selected",
+    "inpaintPlaceholder": "Change to what? e.g. a dark green velvet sofa",
+    "inpaint": "Repaint selection ({{n}} credits)",
+    "err": {
+      "AUTH_REQUIRED": "Wrong email or password, or session expired",
+      "CONFLICT": "This email is already registered",
+      "INSUFFICIENT_CREDITS": "Not enough credits",
+      "CREDITS_FROZEN": "Credits are on hold; please contact support",
+      "RATE_LIMITED": "Daily limit reached or too many requests",
+      "MODERATION_BLOCKED": "Content not allowed",
+      "VALIDATION_FAILED": "Invalid input",
+      "JOB_FAILED": "Structure check failed: the AI may have moved walls or furniture. Credits refunded.",
+      "PROVIDER_UNAVAILABLE": "AI service unavailable; credits refunded, please retry later",
+      "NETWORK": "Cannot reach the server",
+      "CANCELED": "Canceled"
+    },
+    "inpaintDone": "Selection repainted; pixels outside the mask are bit-identical to the original",
+    "offline": "Render service offline"
+  },
+  "lightColors": {
+    "2700K": "Warm 2700K",
+    "3000K": "Warm 3000K",
+    "4000K": "Neutral 4000K",
+    "5000K": "Daylight 5000K",
+    "6500K": "Cool 6500K",
+    "amber": "Amber",
+    "red": "Red",
+    "pink": "Pink",
+    "magenta": "Magenta",
+    "purple": "Purple",
+    "blue": "Blue",
+    "cyan": "Cyan",
+    "green": "Green"
+  },
+  "planImport": {
+    "button": "Import floor plan",
+    "title": "Import floor plan",
+    "formats": "DXF (vector, most accurate) and PNG/JPG/WEBP (raster). Convert DWG to DXF first.",
+    "choose": "Choose a floor plan file",
+    "uploading": "Uploading…",
+    "badType": "Unsupported file type",
+    "reviewTitle": "Review floor plan",
+    "analyzing": "Analyzing…",
+    "canvas": "Floor plan with detected elements",
+    "panel": "Review",
+    "scale": "Scale (must be confirmed)",
+    "scaleMethod": {
+      "dxf_units": "Source: DXF units",
+      "dimension_ocr": "Source: dimension labels",
+      "user": "Source: user input",
+      "unknown": "Unknown scale: calibrate with two points"
+    },
+    "mmPerUnit": "1 {{u}} = {{v}} mm",
+    "calibStart": "Two-point calibration",
+    "calibClick": "Click point {{n}}",
+    "realLength": "Real distance (mm)",
+    "apply": "Apply",
+    "confirmScale": "Scale is correct",
+    "scaleConfirmed": "Scale confirmed",
+    "pending": "To review ({{n}})",
+    "noPending": "No low-confidence elements",
+    "kind": {
+      "wall": "Wall",
+      "door": "Door",
+      "window": "Window",
+      "passage": "Opening"
+    },
+    "accept": "Accept",
+    "delete": "Delete",
+    "counts": "{{w}} walls, {{o}} openings, {{r}} rooms",
+    "orthogonal": "Snap near-orthogonal walls",
+    "build": "Create 3D project",
+    "needScale": "Confirm the scale before creating the project",
+    "skipped": "{{n}} invalid elements were skipped",
+    "tooLarge": "The file is larger than 25 MB.",
+    "parseFailed": "Could not recognize this plan: {{message}}",
+    "privacy": "Recognition runs in your browser; the file is not uploaded.",
+    "engine": {
+      "browser": "Browser recognition",
+      "cv-service": "cv-service recognition"
+    },
+    "missing": "This import was not found (already built or browser data cleared). Please upload again.",
+    "rooms": {
+      "living": "Living room",
+      "bath": "Bathroom",
+      "bedroom": "Bedroom {{n}}"
+    },
+    "useSuggested": "Estimate scale from door widths ({{v}} mm/px)"
+  },
+  "light": {
+    "title": "Light",
+    "on": "On",
+    "lumens": "Luminous flux",
+    "kelvin": "Color temperature",
+    "rgb": "RGB color",
+    "beam": "Beam angle",
+    "penumbra": "Penumbra",
+    "tilt": "Tilt",
+    "pan": "Pan",
+    "castShadow": "Cast shadows",
+    "softness": "Shadow softness",
+    "range": "Range (0 = physical)",
+    "statFlux": "Flux",
+    "statIntensity": "Intensity",
+    "statLuminance": "Luminance",
+    "statLux2m": "Illuminance @2 m",
+    "statWatts": "LED power (est.)",
+    "nightOnly": "Lights render as physical sources in Dollhouse + Night."
+  },
+  "env": {
+    "title": "Environment & exposure",
+    "sky": "Sky outside (night)",
+    "skies": {
+      "moonless": "Moonless 0.001 cd/m²",
+      "moonlit": "Full moon 0.05 cd/m²",
+      "city": "City glow 0.5 cd/m²",
+      "dusk": "Blue hour 15 cd/m²"
+    },
+    "exposure": "Exposure",
+    "ambient": "Indirect light",
+    "sunAzimuth": "Sun azimuth",
+    "sunElevation": "Sun elevation",
+    "sunIntensity": "Sun intensity",
+    "hintNight": "Night: exposure scales physical lights; windows show sky luminance.",
+    "hintDay": "Day: sun settings apply to the dollhouse daylight mode."
+  },
+  "gfx": {
+    "title": "Graphics",
+    "quality": "Quality",
+    "qualities": {
+      "performance": "Performance",
+      "balanced": "Balanced",
+      "ultra": "Ultra"
+    },
+    "ao": "Ambient occlusion",
+    "bloom": "Bloom",
+    "beams": "Volumetric beams",
+    "grade": "Color grade & vignette"
+  },
+  "stats": {
+    "title": "Scene stats",
+    "rooms": "Rooms",
+    "objects": "Objects",
+    "lights": "Lights",
+    "price": "Reference total"
+  },
+  "status": {
+    "tool": "Tool",
+    "selected": "Selected",
+    "keys": "Tab 2D/3D · H hide · F frame · Ctrl+D duplicate"
+  },
+  "upload": {
+    "open": "Upload 3D model",
+    "title": "Upload 3D model",
+    "close": "Close",
+    "desc": "GLB or self-contained glTF (max {{mb}} MB). Stored in this browser only.",
+    "reading": "Reading…",
+    "pick": "Choose a .glb / .gltf file",
+    "preview": "Model preview",
+    "stats": "{{tris}} triangles · {{meshes}} meshes",
+    "name": "Name",
+    "unit": "File units",
+    "units": {
+      "m": "Meters (glTF default)",
+      "cm": "Centimeters",
+      "mm": "Millimeters",
+      "in": "Inches"
+    },
+    "category": "Category",
+    "anchor": "Placement",
+    "anchors": {
+      "floor": "Floor",
+      "wall": "Wall",
+      "ceiling": "Ceiling"
+    },
+    "elevation": "Default height",
+    "license": "I confirm I have the right to use this model (local design and rendering only).",
+    "cancel": "Cancel",
+    "save": "Add to library",
+    "untitled": "Untitled model",
+    "delete": "Delete {{name}}",
+    "deleteConfirm": "Delete \"{{name}}\"? Placed copies will show as grey boxes.",
+    "error": {
+      "UPLOAD_FORMAT": "Only .glb or .gltf files are supported.",
+      "UPLOAD_TOO_LARGE": "The file is too large.",
+      "UPLOAD_PARSE": "Could not read this model (export glTF with external files as GLB).",
+      "UPLOAD_SAVE": "Save failed (browser storage unavailable or full)."
+    },
+    "warn": {
+      "TRIANGLES": "More than {{max}} triangles; the 3D view may slow down.",
+      "SIZE_ODD": "Size looks unusual for meters; check the file units."
+    }
+  },
+  "ctx": {
+    "title": "Edit menu",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste here",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "rotate90": "Rotate 90°",
+    "mirrorX": "Mirror horizontally",
+    "mirrorZ": "Mirror vertically",
+    "array": "Array copy…",
+    "arrayCount": "Copies",
+    "arrayDx": "X spacing (mm)",
+    "arrayDz": "Z spacing (mm)",
+    "group": "Group",
+    "ungroup": "Ungroup",
+    "alignLeft": "Align left",
+    "alignCenterX": "Align centers (X)",
+    "alignTop": "Align top",
+    "distributeX": "Distribute horizontally",
+    "distributeZ": "Distribute vertically",
+    "lock": "Lock / unlock",
+    "hide": "Hide / show",
+    "selectSame": "Select same type",
+    "selectAll": "Select all",
+    "copyStyle": "Copy style",
+    "pasteStyle": "Paste style",
+    "splitWall": "Insert node here (split wall)",
+    "mergeWalls": "Merge the two walls"
+  },
+  "prompt": {
+    "ok": "OK"
+  },
+  "level": {
+    "title": "Levels",
+    "add": "Add level (copy exterior walls)",
+    "unnamed": "Unnamed level",
+    "settings": "Level settings",
+    "name": "Name",
+    "height": "Height (mm)",
+    "slab": "Slab thickness (mm)",
+    "duplicate": "Duplicate level",
+    "delete": "Delete level",
+    "confirmDelete": "Delete level \"{{name}}\" and everything on it?"
+  },
+  "bookmarks": {
+    "title": "Saved views",
+    "save": "Save view",
+    "empty": "No saved views yet",
+    "rename": "Rename",
+    "delete": "Delete"
+  },
+  "paint": {
+    "title": "Materials",
+    "hint": "Pick a material, then click walls, floors, ceilings or furniture in 2D/3D; or drag it onto a 3D surface.",
+    "active": "Paint mode: click to apply, Alt+click to pick, Esc to exit.",
+    "use": "Use material {{name}}",
+    "categories": {
+      "floor": "Floor",
+      "wall": "Wall",
+      "wood": "Wood",
+      "stone": "Stone",
+      "fabric": "Fabric",
+      "metal": "Metal",
+      "ceiling": "Ceiling"
+    },
+    "search": "Search materials…"
+  },
+  "multi": {
+    "counts": "{{o}} objects, {{w}} walls",
+    "mixed": "(mixed)",
+    "walls": "Walls",
+    "arrange": "Arrange",
+    "align": {
+      "left": "Left",
+      "centerX": "Center X",
+      "right": "Right",
+      "top": "Top",
+      "centerZ": "Center Z",
+      "bottom": "Bottom"
+    }
+  },
+  "openingStyles": {
+    "single": "Single",
+    "double": "Double",
+    "unequal": "Unequal pair",
+    "sliding": "Sliding",
+    "folding": "Folding",
+    "pocket": "Pocket",
+    "arch": "Arch",
+    "casement": "Casement",
+    "fixed": "Fixed",
+    "awning": "Awning",
+    "bay": "Bay",
+    "corner": "Corner"
+  },
+  "roomKinds": {
+    "living": "Living",
+    "dining": "Dining",
+    "bedroom": "Bedroom",
+    "kitchen": "Kitchen",
+    "bath": "Bathroom",
+    "study": "Study",
+    "entry": "Entry",
+    "balcony": "Balcony",
+    "storage": "Storage",
+    "other": "Other"
+  },
+  "tiling": {
+    "title": "Tile layout",
+    "enable": "Use tile layout",
+    "pattern": "Pattern",
+    "patterns": {
+      "straight": "Straight",
+      "running": "Running bond",
+      "diagonal": "Diagonal",
+      "herringbone": "Herringbone",
+      "chevron": "Chevron",
+      "basketweave": "Basketweave",
+      "hexagon": "Hexagon",
+      "versailles": "Versailles"
+    },
+    "tileW": "Tile width",
+    "tileH": "Tile length",
+    "grout": "Grout width",
+    "groutColor": "Grout colour",
+    "rotation": "Rotation",
+    "offsetX": "Start offset X",
+    "offsetZ": "Start offset Z",
+    "border": "Border width",
+    "borderMaterial": "Border material",
+    "waste": "Waste",
+    "quantity": "Estimate",
+    "pieces": "{{n}} pieces (~{{m2}} m²)"
+  },
+  "annotation": {
+    "text": "Text",
+    "size": "Text height",
+    "rotation": "Rotation",
+    "offset": "Line offset",
+    "dimension": "Dimension",
+    "note": "Note"
+  },
+  "shapes": {
+    "square": "Square",
+    "round": "Round",
+    "straight": "Straight",
+    "l": "L-shaped",
+    "u": "U-shaped",
+    "spiral": "Spiral"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "wizard": {
+    "title": "New project",
+    "tab": {
+      "blank": "Blank",
+      "template": "Templates",
+      "import": "Import plan"
+    },
+    "name": "Project name",
+    "height": "Ceiling height (mm)",
+    "blankHint": "Start from an empty canvas: draw the layout with the Wall or Room tool.",
+    "furnish": "Furnish automatically",
+    "importHint": "Upload a floor plan (PNG/JPG/DXF). Walls, openings and rooms are detected, you review them, then 2D/3D is generated.",
+    "create": "Create"
+  },
+  "templates": {
+    "studio": "Studio",
+    "twoBed": "2-bedroom",
+    "threeBed": "3-bedroom",
+    "sample": "Sample project",
+    "sampleDesc": "Two-bedroom demo with lighting",
+    "desc": "{{area}} · {{rooms}} spaces",
+    "rooms": {
+      "studio": "Studio",
+      "living": "Living & dining",
+      "bed1": "Master bedroom",
+      "bed2": "Bedroom 2",
+      "bed3": "Study",
+      "kitchen": "Kitchen",
+      "bath": "Bathroom"
+    }
+  },
+  "furnish": {
+    "title": "AI auto-furnish",
+    "desc": "Generates a complete layout per room type (living, bedroom, kitchen, bath…): large pieces against walls, doorways and walkways kept clear. Compare three styles, apply one — a single undo reverts it.",
+    "scope": "Scope",
+    "scopeAll": "All rooms",
+    "scopeSelected": "Selected rooms ({{n}})",
+    "scopeHint": "Select a room in 2D first",
+    "budget": "Budget (NT$)",
+    "noBudget": "No limit",
+    "includeFurnished": "Also furnish rooms that already have furniture",
+    "styleLabel": "Styles (up to 3)",
+    "style": {
+      "nordic": "Nordic",
+      "modern": "Modern",
+      "japandi": "Japandi",
+      "industrial": "Industrial",
+      "luxury": "Luxury"
+    },
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "apply": "Apply this proposal",
+    "summary": "{{n}} items · {{cost}}",
+    "nothing": "No rooms to furnish",
+    "applied": "Applied “{{style}}”: {{n}} items (Ctrl+Z to undo)"
+  },
+  "assistant": {
+    "title": "AI design assistant",
+    "intro": "Describe a change in one sentence, e.g. “add a plant to the living room” or “is the walkway in the bedroom wide enough?”. Every change is shown as a diff and only applied after you confirm.",
+    "placeholder": "Type a request…",
+    "send": "Send",
+    "thinking": "Thinking…",
+    "apply": "Apply",
+    "dismiss": "Dismiss",
+    "applied": "Applied the assistant's proposal (Ctrl+Z to undo)",
+    "stateApplied": "Applied",
+    "stateDismissed": "Dismissed",
+    "error": "Something went wrong: {{message}}",
+    "defaultRoom": "客廳",
+    "chip": {
+      "list": "列出{{room}}的家具",
+      "budget": "{{room}}的預算大約多少？",
+      "clearance": "檢查{{room}}的走道",
+      "add": "在{{room}}加一盆植物"
+    },
+    "change": {
+      "move": "Move “{{name}}” to ({{x}}, {{z}}) mm, facing {{deg}}°",
+      "resize": "“{{name}}” length {{from}} → {{to}} mm",
+      "add": "Add “{{name}}” to “{{room}}”",
+      "material": "“{{target}}” material: {{from}} → {{to}}"
+    }
+  },
+  "quote": {
+    "title": "Quote / BOM",
+    "client": "Client",
+    "note": "Notes",
+    "items": "Items",
+    "byRoom": "By room",
+    "col": {
+      "kind": "Type",
+      "name": "Item",
+      "code": "Code",
+      "qty": "Qty",
+      "unit": "Unit",
+      "price": "Unit price",
+      "subtotal": "Subtotal"
+    },
+    "kind": {
+      "object": "Furniture & lighting",
+      "opening": "Doors & windows",
+      "floor_finish": "Flooring",
+      "wall_finish": "Wall finishes",
+      "ceiling_finish": "Ceiling"
+    },
+    "unit": {
+      "pcs": "pcs",
+      "m2": "m²"
+    },
+    "editPrice": "Unit price of “{{name}}”",
+    "resetPrice": "Reset to default price",
+    "waste": "Material waste %",
+    "taxRate": "Tax rate %",
+    "discount": "Discount",
+    "extras": "Other charges",
+    "addExtra": "Add charge",
+    "removeExtra": "Remove",
+    "extraLabel": "Charge name",
+    "extraAmount": "Amount",
+    "designFee": "Design fee",
+    "subtotal": "Subtotal",
+    "tax": "Tax {{pct}}%",
+    "total": "Total",
+    "csv": "Export Excel (CSV)",
+    "pdf": "Print / save PDF",
+    "docTitle": "Interior design quotation"
+  },
+  "gallery": {
+    "title": "Gallery",
+    "snap": "Capture view",
+    "pano": "720° panorama",
+    "pano3dOnly": "Switch to 3D to create a panorama",
+    "rendering": "Rendering panorama…",
+    "panoHint": "Drag to look around, scroll to zoom.",
+    "filter": "Filter",
+    "all": "All",
+    "kind": {
+      "screenshot": "Screenshot",
+      "panorama": "Panorama",
+      "render": "AI render",
+      "plan": "Floor plan"
+    },
+    "empty": "No images yet. Capture the view or create a 720° panorama!",
+    "back": "Back",
+    "download": "Download",
+    "cover": "Set as project cover",
+    "coverSet": "Set as project cover",
+    "delete": "Delete"
+  },
+  "share": {
+    "title": "Share",
+    "desc": "Anyone with the link can view the 2D plan, 3D model and 720° panorama read-only (mobile too) and copy it into their own projects. The scene is compressed into the URL — no server involved.",
+    "link": "Share link",
+    "copy": "Copy",
+    "copied": "Copied",
+    "open": "Open",
+    "note": "Link size ≈ {{kb}} KB; your uploaded 3D models are not included.",
+    "readOnly": "Read-only",
+    "pano": "720°",
+    "copyToMine": "Copy to my projects",
+    "invalid": "The share link is incomplete.",
+    "broken": "Could not read the shared design: {{message}}"
+  },
+  "tour": {
+    "help": "Guided tour",
+    "skip": "Skip",
+    "prev": "Back",
+    "next": "Next",
+    "done": "Start designing",
+    "welcome": {
+      "title": "Welcome to InteriorAI",
+      "body": "A one-minute tour: draw the layout → place furniture → view in 3D → render and quote."
+    },
+    "tools": {
+      "title": "1. Draw the layout",
+      "body": "Pick the Wall or Room tool and click on the canvas to draw your first wall; doors and windows snap onto walls. Number keys switch tools."
+    },
+    "assets": {
+      "title": "2. Place furniture",
+      "body": "Drag furniture from the library into 2D or 3D — it snaps to nearby walls. Drag materials from the Materials tab onto walls and floors."
+    },
+    "view": {
+      "title": "3. Switch 2D / 3D",
+      "body": "Switch to 3D any time to walk through (WASD), change day/night lighting and save camera bookmarks."
+    },
+    "inspector": {
+      "title": "4. Edit properties",
+      "body": "Select any wall, opening, furniture or light to edit its size, material, brightness, color temperature and angle here."
+    },
+    "ai": {
+      "title": "5. Let AI help",
+      "body": "“AI auto-furnish” generates three styled layouts in one click; the “AI design assistant” edits the scene by chat — you confirm every change."
+    },
+    "output": {
+      "title": "6. Quote, gallery and share",
+      "body": "Get a BOM and quote automatically (export to Excel / PDF), keep screenshots and 720° panoramas in the gallery, and share a link with your client."
+    }
+  },
+  "exports": {
+    "title": "Export",
+    "plan": "2D floor plan",
+    "image": "High-resolution image",
+    "model": "3D model & project file",
+    "resolution": "Resolution",
+    "transparent": "Transparent background",
+    "toGallery": "Also save to gallery",
+    "screenshot": "3D screenshot",
+    "topPlan": "Top-down color plan",
+    "needs2d": "PNG plan export requires the 2D view.",
+    "needs3d": "Images and 3D models require the 3D view.",
+    "working": "Working…",
+    "failed": "Export failed: {{message}}",
+    "drawings": "Construction drawings (print / PDF)",
+    "drawingsHint": "A3 landscape: dimensioned plan, furniture, flooring, ceiling & circuits, MEP points, room elevations."
+  },
+  "history": {
+    "title": "History",
+    "start": "(start)"
+  },
+  "lightPreset": {
+    "title": "Lighting presets",
+    "cozy": "Cozy",
+    "bright": "Bright",
+    "cinema": "Cinema",
+    "party": "Party",
+    "reset": "Default",
+    "none": "No light fixtures on this floor"
+  },
+  "palette": {
+    "title": "Command palette",
+    "placeholder": "Search tools, actions, panels, assets…",
+    "none": "No matches",
+    "place": "Place",
+    "groups": {
+      "tools": "Tools",
+      "edit": "Edit",
+      "view": "View",
+      "settings": "Settings",
+      "panels": "Panels",
+      "assets": "Assets"
+    }
+  },
+  "projectInfo": {
+    "title": "Project info",
+    "client": "Client",
+    "address": "Address",
+    "budget": "Budget (NT$)",
+    "notes": "Notes",
+    "saveAs": "Save as",
+    "saveAsHint": "Save a copy as a new project (this one stays unchanged) or export a project file for another computer."
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "groups": {
+      "general": "General",
+      "tools": "Tools",
+      "edit": "Edit",
+      "view": "View"
+    },
+    "palette": "Command palette",
+    "help": "Shortcut list",
+    "panels": "Hide / show side panels",
+    "undo": "Undo",
+    "redo": "Redo",
+    "escape": "Cancel / back to select",
+    "clipboard": "Copy, cut, paste",
+    "duplicate": "Duplicate",
+    "selectAll": "Select all",
+    "group": "Group / ungroup",
+    "rotate": "Rotate 90°",
+    "lock": "Lock / unlock",
+    "hide": "Hide / show",
+    "delete": "Delete",
+    "toggleView": "Toggle 2D / 3D",
+    "gizmo": "3D move / rotate / scale",
+    "frame": "Frame all (3D)",
+    "walk": "Walk / run",
+    "style": "Copy / paste style",
+    "customize": "Customize shortcuts",
+    "pressKey": "Press a key…",
+    "reset": "Reset all"
+  },
+  "sun": {
+    "title": "Sun study",
+    "city": "City",
+    "custom": "Custom",
+    "lat": "Latitude",
+    "lon": "Longitude",
+    "date": "Date",
+    "time": "Time",
+    "north": "Plan north",
+    "play": "Play the day",
+    "stop": "Stop",
+    "readout": "Azimuth {{az}}° · elevation {{el}}°",
+    "below": "The sun is below the horizon (no daylight).",
+    "cities": {
+      "taipei": "Taipei",
+      "taichung": "Taichung",
+      "kaohsiung": "Kaohsiung",
+      "hongkong": "Hong Kong",
+      "shanghai": "Shanghai",
+      "tokyo": "Tokyo",
+      "singapore": "Singapore",
+      "london": "London",
+      "newyork": "New York"
+    }
+  },
+  "plan": {
+    "title": "Plan settings",
+    "style": "Display style",
+    "styles": {
+      "blueprint": "Blueprint",
+      "color": "Color",
+      "mono": "Mono"
+    },
+    "showGrid": "Show grid",
+    "gridMm": "Grid spacing",
+    "angle": "Angle snap",
+    "snapTo": "Snap to",
+    "targets": {
+      "endpoint": "Wall ends",
+      "wall": "Wall lines",
+      "angle": "Angles",
+      "grid": "Grid"
+    },
+    "underlay": "Tracing underlay",
+    "underlayAdd": "Upload underlay image",
+    "underlayVisible": "Show underlay",
+    "underlayRemove": "Remove underlay",
+    "opacity": "Opacity",
+    "width": "Real width",
+    "rotation": "Rotation",
+    "calibrate": "Calibrate from measurement",
+    "calibrateHint": "Measure a known length on the image with the Measure tool (M), then press Calibrate and enter the real length.",
+    "calibrateNeed": "Measure two points with the Measure tool first",
+    "calibratePrompt": "Measured {{mm}} mm on the image. What is the real length in mm?",
+    "calibrated": "Underlay calibrated (× {{k}})"
+  },
+  "assetDetail": {
+    "open": "Details of “{{name}}”",
+    "place": "Place",
+    "placeWith": "Place with “{{mat}}”",
+    "materials": "Material options (preview)",
+    "dims": "Dimensions",
+    "size": "Size",
+    "category": "Category",
+    "anchor": "Placement",
+    "price": "Reference price",
+    "material": "Main material",
+    "light": "Luminous flux",
+    "license": "License",
+    "source": "Source",
+    "allowed": "Allowed use",
+    "uses": {
+      "commercial": "commercial",
+      "render": "rendering",
+      "redistribute": "redistribution"
+    }
+  },
+  "sets": {
+    "badge": "Set · {{n}}",
+    "place": "Place “{{name}}”",
+    "lounge": "Lounge",
+    "dining4": "Dining for 4",
+    "dining6": "Dining for 6",
+    "bed": "Bed set",
+    "study": "Workstation",
+    "tvwall": "TV wall"
+  },
+  "userAssets": {
+    "title": "My 3D models",
+    "manage": "Manage",
+    "batch": "Batch upload",
+    "working": "Uploading…",
+    "hint": "Batch uploads assume meters, Decor and floor placement; edit them below.",
+    "empty": "No uploaded models yet",
+    "name": "Name",
+    "category": "Category",
+    "anchor": "Placement",
+    "replace": "Replace model file",
+    "dim": {
+      "w": "Width",
+      "d": "Depth",
+      "h": "Height"
+    }
+  },
+  "colors": {
+    "open": "Color cards",
+    "search": "Search code or name (e.g. S 0502-Y, cream)",
+    "recent": "Recent colors",
+    "families": {
+      "white": "White",
+      "neutral": "Neutral",
+      "grey": "Grey",
+      "green": "Green",
+      "blue": "Blue",
+      "earth": "Earth",
+      "dark": "Dark",
+      "accent": "Accent"
+    }
+  },
+  "userMaterial": {
+    "title": "Upload custom material",
+    "pick": "Choose texture",
+    "name": "Name",
+    "category": "Category",
+    "width": "Tile width (mm)",
+    "height": "Tile height (mm)",
+    "roughness": "Roughness",
+    "metalness": "Metalness",
+    "price": "Price (NT$/m², optional)",
+    "hint": "The texture is one repeat unit at real size (e.g. a 60×60 cm tile); it is resized to ≤ 1024 px and stored locally.",
+    "save": "Add to library",
+    "delete": "Delete “{{name}}”",
+    "deleteConfirm": "Delete material “{{name}}”? Surfaces using it fall back to a default color."
+  },
+  "mood": {
+    "title": "Style explorer",
+    "desc": "Drop reference images to extract a palette, detect the style and get furniture suggestions.",
+    "add": "Add images",
+    "remove": "Remove",
+    "palette": "Palette",
+    "paint": "Apply to selected walls",
+    "paintHint": "Click a swatch to paint the selected walls (both sides).",
+    "selectWalls": "Select the walls to paint first",
+    "styles": "Detected styles",
+    "recommend": "Suggested furniture"
+  },
+  "photo": {
+    "edit": "Edit",
+    "edited": "edited",
+    "exposure": "Exposure (EV)",
+    "temperature": "Temperature (cool ↔ warm)",
+    "saturation": "Saturation",
+    "contrast": "Contrast",
+    "crop": "Crop",
+    "original": "Original",
+    "watermark": "Watermark text",
+    "addLabel": "Add text label",
+    "labelClick": "Click the image to place…",
+    "labelPrompt": "Label text",
+    "clearLabels": "Clear labels",
+    "reset": "Reset",
+    "saveNew": "Save to gallery"
+  },
+  "versions": {
+    "title": "Version history",
+    "save": "Save version",
+    "namePlaceholder": "Version name (e.g. Client approved)",
+    "hint": "A version is saved automatically every 10 minutes; compare and restore (undoable).",
+    "empty": "No versions yet",
+    "manual": "Manual version",
+    "auto": "auto",
+    "autoName": "Autosave",
+    "stats": "{{n}} objects",
+    "compare": "Compare",
+    "restore": "Restore",
+    "restored": "Restored “{{name}}” (Ctrl+Z to undo)",
+    "delete": "Delete version",
+    "diff": "Compared with this version: +{{added}} / −{{removed}} / moved {{moved}} / changed {{changed}} objects; {{walls}} wall changes (differences selected)"
+  },
+  "present": {
+    "start": "Present",
+    "prev": "Previous",
+    "next": "Next",
+    "play": "Autoplay",
+    "pause": "Pause",
+    "notes": "Speaker notes",
+    "exit": "Exit",
+    "noCams": "No camera bookmarks (overview)"
+  },
+  "lux": {
+    "title": "Illuminance",
+    "heatmap": "2D lux heatmap",
+    "room": "Room",
+    "avg": "Avg lx",
+    "minmax": "Min–max",
+    "target": "Target",
+    "note": "Estimated floor illuminance from fixture flux (no occlusion or bounce light); targets per CNS 12112. Orange = outside target."
+  },
+  "section": {
+    "title": "Section",
+    "position": "Section position",
+    "kinds": {
+      "none": "No section",
+      "h": "Horizontal",
+      "x": "Vertical (X)",
+      "z": "Vertical (Z)"
+    }
+  },
+  "perf": {
+    "lowered": "Frame rate below 45 FPS — switched to “{{q}}” quality"
+  },
+  "mep": {
+    "outlet": "Outlet",
+    "outlet_counter": "Counter outlet",
+    "switch": "Switch",
+    "data": "Data",
+    "tv": "TV",
+    "water_cold": "Cold water",
+    "water_hot": "Hot water",
+    "drain": "Drain",
+    "gas": "Gas",
+    "ac": "Air-con"
+  },
+  "drawings": {
+    "title": "Construction drawings",
+    "plan": "Dimensioned plan",
+    "furniture": "Furniture plan",
+    "floor": "Flooring plan",
+    "ceiling": "Ceiling lighting & circuits",
+    "mep": "MEP points plan",
+    "elevation": "{{room}} elevation {{n}}",
+    "circuit": "Circuit",
+    "room": "Room",
+    "count": "Qty",
+    "flux": "Flux",
+    "symbol": "Symbol",
+    "item": "Item",
+    "mepNote": "Numbers next to points are heights above floor (mm).",
+    "disclaimer": "Generated by InteriorAI; verify dimensions on site. MEP points must be confirmed by a licensed professional."
+  },
+  "editor": {
+    "loading": "Loading project…",
+    "retry": "Retry"
+  },
+  "comments": {
+    "title": "Comments",
+    "add": "Add comment",
+    "placing": "Click the canvas…",
+    "placeHint": "Click where the comment goes (Esc to cancel)",
+    "text": "Comment",
+    "open": "Open ({{n}})",
+    "all": "All ({{n}})",
+    "name": "Display name",
+    "me": "Me",
+    "empty": "No comments",
+    "reply": "Reply…",
+    "send": "Send",
+    "resolve": "Resolve",
+    "reopen": "Reopen",
+    "delete": "Delete",
+    "hint": "Click a red pin on the canvas to open its thread."
+  },
+  "finish": {
+    "title": "Wall trims",
+    "wainscot": "Wainscot / dado",
+    "height": "Height",
+    "style": "Style",
+    "styles": {
+      "flat": "Flat",
+      "panel": "Raised panel",
+      "beadboard": "Beadboard"
+    },
+    "sides": "Sides",
+    "sideOpts": {
+      "both": "Both (interior side only on exterior walls)",
+      "A": "Side A",
+      "B": "Side B"
+    },
+    "color": "Color",
+    "crown": "Crown molding",
+    "crownHeight": "Crown height",
+    "profile": "Profile",
+    "profiles": {
+      "flat": "Flat",
+      "cove": "Cove",
+      "step": "Stepped"
+    },
+    "baseboardProfile": "Baseboard profile"
+  },
+  "uv": {
+    "title": "Texture mapping",
+    "floorTitle": "Floor texture mapping",
+    "scale": "Scale",
+    "rotation": "Rotation",
+    "offsetX": "Offset X",
+    "offsetY": "Offset Y"
+  },
+  "ceiling": {
+    "title": "Ceiling design",
+    "type": "Type",
+    "types": {
+      "flat": "Flat",
+      "drop": "Dropped",
+      "tray": "Tray",
+      "cove": "Cove lighting"
+    },
+    "drop": "Drop",
+    "border": "Border width",
+    "kelvin": "Strip color temperature",
+    "hint": "Turn on “Show ceiling” in 3D to preview."
+  },
+  "kitchen": {
+    "title": "Kitchen / bath auto layout",
+    "shape": "Kitchen shape",
+    "shapes": {
+      "I": "Straight (I)",
+      "L": "L-shaped",
+      "U": "U-shaped"
+    },
+    "replace": "Replace existing units in the room",
+    "runKitchen": "Lay out kitchen",
+    "runBath": "Lay out bathroom",
+    "none": "Not enough free wall length",
+    "done": "Placed {{n}} items (Ctrl+Z to undo)"
+  },
+  "cabinet": {
+    "open": "Cabinet designer",
+    "title": "Custom cabinet designer",
+    "apply": "Apply",
+    "preview": "Front view",
+    "w": "Width",
+    "h": "Height",
+    "d": "Depth",
+    "columns": "Columns: {{n}}",
+    "column": "Column {{n}} (top to bottom)",
+    "addCol": "Add column",
+    "removeCol": "Remove column",
+    "addRow": "Add section",
+    "removeRow": "Remove section",
+    "cells": {
+      "d": "Door",
+      "dr": "Drawer",
+      "o": "Open shelf",
+      "h": "Hanging rail"
+    },
+    "handle": "Handle",
+    "handles": {
+      "bar": "Bar",
+      "knob": "Knob",
+      "groove": "Groove",
+      "none": "None (push)"
+    },
+    "presets": {
+      "wardrobe": "Wardrobe",
+      "bookcase": "Bookcase",
+      "sideboard": "Sideboard",
+      "tv": "TV unit",
+      "shoe": "Shoe cabinet"
+    }
+  },
+  "batch": {
+    "title": "Batch render (camera bookmarks)",
+    "noCams": "Save some camera bookmarks in 3D to batch-render them.",
+    "run": "Render {{n}}",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "prefix": "Batch",
+    "states": {
+      "queued": "Queued",
+      "running": "Rendering",
+      "done": "Done",
+      "failed": "Failed",
+      "canceled": "Canceled"
+    }
+  }
 }

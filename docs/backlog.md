@@ -34,36 +34,36 @@
 - [x] S3.5 瀏覽/搜尋 UI — FR-401 — P2
 
 ## E4 後端基礎（P3）
-- [ ] S4.1 專案骨架 — P3
-- [ ] S4.2 Auth（AuthProvider＋本機 JWT；OIDC 未驗證）— FR-901 — P3
-- [ ] S4.3 專案與版本 API — FR-701 — P3
-- [ ] S4.4 資產 API（draft）— FR-401/402 — P3
-- [ ] S4.5 上傳與儲存 — P3
-- [ ] S4.6 Job Queue — P3
-- [ ] S4.7 點數帳本 — FR-902 — P3
-- [ ] S4.8 限流/審計 — P3
+- [x] S4.1 專案骨架 — P3
+- [x] S4.2 Auth（AuthProvider＋本機 JWT；OIDC 未驗證）— FR-901 — P3
+- [x] S4.3 專案與版本 API — FR-701 — P3
+- [x] S4.4 資產 API（draft）— FR-401/402 — P3
+- [x] S4.5 上傳與儲存 — P3
+- [x] S4.6 Job Queue — P3
+- [x] S4.7 點數帳本 — FR-902 — P3
+- [x] S4.8 限流/審計 — P3
 
 ## E5 AI 渲染（P4）
-- [ ] S5.1 G-buffer 輸出 — FR-501 — P4
-- [ ] S5.2 Provider 介面 + mock — P4
-- [ ] S5.3 OpenAI provider（未驗證）— P4
-- [ ] S5.4 深度/邊緣控制 provider（未驗證）— P4
-- [ ] S5.5 Router — P4
-- [ ] S5.6 結構驗證 — FR-501 — P4
-- [ ] S5.7 遮罩合成 — FR-503 — P4
-- [ ] S5.8 Prompt 模板 — P4
-- [ ] S5.9 評測 harness — P4
-- [ ] S5.10 渲染 UI（草圖→高清）— FR-502/504 — P4
+- [x] S5.1 G-buffer 輸出 — FR-501 — P4
+- [x] S5.2 Provider 介面 + mock — P4
+- [x] S5.3 OpenAI provider（未驗證）— P4
+- [x] S5.4 深度/邊緣控制 provider（未驗證）— P4
+- [x] S5.5 Router — P4
+- [x] S5.6 結構驗證 — FR-501 — P4
+- [x] S5.7 遮罩合成 — FR-503 — P4
+- [x] S5.8 Prompt 模板 — P4
+- [x] S5.9 評測 harness — P4
+- [x] S5.10 渲染 UI（草圖→高清）— FR-502/504 — P4
 
 ## E6 平面圖匯入（P5）
-- [ ] S6.1 DXF 解析 — FR-102 — P5
-- [ ] S6.2 點陣管線 — FR-101 — P5
-- [ ] S6.3 向量化 — P5
-- [ ] S6.4 尺度校正 — FR-104 — P5
-- [ ] S6.5 VLM 標註 — P5
-- [ ] S6.6 校正 UI — FR-103 — P5
-- [ ] S6.7 合成資料產生器 — P5
-- [ ] S6.8 評測指標 — P5
+- [x] S6.1 DXF 解析 — FR-102 — P5
+- [x] S6.2 點陣管線 — FR-101 — P5
+- [x] S6.3 向量化 — P5
+- [x] S6.4 尺度校正 — FR-104 — P5
+- [x] S6.5 VLM 標註 — P5
+- [x] S6.6 校正 UI — FR-103 — P5
+- [x] S6.7 合成資料產生器 — P5
+- [x] S6.8 評測指標 — P5
 
 ## E7 助理與匯出（P6）
 - [ ] S7.1 工具 Schema — FR-601 — P6

@@ -5,11 +5,21 @@ import './i18n';
 import './styles.css';
 import { ProjectsPage } from './pages/Projects';
 import { EditorPage } from './pages/Editor';
+import { ShareViewPage } from './pages/ShareView';
+import { PlanReviewPage } from './features/plan-review/PlanReview';
+import { initUserAssets } from './userAssets';
+import { initUserMaterials } from './userMaterials';
+
+// 使用者上傳的 3D 模型（IndexedDB）→ 資產目錄
+void initUserAssets();
+void initUserMaterials();
 
 const router = createBrowserRouter([
   { path: '/', element: <ProjectsPage /> },
   { path: '/projects', element: <ProjectsPage /> },
   { path: '/p/:id/edit', element: <EditorPage /> },
+  { path: '/import/:id', element: <PlanReviewPage /> },
+  { path: '/view', element: <ShareViewPage /> },
 ]);
 
 createRoot(document.getElementById('root')!).render(

@@ -1,0 +1,134 @@
+{
+  "id": "07-living",
+  "kind": "living",
+  "scene": {
+    "schemaVersion": "1.0.0",
+    "units": "mm",
+    "levels": [
+      {
+        "id": "lvl_01M3RD8HH3XMDNWWKF0D0TK72T",
+        "name": "1F",
+        "elevation": 0,
+        "height": 2800,
+        "walls": [
+          {
+            "id": "w_01M3RD8HH3V26G9WSRM959T9VK",
+            "a": [0, 0],
+            "b": [5200, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HH3X637SR0A44973HWE",
+            "a": [5200, 0],
+            "b": [5200, 4100],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HH3ZHE3EB48CW1MGB7G",
+            "a": [5200, 4100],
+            "b": [0, 4100],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HH3X0BJDPP31TPSHA0S",
+            "a": [0, 4100],
+            "b": [0, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          }
+        ],
+        "openings": [
+          {
+            "wallId": "w_01M3RD8HH3V26G9WSRM959T9VK",
+            "type": "door",
+            "offset": 200,
+            "width": 900,
+            "height": 2100,
+            "sill": 0,
+            "id": "o_01M3RD8HH42W07QZ90H3M55WWM"
+          },
+          {
+            "wallId": "w_01M3RD8HH3ZHE3EB48CW1MGB7G",
+            "type": "window",
+            "offset": 1900,
+            "width": 1400,
+            "height": 1300,
+            "sill": 900,
+            "id": "o_01M3RD8HH4KYVVH7PDTPWANJP4"
+          }
+        ],
+        "rooms": [
+          {
+            "id": "r_01M3RD8HH3VDD61MP7RMZ89AY3",
+            "floorMaterialId": "mat_tile_grey60",
+            "wallIds": [
+              "w_01M3RD8HH3V26G9WSRM959T9VK",
+              "w_01M3RD8HH3X0BJDPP31TPSHA0S",
+              "w_01M3RD8HH3X637SR0A44973HWE",
+              "w_01M3RD8HH3ZHE3EB48CW1MGB7G"
+            ],
+            "label": "客廳"
+          }
+        ],
+        "objects": [
+          {
+            "catalogId": "sofa_3seat_a",
+            "position": [2600, 0, 3400],
+            "rotationY": 3.141592653589793,
+            "id": "obj_01M3RD8HH4W41VJK0R3BN3NRP2",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "table_coffee_a",
+            "position": [2600, 0, 2400],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH44WHJ3PGNQVKE8R4S",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "rug_2000",
+            "position": [2600, 0, 2400],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH4D3Y0XFRQTSW19FJ0",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "tvstand_1800",
+            "position": [2600, 0, 350],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH468G4SYHNYKDSM3EN",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "plant_a",
+            "position": [4800, 0, 3700],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HH443BB26PTAENR0AGA",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "armchair_a",
+            "position": [4500, 0, 2200],
+            "rotationY": -1.5707963267948966,
+            "id": "obj_01M3RD8HH4HKVP190NJZHKWV58",
+            "scale": [1, 1, 1]
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "source": "manual"
+    }
+  }
+}

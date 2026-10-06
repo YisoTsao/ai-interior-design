@@ -2,7 +2,10 @@ import {
   booleanOpWithPolyTree,
   ClipType,
   difference,
+  EndType,
   FillRule,
+  inflatePaths,
+  JoinType,
   PolyTree64,
   type Path64,
   type PolyPath64,
@@ -62,4 +65,25 @@ export function subtractPolygons(subject: readonly Vec2[], clips: readonly Vec2[
   return difference([toPath(subject)], clips.map(toPath), FillRule.EvenOdd)
     .map(fromPath)
     .filter((p) => p.length >= 3);
+}
+
+/** 多邊形偏移（delta>0 外擴、<0 內縮），round＝圓角接合；可能分裂成多塊 */
+export function offsetPolygon(polys: readonly Vec2[][], delta: number, round = true): Vec2[][] {
+  if (!polys.length) return [];
+  return inflatePaths(
+    polys.map(toPath),
+    delta * CLIP_SCALE,
+    round ? JoinType.Round : JoinType.Miter,
+    EndType.Polygon,
+    2,
+    0.25 * CLIP_SCALE,
+  )
+    .map(fromPath)
+    .filter((p) => p.length >= 3);
+}
+
+/** 凸角與凹角都倒圓角（半徑 r）：先外擴 r、內縮 2r、再外擴 r（閉運算＋開運算） */
+export function roundCorners(polys: readonly Vec2[][], r: number): Vec2[][] {
+  if (r <= 0) return polys.map((p) => [...p]);
+  return offsetPolygon(offsetPolygon(offsetPolygon(polys, r), -2 * r), r);
 }

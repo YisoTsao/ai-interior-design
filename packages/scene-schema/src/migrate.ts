@@ -18,6 +18,12 @@ export const MIGRATIONS: Migration[] = [
     to: '1.0.0',
     up: (s) => ({ ...s, schemaVersion: '1.0.0', units: 'mm' }),
   },
+  // 1.1.0（ADR-023）：新增的外觀／光源／環境欄位皆為選填 → 只升版號
+  { from: '1.0.0', to: '1.1.0', up: (s) => ({ ...s, schemaVersion: '1.1.0' }) },
+  // 1.2.0：門窗樣式、鋪貼、房間用途、群組／鏡像、樓板厚（皆選填）→ 只升版號
+  { from: '1.1.0', to: '1.2.0', up: (s) => ({ ...s, schemaVersion: '1.2.0' }) },
+  // 1.3.0：貼圖參數、護牆板／線板、天花造型（皆選填）→ 只升版號
+  { from: '1.2.0', to: '1.3.0', up: (s) => ({ ...s, schemaVersion: '1.3.0' }) },
 ];
 
 const parse = (v: string) => v.split('.').map((n) => Number(n)) as [number, number, number];

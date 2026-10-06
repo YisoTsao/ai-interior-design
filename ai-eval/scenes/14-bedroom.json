@@ -1,0 +1,134 @@
+{
+  "id": "14-bedroom",
+  "kind": "bedroom",
+  "scene": {
+    "schemaVersion": "1.0.0",
+    "units": "mm",
+    "levels": [
+      {
+        "id": "lvl_01M3RD8HHGS4S119695ZCX7VQF",
+        "name": "1F",
+        "elevation": 0,
+        "height": 2800,
+        "walls": [
+          {
+            "id": "w_01M3RD8HHGGBMJ4SYDSMND6BJ1",
+            "a": [0, 0],
+            "b": [4100, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HHGTB7QF01NY6EY9AEN",
+            "a": [4100, 0],
+            "b": [4100, 4100],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HHGMYGV5Q33HYDEE2CP",
+            "a": [4100, 4100],
+            "b": [0, 4100],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          },
+          {
+            "id": "w_01M3RD8HHGWNYF176WT0MRZPT8",
+            "a": [0, 4100],
+            "b": [0, 0],
+            "thickness": 100,
+            "type": "partition",
+            "materialId": "mat_paint_white",
+            "materialIdB": "mat_paint_white"
+          }
+        ],
+        "openings": [
+          {
+            "wallId": "w_01M3RD8HHGGBMJ4SYDSMND6BJ1",
+            "type": "door",
+            "offset": 200,
+            "width": 900,
+            "height": 2100,
+            "sill": 0,
+            "id": "o_01M3RD8HHHEKGB1AKW2X5XZ21Q"
+          },
+          {
+            "wallId": "w_01M3RD8HHGMYGV5Q33HYDEE2CP",
+            "type": "window",
+            "offset": 1350,
+            "width": 1400,
+            "height": 1300,
+            "sill": 900,
+            "id": "o_01M3RD8HHHPDVS5BWB2H5V3CVP"
+          }
+        ],
+        "rooms": [
+          {
+            "id": "r_01M3RD8HHG5SS6ZEQEP2KNS1ZZ",
+            "floorMaterialId": "mat_wood_oak",
+            "wallIds": [
+              "w_01M3RD8HHGGBMJ4SYDSMND6BJ1",
+              "w_01M3RD8HHGMYGV5Q33HYDEE2CP",
+              "w_01M3RD8HHGTB7QF01NY6EY9AEN",
+              "w_01M3RD8HHGWNYF176WT0MRZPT8"
+            ],
+            "label": "臥室"
+          }
+        ],
+        "objects": [
+          {
+            "catalogId": "bed_double_150",
+            "position": [2050, 0, 1200],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHHTPFZ07EAFJ764Q1Q",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "nightstand_a",
+            "position": [1000, 0, 350],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHH0FRB4KPVXZ4HR4PH",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "nightstand_a",
+            "position": [3100, 0, 350],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHHVFV12JMENTAQZ6PQ",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "desk_dresser_a",
+            "position": [3500, 0, 3750],
+            "rotationY": 3.141592653589793,
+            "id": "obj_01M3RD8HHHG4CAQ9ECTCMXV3X6",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "plant_a",
+            "position": [400, 0, 3700],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHHNJZV1BAH8RZRBMRV",
+            "scale": [1, 1, 1]
+          },
+          {
+            "catalogId": "rug_2000",
+            "position": [2050, 0, 2300],
+            "rotationY": 0,
+            "id": "obj_01M3RD8HHH2P61TTBH31PJBME0",
+            "scale": [1, 1, 1]
+          }
+        ]
+      }
+    ],
+    "meta": {
+      "source": "manual"
+    }
+  }
+}

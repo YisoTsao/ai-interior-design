@@ -35,3 +35,33 @@ describe('collision（FR-304）', () => {
     expect(objs.some((s) => s.includes('lamp') || s.includes('rug'))).toBe(false);
   });
 });
+
+describe('疊放與壁掛', () => {
+  it('垂直範圍不重疊不算碰撞；壁掛物不與家具互判', () => {
+    const sq = (x: number, s = 400): [number, number][] => [
+      [x, 0],
+      [x + s, 0],
+      [x + s, s],
+      [x, s],
+    ];
+    const lvl = { walls: [] };
+    expect(
+      findCollisions(lvl, [
+        { id: 'stand', poly: sq(0), y0: 0, y1: 500 },
+        { id: 'lamp', poly: sq(50, 300), y0: 500, y1: 960 },
+      ]),
+    ).toEqual([]);
+    expect(
+      findCollisions(lvl, [
+        { id: 'a', poly: sq(0), y0: 0, y1: 500 },
+        { id: 'b', poly: sq(50, 300), y0: 400, y1: 900 },
+      ]).map((c) => c.otherId),
+    ).toEqual(['b']);
+    expect(
+      findCollisions(lvl, [
+        { id: 'desk', poly: sq(0) },
+        { id: 'curtain', poly: sq(0), anchor: 'wall' },
+      ]),
+    ).toEqual([]);
+  });
+});

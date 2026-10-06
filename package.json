@@ -14,15 +14,16 @@
     "coverage": "turbo run coverage",
     "format": "prettier --write .",
     "test:e2e": "playwright test",
-    "test:integration": "echo 'TODO(P3): testcontainers' && exit 1",
-    "test:contract": "echo 'TODO(P3): openapi contract' && exit 1",
+    "test:integration": "turbo run test:integration",
+    "test:contract": "turbo run test:contract",
     "size": "echo 'TODO(P7): bundle size budget' && exit 1",
     "licenses:check": "node tools/licenses-check.mjs && pnpm catalog check",
     "catalog": "pnpm --filter @interiorai/catalog-tools --silent catalog",
-    "prepare": "simple-git-hooks || true"
+    "prepare": "simple-git-hooks || true",
+    "ai-eval": "pnpm --filter @interiorai/ai-eval --silent run"
   },
   "simple-git-hooks": {
-    "pre-commit": "pnpm lint && pnpm exec prettier --check --no-error-on-unmatched-pattern \"packages/**/*.{ts,tsx,json}\" \"apps/**/*.{ts,tsx,json}\""
+    "pre-commit": "pnpm lint && pnpm exec prettier --check --no-error-on-unmatched-pattern \"packages/**/*.{ts,tsx,json}\" \"apps/**/*.{ts,tsx,json}\" \"services/**/*.{ts,json}\""
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

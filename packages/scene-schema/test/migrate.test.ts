@@ -8,22 +8,59 @@ const golden = (name: string) => fileURLToPath(new URL(`./golden/${name}`, impor
 
 describe('migrate', () => {
   it('目前版本：內容不變且不修改輸入', () => {
-    const s = sampleScene();
+    const s = { ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION };
     const out = migrate(s);
     expect(out).toEqual(s);
     expect(out).not.toBe(s);
   });
-  it('v0（無 schemaVersion）→ 1.0.0，並通過驗證（Golden File）', () => {
+  it('1.0.0 → 目前版本：新欄位皆選填，只升版號', () => {
+    const s = sampleScene();
+    expect(s.schemaVersion).toBe('1.0.0');
+    expect(migrate(s)).toEqual({ ...s, schemaVersion: CURRENT_SCHEMA_VERSION });
+  });
+  it('1.2.0 門窗樣式、鋪貼、房間用途、群組通過驗證', () => {
+    const s = structuredClone({ ...sampleScene(), schemaVersion: '1.2.0' });
+    s.levels[0]!.rooms[0]!.floorTiling = { pattern: 'herringbone', tileW: 600, tileH: 120, grout: 2 };
+    s.levels[0]!.rooms[0]!.kind = 'living';
+    s.levels[0]!.objects[0]!.groupId = 'grp_1';
+    if (s.levels[0]!.openings[0]) s.levels[0]!.openings[0]!.style = 'sliding';
+    expect(validateScene(s).ok).toBe(true);
+    s.levels[0]!.rooms[0]!.floorTiling = { pattern: 'herringbone', tileW: 5, tileH: 120 };
+    expect(validateScene(s).ok).toBe(false);
+  });
+  it('1.3.0 貼圖參數、護牆板、頂角線、天花造型通過驗證，超出範圍被拒', () => {
+    const s = structuredClone({ ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION });
+    const w = s.levels[0]!.walls[0]!;
+    w.wainscot = { height: 900, style: 'panel', sides: 'both', color: '#e8e2d6' };
+    w.crown = { height: 80, profile: 'cove' };
+    w.baseboardProfile = 'step';
+    w.appearance = { uvScale: 2, uvRotation: 45, uvOffset: [100, 0] };
+    s.levels[0]!.rooms[0]!.ceiling = { type: 'cove', dropMm: 150, borderMm: 600, coveKelvin: 2700 };
+    expect(validateScene(s).ok).toBe(true);
+    s.levels[0]!.rooms[0]!.ceiling = { type: 'tray', dropMm: 5, borderMm: 600 };
+    expect(validateScene(s).ok).toBe(false);
+  });
+  it('1.1.0 外觀／光源／環境欄位通過驗證，超出範圍被拒', () => {
+    const s = structuredClone({ ...sampleScene(), schemaVersion: CURRENT_SCHEMA_VERSION });
+    s.environment = { sky: 'city', exposureEv: 0.5 };
+    s.levels[0]!.walls[0]!.height = 1200;
+    s.levels[0]!.walls[0]!.appearance = { color: '#aabbcc', roughness: 0.4 };
+    s.levels[0]!.objects[0]!.light = { lumens: 800, kelvin: 2700, tiltDeg: -30 };
+    expect(validateScene(s).ok).toBe(true);
+    s.levels[0]!.objects[0]!.light = { kelvin: 500 };
+    expect(validateScene(s).ok).toBe(false);
+  });
+  it('v0（無 schemaVersion）→ 目前版本，並通過驗證（Golden File）', () => {
     const v0 = JSON.parse(readFileSync(golden('v0-input.json'), 'utf8'));
     const out = migrate(v0);
-    const expectedPath = golden('v0-expected-1.0.0.json');
+    const expectedPath = golden(`v0-expected-${CURRENT_SCHEMA_VERSION}.json`);
     if (!existsSync(expectedPath)) writeFileSync(expectedPath, JSON.stringify(out, null, 2) + '\n');
     expect(out).toEqual(JSON.parse(readFileSync(expectedPath, 'utf8')));
     expect(out.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(validateScene(out).ok).toBe(true);
   });
   it('較新或未知版本 → SCHEMA_UNSUPPORTED', () => {
-    for (const v of ['2.0.0', '1.1.0', 'abc']) {
+    for (const v of ['2.0.0', '1.9.0', 'abc']) {
       expect(() => migrate({ ...sampleScene(), schemaVersion: v })).toThrow(SchemaUnsupportedError);
     }
     expect(() => migrate(null)).toThrow(SchemaUnsupportedError);

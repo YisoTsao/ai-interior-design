@@ -1,5 +1,9 @@
 {
-  "app": { "name": "InteriorAI", "offline": "離線中：編輯照常，雲端功能暫停", "skip": "跳到畫布" },
+  "app": {
+    "name": "InteriorAI",
+    "offline": "離線中：編輯照常，雲端功能暫停",
+    "skip": "跳到畫布"
+  },
   "projects": {
     "title": "我的專案",
     "new": "建立空白專案",
@@ -12,9 +16,41 @@
     "stats": "{{walls}} 面牆 · {{objects}} 件家具",
     "updated": "更新於 {{time}}",
     "loadError": "專案資料無法讀取：{{message}}",
-    "importSoon": "上傳平面圖（P5 開放）",
     "sampleName": "範例：兩房一廳",
-    "sampleRooms": { "living": "客廳", "bed1": "主臥", "bed2": "次臥" }
+    "sampleRooms": {
+      "living": "客廳",
+      "bed1": "主臥",
+      "bed2": "次臥"
+    },
+    "newProject": "新建專案",
+    "copyName": "{{name}}（副本）",
+    "duplicate": "建立副本",
+    "grid": "網格",
+    "list": "清單",
+    "layout": "版面",
+    "noMatch": "沒有符合的專案",
+    "openNamed": "開啟「{{name}}」",
+    "search": "搜尋專案",
+    "sort": "排序",
+    "sortBy": {
+      "updated": "最近更新",
+      "name": "名稱",
+      "area": "面積"
+    },
+    "summary": "{{area}} · {{rooms}} 房 · {{objects}} 件",
+    "active": "專案",
+    "trash": "垃圾桶（{{n}}）",
+    "trashHint": "刪除的專案會保留 {{days}} 天，期間可還原。",
+    "restore": "還原",
+    "deleteForever": "永久刪除",
+    "view": "檢視",
+    "tags": "標籤",
+    "tagsHint": "以逗號分隔，例如：客戶 A, 北歐",
+    "allTags": "全部",
+    "exportFile": "匯出專案檔",
+    "openFile": "開啟專案檔",
+    "openFileHint": "選擇或拖放 .interiorai 檔案到此頁",
+    "importFailed": "無法匯入「{{name}}」：{{message}}"
   },
   "top": {
     "back": "回專案列表",
@@ -24,14 +60,58 @@
     "view2d": "2D 平面",
     "view3d": "3D 檢視",
     "name": "專案名稱",
-    "save": { "saved": "已儲存", "dirty": "尚未儲存", "saving": "儲存中…", "error": "儲存失敗" },
-    "render": "AI 渲染（P4 開放）",
+    "save": {
+      "saved": "已儲存",
+      "dirty": "尚未儲存",
+      "saving": "儲存中…",
+      "error": "儲存失敗"
+    },
+    "render": "AI 渲染",
     "personView": "人視角",
     "frameAll": "全景",
     "bookmark": "儲存視角",
     "ceiling": "顯示天花板",
     "settings": "單位",
-    "bookmarkName": "視角 {{n}}"
+    "bookmarkName": "視角 {{n}}",
+    "style": "3D 風格",
+    "styleSimple": "簡易",
+    "styleDollhouse": "剖面模型",
+    "viewPreset": "視角預設",
+    "preset": {
+      "iso-se": "等角 東南",
+      "iso-sw": "等角 西南",
+      "iso-nw": "等角 西北",
+      "iso-ne": "等角 東北",
+      "top": "俯視"
+    },
+    "decorate": "自動點綴軟裝",
+    "decorateNone": "沒有可以再放軟裝的位置",
+    "decorateDone": "已加入 {{n}} 件軟裝",
+    "lighting": "光線",
+    "lightingNight": "夜間氛圍",
+    "lightingDay": "日光",
+    "screenshot": "截圖（PNG）",
+    "walk": "第一人稱漫遊（WASD）",
+    "walkHint": "WASD／方向鍵移動、Shift 奔跑、拖曳或雙擊鎖定滑鼠轉頭、Esc 離開",
+    "toggleLeft": "左側面板",
+    "toggleRight": "右側面板",
+    "display": "顯示模式",
+    "displayModes": {
+      "real": "真實",
+      "clay": "白模",
+      "wire": "線框",
+      "xray": "X 光"
+    },
+    "levelsMode": "顯示樓層",
+    "levelsModes": {
+      "active": "目前樓層",
+      "below": "目前及以下",
+      "all": "全部樓層"
+    },
+    "lens": "焦距",
+    "twoPoint": "兩點透視",
+    "resizeLeft": "調整左側面板寬度",
+    "resizeRight": "調整右側面板寬度"
   },
   "tools": {
     "title": "工具",
@@ -43,7 +123,17 @@
     "pan": "平移 (Space)",
     "translate": "移動 (G)",
     "rotate": "旋轉 (R)",
-    "scale": "縮放 (S)"
+    "scale": "縮放 (S)",
+    "place": "放置家具",
+    "polygon": "多邊形房間 (P)",
+    "measure": "測量 (M)",
+    "dimension": "尺寸標註 (K)",
+    "text": "文字標註 (T)",
+    "textPrompt": "輸入標註文字",
+    "measureTotal": "總長",
+    "measureArea": "面積",
+    "paint": "油漆",
+    "arc": "弧形牆（三點）"
   },
   "layers": {
     "title": "圖層",
@@ -71,7 +161,52 @@
       "lighting": "燈具",
       "decor": "裝飾",
       "openings": "門窗",
-      "storage": "收納"
+      "storage": "收納",
+      "structure": "結構",
+      "mep": "水電"
+    },
+    "mine": "我的上傳 {{n}}",
+    "count": "{{n}} 件",
+    "userBadge": "上傳",
+    "price": "NT$ {{n}}",
+    "filters": "篩選",
+    "color": "主色",
+    "maxWidth": "最大寬度",
+    "any": "不限",
+    "dragHint": "在 3D 中請把資產拖曳到畫面上放置",
+    "favorite": "收藏 {{name}}",
+    "unfavorite": "取消收藏 {{name}}",
+    "special": {
+      "fav": "收藏",
+      "recent": "最近使用",
+      "used": "本專案已使用",
+      "sets": "套組"
+    },
+    "styles": {
+      "modern": "現代",
+      "nordic": "北歐",
+      "japandi": "日式／侘寂",
+      "industrial": "工業",
+      "classic": "古典",
+      "luxury": "輕奢",
+      "midcentury": "中古世紀",
+      "minimal": "極簡"
+    },
+    "colors": {
+      "white": "白",
+      "grey": "灰",
+      "black": "黑",
+      "beige": "米",
+      "brown": "棕",
+      "green": "綠",
+      "blue": "藍",
+      "red": "紅／橘"
+    },
+    "prices": {
+      "p1": "< 5 千",
+      "p2": "5 千–2 萬",
+      "p3": "2–5 萬",
+      "p4": "> 5 萬"
     }
   },
   "outline": {
@@ -83,7 +218,11 @@
     "wall": "牆 {{n}}",
     "door": "門 {{n}}",
     "window": "窗 {{n}}",
-    "empty": "場景是空的"
+    "empty": "場景是空的",
+    "show": "顯示 {{name}}",
+    "hide": "隱藏 {{name}}",
+    "lock": "鎖定 {{name}}",
+    "unlock": "解除鎖定 {{name}}"
   },
   "inspector": {
     "title": "屬性",
@@ -92,7 +231,12 @@
     "length": "長度",
     "thickness": "厚度",
     "type": "類型",
-    "wallTypes": { "structural": "結構牆", "exterior": "外牆", "partition": "隔間牆", "curtain": "帷幕牆" },
+    "wallTypes": {
+      "structural": "結構牆",
+      "exterior": "外牆",
+      "partition": "隔間牆",
+      "curtain": "帷幕牆"
+    },
     "sideA": "A 面（畫牆方向左側）",
     "sideB": "B 面（右側）",
     "keep": "改長度時固定",
@@ -104,7 +248,13 @@
     "height": "高度",
     "sill": "窗台高",
     "swing": "開向",
-    "swings": { "left": "左開", "right": "右開", "double": "雙開", "sliding": "橫拉", "none": "無" },
+    "swings": {
+      "left": "左開",
+      "right": "右開",
+      "double": "雙開",
+      "sliding": "橫拉",
+      "none": "無"
+    },
     "posX": "X",
     "posZ": "Z",
     "posY": "離地",
@@ -125,7 +275,30 @@
     "room": "房間",
     "door": "門",
     "window": "窗",
-    "passage": "通道"
+    "passage": "通道",
+    "reset": "恢復預設",
+    "transform": "變換",
+    "appearance": "外觀",
+    "color": "顏色",
+    "roughness": "粗糙度",
+    "metalness": "金屬度",
+    "opacity": "不透明度",
+    "castShadow": "投射陰影",
+    "hidden": "隱藏",
+    "objName": "自訂名稱",
+    "geometry": "尺寸",
+    "wallHeight": "牆高",
+    "baseboard": "踢腳板",
+    "colorA": "A 面顏色",
+    "colorB": "B 面顏色",
+    "materials": "材質",
+    "doorColor": "門片顏色",
+    "frameColor": "窗框顏色",
+    "glassOpacity": "玻璃不透明度",
+    "tint": "染色",
+    "openAngle": "門扇開啟角度",
+    "slotFrame": "框架／腳",
+    "slotAccent": "點綴（抱枕、把手）"
   },
   "param": {
     "width": "寬",
@@ -135,9 +308,18 @@
     "shelves": "層板數",
     "swing": "開向",
     "sill": "窗台高",
-    "panes": "分割數"
+    "panes": "分割數",
+    "lightColor": "光色",
+    "dimmer": "亮度 %",
+    "style": "樣式",
+    "shape": "形狀",
+    "steps": "階數",
+    "mepPoint": "點位種類"
   },
-  "room": { "unnamed": "未命名房間" },
+  "room": {
+    "unnamed": "未命名房間",
+    "kind": "房間用途"
+  },
   "snap": {
     "endpoint": "吸附：端點",
     "wall": "吸附：牆線",
@@ -149,7 +331,11 @@
   "hint": {
     "openingNeedsWall": "請把游標移到牆上再放門窗",
     "badLength": "看不懂這個長度，請輸入例如 3200 或 3.2m",
-    "wallTool": "點擊加點、雙擊或 Enter 完成、可直接輸入長度、Esc 取消"
+    "wallTool": "點擊加點、雙擊或 Enter 完成、可直接輸入長度、Esc 取消",
+    "polygonTool": "逐點點擊繪製房間，點回起點或 Enter 封閉",
+    "measureTool": "點擊量測，點回起點量面積，Enter 完成、Esc 清除",
+    "dimensionTool": "點兩點，再移動滑鼠決定尺寸線位置後點擊",
+    "arcTool": "點起點、終點，再點弧上一點；Esc 取消"
   },
   "warn": {
     "title": "警示",
@@ -169,7 +355,11 @@
     "SCALE_INVALID": "縮放必須大於 0",
     "notFound": "找不到這個專案",
     "requestId": "錯誤代碼 {{id}}",
-    "dismiss": "關閉"
+    "dismiss": "關閉",
+    "WALL_HEIGHT_OUT_OF_RANGE": "牆高需介於 10 公分與樓層高度之間，且不能低於牆上的門窗",
+    "LEVEL_HEIGHT_INVALID": "樓高需介於 180–600 公分且不低於門窗與牆高",
+    "LAST_LEVEL": "至少要保留一個樓層",
+    "ARRAY_INVALID": "陣列數量需介於 1–200"
   },
   "units": {
     "length": "長度單位",
@@ -197,8 +387,1102 @@
     "duplicate": "複製",
     "setMaterial": "套用材質",
     "renameRoom": "重新命名房間",
-    "saveCamera": "儲存視角"
+    "saveCamera": "儲存視角",
+    "autoDecorate": "自動點綴軟裝",
+    "importPlan": "匯入平面圖",
+    "updateRoom": "修改房間",
+    "environment": "修改環境",
+    "addAnnotation": "新增標註",
+    "updateAnnotation": "修改標註",
+    "align": "對齊",
+    "distribute": "等距分佈",
+    "paste": "貼上",
+    "group": "群組",
+    "ungroup": "解散群組",
+    "mirror": "鏡像",
+    "arrayCopy": "陣列複製",
+    "addLevel": "新增樓層",
+    "updateLevel": "修改樓層",
+    "deleteLevel": "刪除樓層",
+    "duplicateLevel": "複製樓層",
+    "updateCamera": "修改視角",
+    "deleteCamera": "刪除視角",
+    "quote": "修改報價",
+    "batch": "批次修改",
+    "assistantProposal": "套用助理提案",
+    "projectInfo": "修改專案屬性",
+    "site": "調整日照",
+    "lightPreset": "套用燈光方案",
+    "splitWall": "分割牆",
+    "mergeWalls": "合併牆",
+    "pasteStyle": "貼上樣式",
+    "placeSet": "放置套組",
+    "restoreVersion": "還原版本",
+    "presentationNote": "編輯講者備註",
+    "addComment": "新增留言",
+    "replyComment": "回覆留言",
+    "resolveComment": "變更留言狀態",
+    "deleteComment": "刪除留言",
+    "autoLayout": "廚衛自動配置"
   },
-  "saved": { "camera": "已儲存視角「{{name}}」（渲染時可用）" },
-  "lang": "English"
+  "saved": {
+    "camera": "已儲存視角「{{name}}」（渲染時可用）"
+  },
+  "lang": "English",
+  "render": {
+    "title": "AI 渲染",
+    "close": "關閉",
+    "balance": "餘額 {{n}} 點",
+    "style": "風格",
+    "styles": {
+      "modern": "現代簡約",
+      "scandinavian": "北歐",
+      "japandi": "日式侘寂",
+      "industrial": "工業風",
+      "luxury": "輕奢"
+    },
+    "strictness": "結構嚴格度",
+    "strict": {
+      "free": "自由",
+      "balanced": "平衡",
+      "strict": "嚴格"
+    },
+    "strictHint": {
+      "free": "風格變化較大，結構允許小幅偏差",
+      "balanced": "保留牆、門窗與家具位置（預設）",
+      "strict": "以深度圖控制構圖，偏差最小"
+    },
+    "resolution": "解析度",
+    "res": {
+      "1k": "1K 草圖",
+      "2k": "2K",
+      "4k": "4K"
+    },
+    "confirm4k": "確認產生 4K（{{n}} 點）",
+    "extra": "額外要求（選填）",
+    "submit": "產生效果圖（{{n}} 點）",
+    "need3d": "請先切換到 3D 檢視",
+    "state": {
+      "queued": "排隊中",
+      "running": "產生中",
+      "validating": "檢查結構中",
+      "succeeded": "完成",
+      "failed": "失敗",
+      "canceled": "已取消"
+    },
+    "retries": "重試 {{n}} 次",
+    "cancel": "取消",
+    "progress": "進度",
+    "validation": "結構分數 {{score}}（門檻 {{threshold}}）",
+    "uncalibrated": "門檻未校準",
+    "resultAlt": "AI 效果圖",
+    "clayAlt": "白模",
+    "compare": "比較白模與效果圖",
+    "accept": "仍要使用（扣 {{n}} 點，取得無浮水印原圖）",
+    "download": "下載",
+    "inpaintHint": "在 3D 中選取物件後可局部重繪",
+    "inpaintSelected": "已選 {{n}} 個物件",
+    "inpaintPlaceholder": "要改成什麼？例：換成墨綠色絨布沙發",
+    "inpaint": "局部重繪（{{n}} 點）",
+    "err": {
+      "AUTH_REQUIRED": "email 或密碼錯誤，或登入已過期",
+      "CONFLICT": "此 email 已註冊",
+      "INSUFFICIENT_CREDITS": "點數不足",
+      "CREDITS_FROZEN": "點數帳戶暫停使用，請聯絡客服",
+      "RATE_LIMITED": "已達今日上限或請求過於頻繁",
+      "MODERATION_BLOCKED": "內容不符合使用規範",
+      "VALIDATION_FAILED": "輸入不正確",
+      "JOB_FAILED": "結構驗證未通過：AI 可能改動了牆或家具位置。點數已退回。",
+      "PROVIDER_UNAVAILABLE": "AI 服務暫時無法使用，點數已退回，請稍後再試",
+      "NETWORK": "無法連線到伺服器",
+      "CANCELED": "已取消"
+    },
+    "inpaintDone": "已重繪所選物件；遮罩外像素與原圖逐位元相同",
+    "offline": "渲染服務未啟動"
+  },
+  "lightColors": {
+    "2700K": "暖白 2700K",
+    "3000K": "暖白 3000K",
+    "4000K": "自然白 4000K",
+    "5000K": "晝白 5000K",
+    "6500K": "冷白 6500K",
+    "amber": "琥珀",
+    "red": "紅",
+    "pink": "粉紅",
+    "magenta": "洋紅",
+    "purple": "紫",
+    "blue": "藍",
+    "cyan": "青",
+    "green": "綠"
+  },
+  "planImport": {
+    "button": "匯入平面圖",
+    "title": "匯入平面圖",
+    "formats": "支援 DXF（向量，最準）與 PNG／JPG／WEBP（點陣）。DWG 請先轉存為 DXF。",
+    "choose": "選擇平面圖檔案",
+    "uploading": "上傳中…",
+    "badType": "不支援的檔案格式",
+    "reviewTitle": "平面圖校正",
+    "analyzing": "辨識中…",
+    "canvas": "平面圖與辨識結果",
+    "panel": "校正",
+    "scale": "尺度（必須確認）",
+    "scaleMethod": {
+      "dxf_units": "來源：DXF 單位",
+      "dimension_ocr": "來源：尺寸標註辨識",
+      "user": "來源：使用者輸入",
+      "unknown": "尺度未知：請以兩點校正"
+    },
+    "mmPerUnit": "每{{u}} = {{v}} mm",
+    "calibStart": "兩點校正",
+    "calibClick": "點選第 {{n}} 點",
+    "realLength": "兩點實際距離（mm）",
+    "apply": "套用",
+    "confirmScale": "確認尺度正確",
+    "scaleConfirmed": "尺度已確認",
+    "pending": "待確認（{{n}}）",
+    "noPending": "沒有低信心的元素",
+    "kind": {
+      "wall": "牆",
+      "door": "門",
+      "window": "窗",
+      "passage": "開口"
+    },
+    "accept": "確認",
+    "delete": "刪除",
+    "counts": "牆 {{w}}、門窗 {{o}}、房間 {{r}}",
+    "orthogonal": "直角吸附（接近水平/垂直的牆拉正）",
+    "build": "建立 3D 專案",
+    "needScale": "確認尺度後才能建立專案",
+    "skipped": "有 {{n}} 個元素不合法已略過",
+    "tooLarge": "檔案超過 25 MB。",
+    "parseFailed": "無法辨識這張平面圖：{{message}}",
+    "privacy": "辨識在你的瀏覽器中進行，檔案不會上傳。",
+    "engine": {
+      "browser": "瀏覽器辨識",
+      "cv-service": "cv-service 辨識"
+    },
+    "missing": "找不到這次匯入（可能已建立專案或瀏覽器資料已清除），請重新上傳。",
+    "rooms": {
+      "living": "客廳",
+      "bath": "衛浴",
+      "bedroom": "臥室 {{n}}"
+    },
+    "useSuggested": "以門寬推估尺度（{{v}} mm/px）"
+  },
+  "light": {
+    "title": "光源",
+    "on": "開燈",
+    "lumens": "光通量",
+    "kelvin": "色溫",
+    "rgb": "RGB 光色",
+    "beam": "光束角",
+    "penumbra": "邊緣柔化",
+    "tilt": "俯仰角",
+    "pan": "水平角",
+    "castShadow": "投射陰影",
+    "softness": "陰影柔和度",
+    "range": "衰減距離（0＝物理）",
+    "statFlux": "光通量",
+    "statIntensity": "發光強度",
+    "statLuminance": "亮度",
+    "statLux2m": "2 m 處照度",
+    "statWatts": "LED 耗電（估）",
+    "nightOnly": "燈光在「剖面模型＋夜間氛圍」中以物理光源呈現。"
+  },
+  "env": {
+    "title": "環境與曝光",
+    "sky": "窗外天空（夜間）",
+    "skies": {
+      "moonless": "無月夜 0.001 cd/m²",
+      "moonlit": "滿月 0.05 cd/m²",
+      "city": "城市光害 0.5 cd/m²",
+      "dusk": "藍調時刻 15 cd/m²"
+    },
+    "exposure": "曝光補償",
+    "ambient": "間接光倍率",
+    "sunAzimuth": "太陽方位",
+    "sunElevation": "太陽仰角",
+    "sunIntensity": "日光強度",
+    "hintNight": "夜間：曝光作用在物理光源上；窗戶亮度＝天空亮度。",
+    "hintDay": "日光：太陽設定作用在剖面模型的日光模式。"
+  },
+  "gfx": {
+    "title": "畫質",
+    "quality": "畫質等級",
+    "qualities": {
+      "performance": "效能",
+      "balanced": "平衡",
+      "ultra": "極致"
+    },
+    "ao": "環境光遮蔽",
+    "bloom": "光暈",
+    "beams": "體積光束",
+    "grade": "調色與暗角"
+  },
+  "stats": {
+    "title": "場景統計",
+    "rooms": "房間",
+    "objects": "物件",
+    "lights": "燈具",
+    "price": "參考總價"
+  },
+  "status": {
+    "tool": "工具",
+    "selected": "已選",
+    "keys": "Tab 切換 2D/3D · H 隱藏 · F 全景 · Ctrl+D 複製"
+  },
+  "upload": {
+    "open": "上傳 3D 模型",
+    "title": "上傳 3D 模型",
+    "close": "關閉",
+    "desc": "支援 GLB 或自含式 glTF（最大 {{mb}} MB）。模型只存在這個瀏覽器，不會上傳到雲端。",
+    "reading": "讀取中…",
+    "pick": "選擇或拖入 .glb／.gltf 檔",
+    "preview": "模型預覽",
+    "stats": "{{tris}} 三角形 · {{meshes}} 個網格",
+    "name": "名稱",
+    "unit": "檔案單位",
+    "units": {
+      "m": "公尺（glTF 標準）",
+      "cm": "公分",
+      "mm": "公釐",
+      "in": "英吋"
+    },
+    "category": "分類",
+    "anchor": "放置方式",
+    "anchors": {
+      "floor": "落地",
+      "wall": "壁掛",
+      "ceiling": "吸頂／吊掛"
+    },
+    "elevation": "預設離地高度",
+    "license": "我確認擁有此模型的使用權（僅供本機設計與渲染）。",
+    "cancel": "取消",
+    "save": "加入資產庫",
+    "untitled": "未命名模型",
+    "delete": "刪除 {{name}}",
+    "deleteConfirm": "刪除「{{name}}」？已放置的物件會變成灰色方塊。",
+    "error": {
+      "UPLOAD_FORMAT": "只支援 .glb 或 .gltf 檔。",
+      "UPLOAD_TOO_LARGE": "檔案太大了。",
+      "UPLOAD_PARSE": "無法讀取這個模型（glTF 若有外部 .bin／貼圖，請先匯出成 GLB）。",
+      "UPLOAD_SAVE": "儲存失敗（瀏覽器儲存空間不足或無法使用）。"
+    },
+    "warn": {
+      "TRIANGLES": "面數超過 {{max}}，可能影響 3D 流暢度。",
+      "SIZE_ODD": "尺寸看起來不像公尺單位，請確認檔案單位。"
+    }
+  },
+  "ctx": {
+    "title": "編輯選單",
+    "cut": "剪下",
+    "copy": "複製",
+    "paste": "貼上到這裡",
+    "duplicate": "原地複製",
+    "delete": "刪除",
+    "rotate90": "旋轉 90°",
+    "mirrorX": "左右鏡像",
+    "mirrorZ": "前後鏡像",
+    "array": "陣列複製…",
+    "arrayCount": "份數",
+    "arrayDx": "X 間距（mm）",
+    "arrayDz": "Z 間距（mm）",
+    "group": "群組",
+    "ungroup": "解散群組",
+    "alignLeft": "靠左對齊",
+    "alignCenterX": "水平置中對齊",
+    "alignTop": "靠上對齊",
+    "distributeX": "水平等距",
+    "distributeZ": "垂直等距",
+    "lock": "鎖定／解鎖",
+    "hide": "隱藏／顯示",
+    "selectSame": "選取同類型",
+    "selectAll": "全選",
+    "copyStyle": "複製樣式",
+    "pasteStyle": "貼上樣式",
+    "splitWall": "在此插入節點（分割牆）",
+    "mergeWalls": "合併兩面牆"
+  },
+  "prompt": {
+    "ok": "確定"
+  },
+  "level": {
+    "title": "樓層",
+    "add": "新增樓層（複製外牆）",
+    "unnamed": "未命名樓層",
+    "settings": "樓層設定",
+    "name": "名稱",
+    "height": "樓高（mm）",
+    "slab": "樓板厚（mm）",
+    "duplicate": "複製整層",
+    "delete": "刪除樓層",
+    "confirmDelete": "刪除樓層「{{name}}」與其所有內容？"
+  },
+  "bookmarks": {
+    "title": "視角書籤",
+    "save": "儲存目前視角",
+    "empty": "還沒有儲存的視角",
+    "rename": "重新命名",
+    "delete": "刪除"
+  },
+  "paint": {
+    "title": "材質",
+    "hint": "點選材質後，點擊 2D／3D 的牆、地板、天花或家具套用；也可以把材質拖到 3D 表面。",
+    "active": "油漆模式：點擊表面套用，Alt＋點擊吸取材質，Esc 結束。",
+    "use": "使用材質 {{name}}",
+    "categories": {
+      "floor": "地板",
+      "wall": "牆面",
+      "wood": "木作",
+      "stone": "石材／陶瓷",
+      "fabric": "布料",
+      "metal": "金屬",
+      "ceiling": "天花"
+    },
+    "search": "搜尋材質…"
+  },
+  "multi": {
+    "counts": "家具 {{o}} 件、牆 {{w}} 道",
+    "mixed": "（混合值）",
+    "walls": "牆",
+    "arrange": "排列",
+    "align": {
+      "left": "靠左",
+      "centerX": "水平中",
+      "right": "靠右",
+      "top": "靠上",
+      "centerZ": "垂直中",
+      "bottom": "靠下"
+    }
+  },
+  "openingStyles": {
+    "single": "單開",
+    "double": "雙開",
+    "unequal": "子母門",
+    "sliding": "推拉",
+    "folding": "折疊",
+    "pocket": "隱藏拉門",
+    "arch": "拱門",
+    "casement": "推射",
+    "fixed": "固定",
+    "awning": "上懸",
+    "bay": "凸窗",
+    "corner": "轉角窗"
+  },
+  "roomKinds": {
+    "living": "客廳",
+    "dining": "餐廳",
+    "bedroom": "臥室",
+    "kitchen": "廚房",
+    "bath": "衛浴",
+    "study": "書房",
+    "entry": "玄關",
+    "balcony": "陽台",
+    "storage": "儲藏室",
+    "other": "其他"
+  },
+  "tiling": {
+    "title": "鋪貼設計",
+    "enable": "使用鋪貼",
+    "pattern": "拼法",
+    "patterns": {
+      "straight": "正鋪",
+      "running": "工字鋪",
+      "diagonal": "斜鋪 45°",
+      "herringbone": "人字拼",
+      "chevron": "魚骨拼",
+      "basketweave": "編籃拼",
+      "hexagon": "六角磚",
+      "versailles": "凡爾賽拼"
+    },
+    "tileW": "磚寬",
+    "tileH": "磚長",
+    "grout": "縫寬",
+    "groutColor": "縫色",
+    "rotation": "旋轉",
+    "offsetX": "起鋪點 X",
+    "offsetZ": "起鋪點 Z",
+    "border": "波打線寬",
+    "borderMaterial": "波打線材質",
+    "waste": "損耗率",
+    "quantity": "估料",
+    "pieces": "{{n}} 片（約 {{m2}} m²）"
+  },
+  "annotation": {
+    "text": "內容",
+    "size": "字高",
+    "rotation": "旋轉",
+    "offset": "尺寸線偏移",
+    "dimension": "尺寸標註",
+    "note": "引線備註"
+  },
+  "shapes": {
+    "square": "方形",
+    "round": "圓形",
+    "straight": "直梯",
+    "l": "L 型",
+    "u": "U 型",
+    "spiral": "旋轉"
+  },
+  "common": {
+    "cancel": "取消",
+    "close": "關閉"
+  },
+  "wizard": {
+    "title": "新建專案",
+    "tab": {
+      "blank": "空白",
+      "template": "範本",
+      "import": "匯入平面圖"
+    },
+    "name": "專案名稱",
+    "height": "樓高（mm）",
+    "blankHint": "從空白畫布開始：用左側「牆」或「房間」工具畫出格局。",
+    "furnish": "自動佈置家具",
+    "importHint": "上傳平面圖（PNG/JPG/DXF），辨識牆、門窗與房間後可校正，再產生 2D/3D。",
+    "create": "建立"
+  },
+  "templates": {
+    "studio": "套房",
+    "twoBed": "兩房一廳",
+    "threeBed": "三房兩廳",
+    "sample": "範例專案",
+    "sampleDesc": "含燈光氛圍的兩房示範",
+    "desc": "{{area}} · {{rooms}} 個空間",
+    "rooms": {
+      "studio": "開放式套房",
+      "living": "客餐廳",
+      "bed1": "主臥",
+      "bed2": "次臥",
+      "bed3": "書房",
+      "kitchen": "廚房",
+      "bath": "浴室"
+    }
+  },
+  "furnish": {
+    "title": "AI 自動佈置",
+    "desc": "依房間用途（客廳、臥室、廚房、衛浴…）產生完整家具配置：大件靠牆、保留門口與走道。比較三種風格後擇一套用，可一次復原。",
+    "scope": "範圍",
+    "scopeAll": "全部房間",
+    "scopeSelected": "選取的房間（{{n}}）",
+    "scopeHint": "先在 2D 點選房間",
+    "budget": "預算（NT$）",
+    "noBudget": "不限",
+    "includeFurnished": "已有家具的房間也佈置",
+    "styleLabel": "風格（最多 3 種）",
+    "style": {
+      "nordic": "北歐",
+      "modern": "現代",
+      "japandi": "日式侘寂",
+      "industrial": "工業風",
+      "luxury": "輕奢"
+    },
+    "generate": "產生提案",
+    "regenerate": "重新產生",
+    "apply": "套用此提案",
+    "summary": "{{n}} 件 · {{cost}}",
+    "nothing": "沒有可佈置的房間",
+    "applied": "已套用「{{style}}」提案：{{n}} 件（Ctrl+Z 復原）"
+  },
+  "assistant": {
+    "title": "AI 設計助理",
+    "intro": "用一句話描述想怎麼改，例如「在客廳加一盆植物」「主臥的走道夠寬嗎？」。所有變更都會先顯示差異，確認後才套用。",
+    "placeholder": "輸入需求…",
+    "send": "送出",
+    "thinking": "思考中…",
+    "apply": "套用",
+    "dismiss": "略過",
+    "applied": "已套用助理的提案（Ctrl+Z 復原）",
+    "stateApplied": "已套用",
+    "stateDismissed": "已略過",
+    "error": "發生錯誤：{{message}}",
+    "defaultRoom": "客廳",
+    "chip": {
+      "list": "列出{{room}}的家具",
+      "budget": "{{room}}的預算大約多少？",
+      "clearance": "檢查{{room}}的走道",
+      "add": "在{{room}}加一盆植物"
+    },
+    "change": {
+      "move": "移動「{{name}}」到 ({{x}}, {{z}}) mm，方向 {{deg}}°",
+      "resize": "「{{name}}」長度 {{from}} → {{to}} mm",
+      "add": "新增「{{name}}」到「{{room}}」",
+      "material": "「{{target}}」材質：{{from}} → {{to}}"
+    }
+  },
+  "quote": {
+    "title": "報價 / 材料清單",
+    "client": "客戶",
+    "note": "備註",
+    "items": "明細",
+    "byRoom": "分房間小計",
+    "col": {
+      "kind": "類別",
+      "name": "品項",
+      "code": "代碼",
+      "qty": "數量",
+      "unit": "單位",
+      "price": "單價",
+      "subtotal": "小計"
+    },
+    "kind": {
+      "object": "家具與燈具",
+      "opening": "門窗",
+      "floor_finish": "地坪",
+      "wall_finish": "牆面",
+      "ceiling_finish": "天花"
+    },
+    "unit": {
+      "pcs": "件",
+      "m2": "m²"
+    },
+    "editPrice": "「{{name}}」單價",
+    "resetPrice": "恢復預設單價",
+    "waste": "材料損耗 %",
+    "taxRate": "稅率 %",
+    "discount": "折扣",
+    "extras": "其他費用",
+    "addExtra": "新增費用",
+    "removeExtra": "移除",
+    "extraLabel": "費用名稱",
+    "extraAmount": "金額",
+    "designFee": "設計費",
+    "subtotal": "小計",
+    "tax": "營業稅 {{pct}}%",
+    "total": "總計",
+    "csv": "匯出 Excel (CSV)",
+    "pdf": "列印 / 存 PDF",
+    "docTitle": "室內設計報價單"
+  },
+  "gallery": {
+    "title": "圖庫",
+    "snap": "擷取畫面",
+    "pano": "720° 全景",
+    "pano3dOnly": "切到 3D 才能產生全景",
+    "rendering": "產生全景中…",
+    "panoHint": "拖曳轉動視角，滾輪縮放。",
+    "filter": "篩選",
+    "all": "全部",
+    "kind": {
+      "screenshot": "截圖",
+      "panorama": "全景",
+      "render": "AI 渲染",
+      "plan": "平面圖"
+    },
+    "empty": "還沒有圖片。擷取畫面或產生 720° 全景吧！",
+    "back": "返回",
+    "download": "下載",
+    "cover": "設為專案封面",
+    "coverSet": "已設為專案封面",
+    "delete": "刪除"
+  },
+  "share": {
+    "title": "分享",
+    "desc": "任何人開啟連結都能以唯讀方式瀏覽 2D、3D 與 720° 全景（手機也可），並可複製到自己的專案。場景資料壓縮在網址中，不經伺服器。",
+    "link": "分享連結",
+    "copy": "複製",
+    "copied": "已複製",
+    "open": "開啟",
+    "note": "連結長度約 {{kb}} KB；自行上傳的 3D 模型不會包含在連結中。",
+    "readOnly": "唯讀",
+    "pano": "720°",
+    "copyToMine": "複製到我的專案",
+    "invalid": "分享連結不完整。",
+    "broken": "無法讀取分享內容：{{message}}"
+  },
+  "tour": {
+    "help": "新手導覽",
+    "skip": "略過",
+    "prev": "上一步",
+    "next": "下一步",
+    "done": "開始設計",
+    "welcome": {
+      "title": "歡迎使用 InteriorAI",
+      "body": "一分鐘帶你認識：畫格局 → 擺家具 → 看 3D → 出圖與報價。"
+    },
+    "tools": {
+      "title": "1. 畫出格局",
+      "body": "選「牆」或「房間」工具，在畫布上點擊畫出第一面牆；門窗工具可直接放在牆上。數字鍵可快速切換。"
+    },
+    "assets": {
+      "title": "2. 擺放家具",
+      "body": "從資產庫把家具拖到 2D 或 3D 畫面，靠近牆會自動貼齊；材質分頁可把材質拖到牆面或地板。"
+    },
+    "view": {
+      "title": "3. 切換 2D / 3D",
+      "body": "隨時切到 3D 檢視，可漫遊（WASD）、切換日夜光線、存視角書籤。"
+    },
+    "inspector": {
+      "title": "4. 調整屬性",
+      "body": "選取任何牆、門窗、家具或燈具，在這裡調整尺寸、材質、亮度、色溫與角度。"
+    },
+    "ai": {
+      "title": "5. AI 幫你設計",
+      "body": "「AI 自動佈置」一鍵產生三種風格的家具配置；「AI 設計助理」用對話修改場景，變更都要你確認。"
+    },
+    "output": {
+      "title": "6. 報價、圖庫與分享",
+      "body": "自動計算材料清單與報價（可匯出 Excel / PDF），把截圖與 720° 全景收進圖庫，再用連結分享給客戶。"
+    }
+  },
+  "exports": {
+    "title": "匯出",
+    "plan": "2D 平面圖",
+    "image": "高解析圖片",
+    "model": "3D 模型與專案檔",
+    "resolution": "解析度",
+    "transparent": "去背（透明背景）",
+    "toGallery": "同時存入圖庫",
+    "screenshot": "3D 截圖",
+    "topPlan": "俯視彩色平面圖",
+    "needs2d": "PNG 平面圖需在 2D 視圖匯出。",
+    "needs3d": "圖片與 3D 模型需在 3D 視圖匯出。",
+    "working": "處理中…",
+    "failed": "匯出失敗：{{message}}",
+    "drawings": "施工圖集（列印／PDF）",
+    "drawingsHint": "A3 橫式：平面尺寸、家具配置、地坪、天花燈具迴路、水電點位、各房間立面。"
+  },
+  "history": {
+    "title": "歷史紀錄",
+    "start": "（開始）"
+  },
+  "lightPreset": {
+    "title": "燈光方案",
+    "cozy": "溫馨",
+    "bright": "明亮",
+    "cinema": "劇院",
+    "party": "派對",
+    "reset": "預設",
+    "none": "這個樓層沒有燈具"
+  },
+  "palette": {
+    "title": "指令面板",
+    "placeholder": "搜尋工具、動作、面板、資產…",
+    "none": "找不到符合的項目",
+    "place": "放置",
+    "groups": {
+      "tools": "工具",
+      "edit": "編輯",
+      "view": "檢視",
+      "settings": "設定",
+      "panels": "面板",
+      "assets": "資產"
+    }
+  },
+  "projectInfo": {
+    "title": "專案屬性",
+    "client": "客戶",
+    "address": "地址",
+    "budget": "預算（NT$）",
+    "notes": "備註",
+    "saveAs": "另存新檔",
+    "saveAsHint": "另存為新專案（保留目前這份不變）或匯出專案檔帶到其他電腦。"
+  },
+  "shortcuts": {
+    "title": "快捷鍵",
+    "groups": {
+      "general": "一般",
+      "tools": "工具",
+      "edit": "編輯",
+      "view": "檢視"
+    },
+    "palette": "指令面板",
+    "help": "快捷鍵一覽",
+    "panels": "收合／展開兩側面板",
+    "undo": "復原",
+    "redo": "重做",
+    "escape": "取消／回到選取",
+    "clipboard": "複製、剪下、貼上",
+    "duplicate": "原地複製",
+    "selectAll": "全選",
+    "group": "群組／解散群組",
+    "rotate": "旋轉 90°",
+    "lock": "鎖定／解鎖",
+    "hide": "隱藏／顯示",
+    "delete": "刪除",
+    "toggleView": "切換 2D／3D",
+    "gizmo": "3D 移動／旋轉／縮放",
+    "frame": "全景（3D）",
+    "walk": "漫遊移動／奔跑",
+    "style": "複製／貼上樣式",
+    "customize": "自訂快捷鍵",
+    "pressKey": "按下新鍵…",
+    "reset": "全部還原預設"
+  },
+  "sun": {
+    "title": "日照模擬",
+    "city": "城市",
+    "custom": "自訂",
+    "lat": "緯度",
+    "lon": "經度",
+    "date": "日期",
+    "time": "時間",
+    "north": "平面圖北向",
+    "play": "播放一天",
+    "stop": "停止",
+    "readout": "方位 {{az}}° · 仰角 {{el}}°",
+    "below": "太陽在地平線以下（無日光）。",
+    "cities": {
+      "taipei": "台北",
+      "taichung": "台中",
+      "kaohsiung": "高雄",
+      "hongkong": "香港",
+      "shanghai": "上海",
+      "tokyo": "東京",
+      "singapore": "新加坡",
+      "london": "倫敦",
+      "newyork": "紐約"
+    }
+  },
+  "plan": {
+    "title": "平面圖設定",
+    "style": "顯示樣式",
+    "styles": {
+      "blueprint": "藍圖",
+      "color": "彩色",
+      "mono": "黑白施工"
+    },
+    "showGrid": "顯示格線",
+    "gridMm": "格線間距",
+    "angle": "角度吸附",
+    "snapTo": "吸附對象",
+    "targets": {
+      "endpoint": "牆端點",
+      "wall": "牆線",
+      "angle": "角度",
+      "grid": "格線"
+    },
+    "underlay": "描圖底圖",
+    "underlayAdd": "上傳底圖圖片",
+    "underlayVisible": "顯示底圖",
+    "underlayRemove": "移除底圖",
+    "opacity": "透明度",
+    "width": "實際寬度",
+    "rotation": "旋轉",
+    "calibrate": "以測量校正比例",
+    "calibrateHint": "先用測量工具（M）量圖上一段已知長度，再按「校正比例」輸入實際長度。",
+    "calibrateNeed": "請先用測量工具量兩點",
+    "calibratePrompt": "量到 {{mm}} mm（圖上）。實際長度是多少 mm？",
+    "calibrated": "底圖比例已校正（× {{k}}）"
+  },
+  "assetDetail": {
+    "open": "「{{name}}」詳情",
+    "place": "放置",
+    "placeWith": "以「{{mat}}」放置",
+    "materials": "材質選項（預覽）",
+    "dims": "尺寸圖",
+    "size": "尺寸",
+    "category": "分類",
+    "anchor": "放置方式",
+    "price": "參考價",
+    "material": "主材質",
+    "light": "光通量",
+    "license": "授權",
+    "source": "來源",
+    "allowed": "允許用途",
+    "uses": {
+      "commercial": "商用",
+      "render": "渲染",
+      "redistribute": "再散布"
+    }
+  },
+  "sets": {
+    "badge": "套組 {{n}} 件",
+    "place": "放置「{{name}}」",
+    "lounge": "沙發區",
+    "dining4": "四人餐桌組",
+    "dining6": "六人餐桌組",
+    "bed": "床組",
+    "study": "工作區",
+    "tvwall": "電視牆"
+  },
+  "userAssets": {
+    "title": "我的 3D 模型",
+    "manage": "管理",
+    "batch": "批次上傳",
+    "working": "上傳中…",
+    "hint": "批次上傳以公尺為單位、分類為裝飾、落地放置；上傳後可在下方修改。",
+    "empty": "還沒有上傳的模型",
+    "name": "名稱",
+    "category": "分類",
+    "anchor": "放置方式",
+    "replace": "替換模型檔",
+    "dim": {
+      "w": "寬",
+      "d": "深",
+      "h": "高"
+    }
+  },
+  "colors": {
+    "open": "色卡",
+    "search": "搜尋色號或名稱（例如 S 0502-Y、奶油白）",
+    "recent": "最近用色",
+    "families": {
+      "white": "白",
+      "neutral": "米",
+      "grey": "灰",
+      "green": "綠",
+      "blue": "藍",
+      "earth": "大地",
+      "dark": "深色",
+      "accent": "亮色"
+    }
+  },
+  "userMaterial": {
+    "title": "上傳自訂材質",
+    "pick": "選擇貼圖",
+    "name": "名稱",
+    "category": "分類",
+    "width": "單元寬（mm）",
+    "height": "單元高（mm）",
+    "roughness": "粗糙度",
+    "metalness": "金屬度",
+    "price": "單價（NT$／m²，選填）",
+    "hint": "貼圖代表一個重複單元的真實尺寸（例如 60×60 cm 的磁磚）；會縮到 1024 px 以內存在本機。",
+    "save": "加入材質庫",
+    "delete": "刪除「{{name}}」",
+    "deleteConfirm": "確定刪除材質「{{name}}」？已使用的表面會改用預設顏色。"
+  },
+  "mood": {
+    "title": "風格探索",
+    "desc": "拖入或加入參考圖片，自動萃取色盤、判斷風格並推薦家具。",
+    "add": "加入圖片",
+    "remove": "移除",
+    "palette": "色盤",
+    "paint": "套用到選取的牆",
+    "paintHint": "點色塊可套用到選取的牆（兩面）。",
+    "selectWalls": "請先選取要上色的牆",
+    "styles": "風格判斷",
+    "recommend": "推薦家具"
+  },
+  "photo": {
+    "edit": "後製",
+    "edited": "後製",
+    "exposure": "曝光（EV）",
+    "temperature": "色溫（冷 ↔ 暖）",
+    "saturation": "飽和度",
+    "contrast": "對比",
+    "crop": "裁切比例",
+    "original": "原始",
+    "watermark": "浮水印文字",
+    "addLabel": "加文字標籤",
+    "labelClick": "點圖片放置標籤…",
+    "labelPrompt": "標籤文字",
+    "clearLabels": "清除標籤",
+    "reset": "重設",
+    "saveNew": "另存到圖庫"
+  },
+  "versions": {
+    "title": "版本歷史",
+    "save": "儲存版本",
+    "namePlaceholder": "版本名稱（例如：客戶確認版）",
+    "hint": "每 10 分鐘自動保存一版；可比較差異並還原（可復原）。",
+    "empty": "還沒有版本",
+    "manual": "手動版本",
+    "auto": "自動",
+    "autoName": "自動保存",
+    "stats": "{{n}} 件物件",
+    "compare": "與目前比較",
+    "restore": "還原",
+    "restored": "已還原到「{{name}}」（Ctrl+Z 可復原）",
+    "delete": "刪除版本",
+    "diff": "目前相較此版：新增 {{added}}、刪除 {{removed}}、移動 {{moved}}、修改 {{changed}} 件家具；牆變動 {{walls}}（差異項目已選取）"
+  },
+  "present": {
+    "start": "簡報模式",
+    "prev": "上一頁",
+    "next": "下一頁",
+    "play": "自動播放",
+    "pause": "暫停",
+    "notes": "講者備註",
+    "exit": "離開簡報",
+    "noCams": "沒有相機書籤（顯示全景）"
+  },
+  "lux": {
+    "title": "照度分析",
+    "heatmap": "2D 照度熱度圖",
+    "room": "空間",
+    "avg": "平均 lx",
+    "minmax": "最低–最高",
+    "target": "建議",
+    "note": "依燈具光通量估算地面照度（不含遮擋與間接光）；建議值參考 CNS 12112。橘色＝未達建議。"
+  },
+  "section": {
+    "title": "剖切",
+    "position": "剖切位置",
+    "kinds": {
+      "none": "不剖切",
+      "h": "水平剖切",
+      "x": "垂直（X）",
+      "z": "垂直（Z）"
+    }
+  },
+  "perf": {
+    "lowered": "畫面不夠順（< 45 FPS），已自動調為「{{q}}」畫質"
+  },
+  "mep": {
+    "outlet": "插座",
+    "outlet_counter": "檯面插座",
+    "switch": "開關",
+    "data": "網路",
+    "tv": "電視",
+    "water_cold": "冷水",
+    "water_hot": "熱水",
+    "drain": "排水",
+    "gas": "瓦斯",
+    "ac": "冷氣"
+  },
+  "drawings": {
+    "title": "施工圖集",
+    "plan": "平面尺寸圖",
+    "furniture": "家具配置圖",
+    "floor": "地坪材質圖",
+    "ceiling": "天花燈具與迴路圖",
+    "mep": "水電點位圖",
+    "elevation": "{{room}} 立面 {{n}}",
+    "circuit": "迴路",
+    "room": "空間",
+    "count": "數量",
+    "flux": "光通量",
+    "symbol": "符號",
+    "item": "項目",
+    "mepNote": "點位旁數字為離地高度（mm）。",
+    "disclaimer": "本圖由 InteriorAI 自動產生，尺寸以現場丈量為準；水電點位請由合格技師確認。"
+  },
+  "editor": {
+    "loading": "載入專案中…",
+    "retry": "重試"
+  },
+  "comments": {
+    "title": "留言",
+    "add": "新增留言",
+    "placing": "點畫面放置…",
+    "placeHint": "點選要留言的位置（Esc 取消）",
+    "text": "留言內容",
+    "open": "未解決（{{n}}）",
+    "all": "全部（{{n}}）",
+    "name": "顯示名稱",
+    "me": "我",
+    "empty": "沒有留言",
+    "reply": "回覆…",
+    "send": "送出",
+    "resolve": "標記已解決",
+    "reopen": "重新開啟",
+    "delete": "刪除",
+    "hint": "點畫面上的紅色釘選可開啟對應的討論串。"
+  },
+  "finish": {
+    "title": "牆面造型與線板",
+    "wainscot": "護牆板／腰牆",
+    "height": "高度",
+    "style": "樣式",
+    "styles": {
+      "flat": "平板",
+      "panel": "框板",
+      "beadboard": "直條紋"
+    },
+    "sides": "面",
+    "sideOpts": {
+      "both": "兩面（外牆只做室內側）",
+      "A": "A 面",
+      "B": "B 面"
+    },
+    "color": "顏色",
+    "crown": "頂角線",
+    "crownHeight": "頂角線高度",
+    "profile": "斷面",
+    "profiles": {
+      "flat": "平直",
+      "cove": "弧形",
+      "step": "階梯"
+    },
+    "baseboardProfile": "踢腳板斷面"
+  },
+  "uv": {
+    "title": "貼圖參數",
+    "floorTitle": "地板貼圖參數",
+    "scale": "縮放",
+    "rotation": "旋轉",
+    "offsetX": "偏移 X",
+    "offsetY": "偏移 Y"
+  },
+  "ceiling": {
+    "title": "天花造型",
+    "type": "型式",
+    "types": {
+      "flat": "平頂",
+      "drop": "整體降板",
+      "tray": "跌級",
+      "cove": "間接燈槽"
+    },
+    "drop": "降板深度",
+    "border": "周邊寬度",
+    "kelvin": "燈條色溫",
+    "hint": "在 3D 開啟「顯示天花板」可預覽。"
+  },
+  "kitchen": {
+    "title": "廚房／衛浴自動配置",
+    "shape": "廚具型式",
+    "shapes": {
+      "I": "一字型",
+      "L": "L 型",
+      "U": "ㄈ字型（U）"
+    },
+    "replace": "先移除房內既有設備",
+    "runKitchen": "配置廚具",
+    "runBath": "配置衛浴",
+    "none": "空間不足或找不到可用的牆面",
+    "done": "已配置 {{n}} 件（Ctrl+Z 復原）"
+  },
+  "cabinet": {
+    "open": "訂製櫃設計器",
+    "title": "訂製櫃設計器",
+    "apply": "套用",
+    "preview": "正視圖",
+    "w": "寬",
+    "h": "高",
+    "d": "深",
+    "columns": "分欄：{{n}}",
+    "column": "第 {{n}} 欄（由上而下）",
+    "addCol": "增加一欄",
+    "removeCol": "減少一欄",
+    "addRow": "增加格位",
+    "removeRow": "移除格位",
+    "cells": {
+      "d": "門片",
+      "dr": "抽屜",
+      "o": "開放層板",
+      "h": "吊衣桿"
+    },
+    "handle": "把手",
+    "handles": {
+      "bar": "長條把手",
+      "knob": "圓鈕",
+      "groove": "隱藏溝槽",
+      "none": "無把手（按壓）"
+    },
+    "presets": {
+      "wardrobe": "衣櫃",
+      "bookcase": "書櫃",
+      "sideboard": "餐邊櫃",
+      "tv": "電視櫃",
+      "shoe": "鞋櫃"
+    }
+  },
+  "batch": {
+    "title": "批次渲染（相機書籤）",
+    "noCams": "先在 3D 存幾個相機書籤，即可一次批次出圖。",
+    "run": "送出 {{n}} 張",
+    "cancel": "取消",
+    "retry": "重試",
+    "prefix": "批次",
+    "states": {
+      "queued": "排隊中",
+      "running": "渲染中",
+      "done": "完成",
+      "failed": "失敗",
+      "canceled": "已取消"
+    }
+  }
 }

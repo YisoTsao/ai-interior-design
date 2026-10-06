@@ -11,12 +11,19 @@ export function footprintOf(o: SceneObject, catalog: Catalog): Vec2[] {
   return objectFootprint(o.position, o.rotationY, d.w, d.d);
 }
 
-/** 碰撞判定輸入：地毯等高度 ≤ 30mm 視為地面覆蓋物 */
+/** 碰撞判定輸入：地毯等高度 ≤ 30mm 視為地面覆蓋物；帶垂直範圍（放在家具上的檯燈/螢幕不算重疊） */
 export function collisionInputs(level: Level, catalog: Catalog) {
   return level.objects.map((o) => {
     const e = catalog.get(o.catalogId);
     const h = e ? objectDims(e, o.params, o.scale).h : 500;
-    return { id: o.id, poly: footprintOf(o, catalog), anchor: e?.anchor, floorCovering: h <= 30 };
+    return {
+      id: o.id,
+      poly: footprintOf(o, catalog),
+      anchor: e?.anchor,
+      floorCovering: h <= 30,
+      y0: o.position[1],
+      y1: o.position[1] + h,
+    };
   });
 }
 

@@ -1,5 +1,5 @@
 import type { Level, Wall } from '@interiorai/scene-schema';
-import { unionPolygons, type Polygon } from './clip.js';
+import { offsetPolygon, roundCorners, unionPolygons, type Polygon } from './clip.js';
 import {
   add,
   closestOnSegment,
@@ -121,6 +121,15 @@ export function wallOutline(level: Pick<Level, 'walls'>): Polygon[] {
   return unionPolygons(walls.map((w) => wallQuad(walls, w)));
 }
 
+/**
+ * 建物外框（剖面模型的底座輪廓）：牆體聯集的外環（捨棄洞＝室內），外擴 margin 並倒圓角 radius。
+ */
+export function buildingFootprint(level: Pick<Level, 'walls'>, margin = 0, radius = 0): Vec2[][] {
+  const outer = wallOutline(level).map((p) => p.outer);
+  const grown = margin ? offsetPolygon(outer, margin) : outer;
+  return radius ? roundCorners(grown, radius) : grown;
+}
+
 /** 兩牆是否共線且端點相接（可合併） */
 export function areCollinearJoined(a: Wall, b: Wall): boolean {
   const shared =
@@ -137,3 +146,35 @@ export function openingSegment(w: Pick<Wall, 'a' | 'b'>, offset: number, width: 
 }
 
 export { dot };
+
+/**
+ * 三點弧（FE-PLAN-02）：起點 a、終點 b、弧上一點 m → 以折線近似（每段約 segMm，至少 4 段）。
+ * 三點共線時回傳 [a, b]。回傳整數 mm。
+ */
+export function arcPoints(a: Vec2, b: Vec2, m: Vec2, segMm = 400): Vec2[] {
+  const d = 2 * (a[0] * (b[1] - m[1]) + b[0] * (m[1] - a[1]) + m[0] * (a[1] - b[1]));
+  if (Math.abs(d) < 1e-6) return [a, b];
+  const sq = (p: Vec2) => p[0] * p[0] + p[1] * p[1];
+  const cx = (sq(a) * (b[1] - m[1]) + sq(b) * (m[1] - a[1]) + sq(m) * (a[1] - b[1])) / d;
+  const cy = (sq(a) * (m[0] - b[0]) + sq(b) * (a[0] - m[0]) + sq(m) * (b[0] - a[0])) / d;
+  const r = Math.hypot(a[0] - cx, a[1] - cy);
+  const ang = (p: Vec2) => Math.atan2(p[1] - cy, p[0] - cx);
+  const a0 = ang(a);
+  let a1 = ang(b);
+  const am = ang(m);
+  // 方向：由 a 經過 m 到 b
+  const norm = (x: number) => ((x % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  const ccw = norm(am - a0) < norm(a1 - a0);
+  let sweep = ccw ? norm(a1 - a0) : -norm(a0 - a1);
+  if (sweep === 0) sweep = ccw ? 2 * Math.PI : -2 * Math.PI;
+  a1 = a0 + sweep;
+  const n = Math.max(4, Math.ceil((Math.abs(sweep) * r) / segMm));
+  const out: Vec2[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = a0 + (sweep * i) / n;
+    out.push([Math.round(cx + Math.cos(t) * r), Math.round(cy + Math.sin(t) * r)]);
+  }
+  out[0] = [Math.round(a[0]), Math.round(a[1])];
+  out[n] = [Math.round(b[0]), Math.round(b[1])];
+  return out;
+}

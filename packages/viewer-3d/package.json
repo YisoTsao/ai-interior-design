@@ -18,6 +18,7 @@
     "@interiorai/app-state": "workspace:^",
     "@interiorai/catalog": "workspace:^",
     "@interiorai/core-geometry": "workspace:^",
+    "@interiorai/image-ops": "workspace:^",
     "@interiorai/scene-schema": "workspace:^",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",

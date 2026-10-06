@@ -1,0 +1,21 @@
+{
+  "width": 512,
+  "height": 384,
+  "depthBits": 8,
+  "near": 7265,
+  "far": 23365,
+  "pixelRatio": 1,
+  "camera": { "position": [12509, 11149, 12709], "target": [1250, 0, 1450], "fovDeg": 22 },
+  "idMap": {
+    "1": { "id": "board", "kind": "board" },
+    "2": { "id": "w_01M3RD8HJ0KWEP8WEWX2F2HQT1", "kind": "wall" },
+    "3": { "id": "w_01M3RD8HJ0RQAX28NT0HJEPN4X", "kind": "wall" },
+    "4": { "id": "w_01M3RD8HJ0YEDYWK3DBY0JJQQK", "kind": "wall" },
+    "5": { "id": "w_01M3RD8HJ0Z124BXCB63ZJ8K2W", "kind": "wall" },
+    "6": { "id": "r_01M3RD8HJ0AXXQZECT9N2QZDC3", "kind": "floor" },
+    "7": { "id": "o_01M3RD8HJ03CNFE6Y2E1WDXCVV", "kind": "opening" },
+    "8": { "id": "obj_01M3RD8HJ0NAJ7BAQ7BR603EHX", "kind": "object" },
+    "9": { "id": "obj_01M3RD8HJ0ZVM84KG77TPVCRVC", "kind": "object" },
+    "10": { "id": "obj_01M3RD8HJ1W2C13BCF36QAEBVG", "kind": "object" }
+  }
+}
